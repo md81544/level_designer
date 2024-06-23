@@ -47,6 +47,21 @@ int main(int argc, char* argv[])
                 if (event.type == sf::Event::Closed) {
                     window.close();
                 }
+                if (event.type == sf::Event::KeyPressed) {
+                    switch (event.key.code) {
+                    case sf::Keyboard::Equal:
+                        zoomLevel *= 1.05f;
+                        break;
+                    case sf::Keyboard::Hyphen:
+                        zoomLevel *= 0.95f;
+                        break;
+                    case sf::Keyboard::Escape:
+                        window.close();
+                        break;
+                    default:
+                        break;
+                    }
+                }
                 if (event.type == sf::Event::MouseMoved) {
                     // Check to see if there is a line under the cursor
                     auto lineUnderCursor = level.lineUnderCursor(
@@ -89,17 +104,6 @@ int main(int argc, char* argv[])
                         }
                     }
                 }
-                // Zooming can be done with Cmd+/-
-                // if (event.mouseWheelScroll.wheel == sf::Mouse::VerticalWheel) {
-                //     float amt = event.mouseWheelScroll.delta;
-                //     if (std::abs(amt) > 0.1 && std::abs(amt) < 10.f) {
-                //         if (amt < 0.f) {
-                //             zoomLevel *= 0.95f;
-                //         } else if (amt > 0.f) {
-                //             zoomLevel *= 1.05f;
-                //         }
-                //     }
-                // }
             }
 
             window.clear();
