@@ -1,0 +1,13 @@
+Mouse click will place a line start if no lines exist
+ELSE
+Mouse click will draw a line from the last line's end to the current point
+
+Mouse click on a vertex will allow it to be dragged, affecting the two connected lines
+
+Mouse click on a line will select it (turn it white) - delete/backspace will then remove that line
+and cause the lines either side (if present) to connect somehow
+
+Need to be able to load existing levels
+
+Need to be able to save new levels
+
