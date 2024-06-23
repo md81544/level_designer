@@ -41,6 +41,11 @@ int main(int argc, char* argv[])
 
         unsigned int screenWidth = sf::VideoMode::getDesktopMode().width;
         unsigned int screenHeight = sf::VideoMode::getDesktopMode().height;
+        // Hack to determine if we're on a Mac "retina" display:
+        if (sf::VideoMode::getFullscreenModes().empty()) {
+            screenWidth *= 0.5;
+            screenHeight *= 0.5;
+        }
         sf::RenderWindow window(sf::VideoMode(screenWidth - 200, screenHeight - 200),
             "Amaze Level Designer",
             sf::Style::Titlebar | sf::Style::Close);
