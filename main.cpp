@@ -62,19 +62,15 @@ int main(int argc, char* argv[])
                         break;
                     }
                 }
-                if (event.type == sf::Event::MouseMoved) {
-                    // Check to see if there is a line under the cursor
-                    auto lineUnderCursor = level.lineUnderCursor(
-                        event.mouseMove.x, event.mouseMove.y, zoomLevel, originX, originY);
-                    if (lineUnderCursor.has_value()) {
-                        level.highlightLine(lineUnderCursor.value());
-                    }
-                }
+                if (event.type == sf::Event::MouseMoved) { }
                 if (event.type == sf::Event::MouseButtonPressed) {
                     if (event.mouseButton.button == sf::Mouse::Left) {
-                        // std::cout << "The left button was pressed" << std::endl;
-                        // std::cout << "  mouse x: " << event.mouseButton.x << std::endl;
-                        // std::cout << "  mouse y: " << event.mouseButton.y << std::endl;
+                        // Check to see if there is a line under the cursor
+                        auto lineUnderCursor = level.lineUnderCursor(
+                            event.mouseButton.x, event.mouseButton.y, zoomLevel, originX, originY);
+                        if (lineUnderCursor.has_value()) {
+                            level.highlightLine(lineUnderCursor.value());
+                        }
                     }
                 }
                 if (event.type == sf::Event::MouseButtonReleased) {
