@@ -116,16 +116,38 @@ void Level::load(const std::string& filename)
     // }
 }
 
-void mgo::Level::draw(sf::RenderWindow& window, float zoomLevel)
+void mgo::Level::draw(sf::RenderWindow& window,
+    float zoomLevel,
+    int originX,
+    int originY)
 {
     for (const auto& l : m_lines) {
-        std::cout << std::boolalpha << l.isFirstLine << ", " << l.x0 << ", " << l.y0 << " -> "
-                  << l.x1 << ", " << l.y1 << "\n";
-        sf::Vertex line[] = { sf::Vertex(sf::Vector2f(l.x0 * zoomLevel, l.y0 * zoomLevel)),
-            sf::Vertex(sf::Vector2f(l.x1 * zoomLevel, l.y1 * zoomLevel)) };
-        line[0].color = sf::Color(l.r, l.g, l.b);
-        line[1].color = sf::Color(l.r, l.g, l.b);
-        window.draw(line, 2, sf::Lines);
+        drawLine(window, l, zoomLevel, originX, originY);
+    }
+}
+
+void mgo::Level::drawLine(sf::RenderWindow& window,
+    const Line& l,
+    float zoomLevel,
+    int originX,
+    int originY)
+{
+    sf::Vertex line[]
+        = { sf::Vertex(sf::Vector2f(l.x0 * zoomLevel - originX, l.y0 * zoomLevel - originY)),
+              sf::Vertex(sf::Vector2f(l.x1 * zoomLevel - originX, l.y1 * zoomLevel - originY)) };
+    line[0].color = sf::Color(l.r, l.g, l.b);
+    line[1].color = sf::Color(l.r, l.g, l.b);
+    window.draw(line, 2, sf::Lines);
+}
+
+void mgo::Level::drawGridLines(sf::RenderWindow& window,
+    float zoomLevel,
+    int originX,
+    int originY)
+{
+    for (unsigned int n = 0; n <= 2000; n += 50) {
+        drawLine(window, { false, n, 0, n, 2000, 0, 64, 0, 1 }, zoomLevel, originX, originY);
+        drawLine(window, { false, 0, n, 2000, n, 0, 64, 0, 1 }, zoomLevel, originX, originY);
     }
 }
 

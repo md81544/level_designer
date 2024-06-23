@@ -37,6 +37,9 @@ int main(int argc, char* argv[])
         window.setFramerateLimit(30);
 
         float zoomLevel = 0.4;
+        // viewport origin
+        int originX = 0;
+        int originY = 0;
         while (window.isOpen()) {
             sf::Event event;
             while (window.pollEvent(event)) {
@@ -48,32 +51,54 @@ int main(int argc, char* argv[])
                 }
                 if (event.type == sf::Event::MouseButtonPressed) {
                     if (event.mouseButton.button == sf::Mouse::Left) {
-                        std::cout << "The left button was pressed" << std::endl;
-                        std::cout << "  mouse x: " << event.mouseButton.x << std::endl;
-                        std::cout << "  mouse y: " << event.mouseButton.y << std::endl;
+                        // std::cout << "The left button was pressed" << std::endl;
+                        // std::cout << "  mouse x: " << event.mouseButton.x << std::endl;
+                        // std::cout << "  mouse y: " << event.mouseButton.y << std::endl;
                     }
                 }
                 if (event.type == sf::Event::MouseButtonReleased) {
                     if (event.mouseButton.button == sf::Mouse::Left) {
-                        std::cout << "The left button was released" << std::endl;
-                        std::cout << "  mouse x: " << event.mouseButton.x << std::endl;
-                        std::cout << "  mouse y: " << event.mouseButton.y << std::endl;
+                        // std::cout << "The left button was released" << std::endl;
+                        // std::cout << "  mouse x: " << event.mouseButton.x << std::endl;
+                        // std::cout << "  mouse y: " << event.mouseButton.y << std::endl;
+                    }
+                }
+                if (event.mouseWheelScroll.wheel == sf::Mouse::HorizontalWheel) {
+                    float amt = event.mouseWheelScroll.delta;
+                    if (std::abs(amt) > 0.1 && std::abs(amt) < 10.f) {
+                        if (amt < 0.f) {
+                            originX += 10;
+                        } else if (amt > 0.f) {
+                            originX -= 10;
+                        }
                     }
                 }
                 if (event.mouseWheelScroll.wheel == sf::Mouse::VerticalWheel) {
                     float amt = event.mouseWheelScroll.delta;
                     if (std::abs(amt) > 0.1 && std::abs(amt) < 10.f) {
-                        std::cout << "Wheel type: vertical" << std::endl;
-                        std::cout << "  wheel movement: " << event.mouseWheelScroll.delta
-                                  << std::endl;
-                        std::cout << "  mouse x: " << event.mouseWheelScroll.x << std::endl;
-                        std::cout << "  mouse y: " << event.mouseWheelScroll.y << std::endl;
+                        if (amt < 0.f) {
+                            originY += 10;
+                        } else if (amt > 0.f) {
+                            originY -= 10;
+                        }
                     }
                 }
+                // Zooming can be done with Cmd+/-
+                // if (event.mouseWheelScroll.wheel == sf::Mouse::VerticalWheel) {
+                //     float amt = event.mouseWheelScroll.delta;
+                //     if (std::abs(amt) > 0.1 && std::abs(amt) < 10.f) {
+                //         if (amt < 0.f) {
+                //             zoomLevel *= 0.95f;
+                //         } else if (amt > 0.f) {
+                //             zoomLevel *= 1.05f;
+                //         }
+                //     }
+                // }
             }
 
             window.clear();
-            level.draw(window, zoomLevel);
+            level.drawGridLines(window, zoomLevel, originX, originY);
+            level.draw(window, zoomLevel, originX, originY);
             window.display();
         }
         return 0;

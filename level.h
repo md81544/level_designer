@@ -23,7 +23,18 @@ struct Line {
 class Level {
 public:
     void load(const std::string& filename);
-    void draw(sf::RenderWindow& window, float zoomLevel);
+    void
+    draw(sf::RenderWindow& window, float zoomLevel, int originX, int originY);
+    void drawLine(sf::RenderWindow& window,
+        const Line& line,
+        float zoomLevel,
+        int originX,
+        int originY);
+    void drawGridLines(sf::RenderWindow& window,
+        float zoomLevel,
+        int originX,
+        int originY);
+
 private:
     std::vector<Line> m_lines;
 };
