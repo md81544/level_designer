@@ -32,8 +32,9 @@ int main(int argc, char* argv[])
 
         unsigned int screenWidth = sf::VideoMode::getDesktopMode().width;
         unsigned int screenHeight = sf::VideoMode::getDesktopMode().height;
-        sf::RenderWindow window(
-            sf::VideoMode(screenWidth - 200, screenHeight - 200), "Amaze Level Designer");
+        sf::RenderWindow window(sf::VideoMode(screenWidth - 200, screenHeight - 200),
+            "Amaze Level Designer",
+            sf::Style::Titlebar | sf::Style::Close);
         window.setFramerateLimit(30);
 
         float zoomLevel = 0.4;
@@ -47,7 +48,12 @@ int main(int argc, char* argv[])
                     window.close();
                 }
                 if (event.type == sf::Event::MouseMoved) {
-                    std::cout << event.mouseMove.x << ", " << event.mouseMove.y << std::endl;
+                    // Check to see if there is a line under the cursor
+                    auto lineUnderCursor = level.lineUnderCursor(
+                        event.mouseMove.x, event.mouseMove.y, zoomLevel, originX, originY);
+                    if (lineUnderCursor.has_value()) {
+                        level.highlightLine(lineUnderCursor.value());
+                    }
                 }
                 if (event.type == sf::Event::MouseButtonPressed) {
                     if (event.mouseButton.button == sf::Mouse::Left) {

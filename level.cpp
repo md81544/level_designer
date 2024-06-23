@@ -1,4 +1,5 @@
 #include "level.h"
+#include "helperfunctions.h"
 #include <cstdint>
 #include <fstream>
 #include <ios>
@@ -116,10 +117,7 @@ void Level::load(const std::string& filename)
     // }
 }
 
-void mgo::Level::draw(sf::RenderWindow& window,
-    float zoomLevel,
-    int originX,
-    int originY)
+void mgo::Level::draw(sf::RenderWindow& window, float zoomLevel, int originX, int originY)
 {
     for (const auto& l : m_lines) {
         drawLine(window, l, zoomLevel, originX, originY);
@@ -140,15 +138,57 @@ void mgo::Level::drawLine(sf::RenderWindow& window,
     window.draw(line, 2, sf::Lines);
 }
 
-void mgo::Level::drawGridLines(sf::RenderWindow& window,
-    float zoomLevel,
-    int originX,
-    int originY)
+void mgo::Level::drawGridLines(sf::RenderWindow& window, float zoomLevel, int originX, int originY)
 {
     for (unsigned int n = 0; n <= 2000; n += 50) {
         drawLine(window, { false, n, 0, n, 2000, 0, 64, 0, 1 }, zoomLevel, originX, originY);
         drawLine(window, { false, 0, n, 2000, n, 0, 64, 0, 1 }, zoomLevel, originX, originY);
     }
+}
+
+std::optional<std::size_t> mgo::Level::lineUnderCursor(unsigned int mouseX,
+    unsigned int mouseY,
+    float zoomLevel,
+    int originX,
+    int originY)
+{
+    // Note mouseX and mouseY are *window* coordinates, these need to be converted into
+    // workspace coordinates.
+    // We define four lines which bound the cursor in a diamond shape, and then check each
+    // of these to see if they intersect any line on the workspace.
+    // A positive origin e.g. 10,10 means the top left of the window is at, say, 10,10 on
+    // the workspace, i.e. the workspace is slightly off screen to the left.
+    unsigned wx = mouseX / zoomLevel + originX / zoomLevel;
+    unsigned wy = mouseY / zoomLevel + originY / zoomLevel;
+    std::size_t idx = 0;
+    for (const auto& l : m_lines) {
+        if (helperfunctions::doLinesIntersect(wx - 10, wy, wx, wy - 10, l.x0, l.y0, l.x1, l.y1)) {
+            return idx;
+        }
+        if (helperfunctions::doLinesIntersect(wx, wy - 10, wx + 10, wy, l.x0, l.y0, l.x1, l.y1)) {
+            return idx;
+        }
+        if (helperfunctions::doLinesIntersect(wx + 10, wy, wx, wy + 10, l.x0, l.y0, l.x1, l.y1)) {
+            return idx;
+        }
+        if (helperfunctions::doLinesIntersect(wx, wy + 10, wx - 10, wy, l.x0, l.y0, l.x1, l.y1)) {
+            return idx;
+        }
+        ++idx;
+    }
+    return std::nullopt;
+}
+
+void mgo::Level::highlightLine(std::size_t idx)
+{
+    for (auto& l : m_lines) {
+        l.r = 255;
+        l.g = 0;
+        l.b = 0;
+    }
+    m_lines[idx].r = 255;
+    m_lines[idx].g = 255;
+    m_lines[idx].b = 255;
 }
 
 } // namespace
