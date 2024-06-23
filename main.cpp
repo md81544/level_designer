@@ -1,11 +1,35 @@
 #include <SFML/Graphics.hpp>
+#include <boost/program_options.hpp>
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
 
+#include "level.h"
+
 int main(int argc, char* argv[])
 {
     try {
+
+        mgo::Level level;
+
+        namespace po = boost::program_options;
+        po::options_description desc("Amaze Level Designer");
+        // clang-format off
+        desc.add_options()
+            ("help,h", "show help message")
+            ("load,l", po::value<std::string>(), "load file");
+        // clang-format on
+        po::variables_map vm;
+        po::store(po::parse_command_line(argc, argv, desc), vm);
+
+        if (vm.count("help")) {
+            std::cout << desc << "\n";
+            return 1;
+        }
+        if (vm.count("load")) {
+            level.load(vm["load"].as<std::string>());
+        }
+
         unsigned int screenWidth = sf::VideoMode::getDesktopMode().width;
         unsigned int screenHeight = sf::VideoMode::getDesktopMode().height;
         sf::RenderWindow window(
