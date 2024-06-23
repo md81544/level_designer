@@ -1,5 +1,7 @@
 #include "level.h"
+#include <cstdint>
 #include <fstream>
+#include <ios>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -16,15 +18,15 @@ void Level::load(const std::string& filename)
         throw(std::runtime_error("Failed to load Level file " + filename));
     }
     std::string currentLine;
+    bool newObject = true;
     while (!in.eof()) {
         getline(in, currentLine);
         std::vector<std::string> vec;
         boost::split(vec, currentLine, boost::is_any_of("~"));
-        // When we get here, vec is a vector of all the items on the current
-        // line.
         if (vec.size() == 0) {
             continue;
         }
+        // When we get here, vec is a vector of all the items on the current line.
         char c = vec[0][0];
         long bestTime;
         switch (c) {
@@ -40,6 +42,7 @@ void Level::load(const std::string& filename)
             // m_levelDescription = vec[5];
             break;
         case 'N': // New object, parameter 1 is type, parameter 2 appears unused
+            newObject = true;
             // if (obj->GetGameShapeType() != GameShapeType::UNINITIALISED) {
             //     m_allDynamicGameShapes.push_back(std::move(obj));
             // }
@@ -59,7 +62,16 @@ void Level::load(const std::string& filename)
             //     }
             // }
             break;
-        case 'L':
+        case 'L': {
+            unsigned int x0 = std::stoi(vec[1]);
+            unsigned int y0 = std::stoi(vec[2]);
+            unsigned int x1 = std::stoi(vec[3]);
+            unsigned int y1 = std::stoi(vec[4]);
+            uint8_t r = std::stoi(vec[5]);
+            uint8_t g = std::stoi(vec[6]);
+            uint8_t b = std::stoi(vec[7]);
+            m_lines.push_back({ newObject, x0, y0, x1, y1, r, g, b, 1 });
+            newObject = false;
             // if (obj != nullptr && (vec.size() == 8 || vec.size() == 9)) {
             //     ShapeLine sl1 {
             //         stod(vec[1]), // x0
@@ -78,6 +90,7 @@ void Level::load(const std::string& filename)
             //     obj->AddShapeLine(sl1);
             // }
             break;
+        }
         case 'P':
             // if (obj != nullptr && vec.size() == 3) {
             //     obj->SetPos(stoi(vec[1]), stoi(vec[2]));
@@ -98,9 +111,22 @@ void Level::load(const std::string& filename)
         currentLine.clear();
     }
     in.close();
-    //if (obj->GetGameShapeType() != GameShapeType::UNINITIALISED) {
-    //    m_allDynamicGameShapes.push_back(std::move(obj));
-    //}
+    // if (obj->GetGameShapeType() != GameShapeType::UNINITIALISED) {
+    //     m_allDynamicGameShapes.push_back(std::move(obj));
+    // }
+}
+
+void mgo::Level::draw(sf::RenderWindow& window, float zoomLevel)
+{
+    for (const auto& l : m_lines) {
+        std::cout << std::boolalpha << l.isFirstLine << ", " << l.x0 << ", " << l.y0 << " -> "
+                  << l.x1 << ", " << l.y1 << "\n";
+        sf::Vertex line[] = { sf::Vertex(sf::Vector2f(l.x0 * zoomLevel, l.y0 * zoomLevel)),
+            sf::Vertex(sf::Vector2f(l.x1 * zoomLevel, l.y1 * zoomLevel)) };
+        line[0].color = sf::Color(l.r, l.g, l.b);
+        line[1].color = sf::Color(l.r, l.g, l.b);
+        window.draw(line, 2, sf::Lines);
+    }
 }
 
 } // namespace

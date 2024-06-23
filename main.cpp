@@ -36,6 +36,7 @@ int main(int argc, char* argv[])
             sf::VideoMode(screenWidth - 200, screenHeight - 200), "Amaze Level Designer");
         window.setFramerateLimit(30);
 
+        float zoomLevel = 0.4;
         while (window.isOpen()) {
             sf::Event event;
             while (window.pollEvent(event)) {
@@ -72,6 +73,7 @@ int main(int argc, char* argv[])
             }
 
             window.clear();
+            level.draw(window, zoomLevel);
             window.display();
         }
         return 0;

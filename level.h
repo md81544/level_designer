@@ -1,4 +1,5 @@
 #pragma once
+#include <SFML/Graphics.hpp>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -8,8 +9,11 @@
 namespace mgo {
 
 struct Line {
-    unsigned int x;
-    unsigned int y;
+    bool isFirstLine;
+    unsigned int x0;
+    unsigned int y0;
+    unsigned int x1;
+    unsigned int y1;
     uint8_t r;
     uint8_t g;
     uint8_t b;
@@ -19,6 +23,7 @@ struct Line {
 class Level {
 public:
     void load(const std::string& filename);
+    void draw(sf::RenderWindow& window, float zoomLevel);
 private:
     std::vector<Line> m_lines;
 };
