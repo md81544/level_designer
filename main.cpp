@@ -1,22 +1,24 @@
+#include "level.h"
 #include <SFML/Graphics.hpp>
 #include <boost/program_options.hpp>
 #include <cmath>
+#include <filesystem>
 #include <iostream>
 #include <stdexcept>
-
-#include "level.h"
 
 int main(int argc, char* argv[])
 {
     try {
 
         mgo::Level level;
+        std::string saveFileName;
 
         namespace po = boost::program_options;
         po::options_description desc("Amaze Level Designer");
         // clang-format off
         desc.add_options()
             ("help,h", "show help message")
+            ("save,s", po::value<std::string>(), "filename to save to")
             ("load,l", po::value<std::string>(), "load file");
         // clang-format on
         po::variables_map vm;
@@ -26,8 +28,15 @@ int main(int argc, char* argv[])
             std::cout << desc << "\n";
             return 1;
         }
+        if (vm.count("save")) {
+            saveFileName = vm["save"].as<std::string>();
+        }
         if (vm.count("load")) {
-            level.load(vm["load"].as<std::string>());
+            std::string loadFileName = vm["load"].as<std::string>();
+            level.load(loadFileName);
+            if (saveFileName.empty()) {
+                saveFileName = loadFileName;
+            }
         }
 
         unsigned int screenWidth = sf::VideoMode::getDesktopMode().width;
@@ -57,6 +66,9 @@ int main(int argc, char* argv[])
                         break;
                     case sf::Keyboard::Escape:
                         window.close();
+                        break;
+                    case sf::Keyboard::S:
+                        level.save(saveFileName);
                         break;
                     default:
                         break;

@@ -117,6 +117,11 @@ void Level::load(const std::string& filename)
     // }
 }
 
+void mgo::Level::save(const std::string& filename)
+{
+    std::cout << "TODO - pretending to save to " << filename << "\n";
+}
+
 void mgo::Level::draw(sf::RenderWindow& window, float zoomLevel, int originX, int originY)
 {
     for (const auto& l : m_lines) {
@@ -189,6 +194,7 @@ void mgo::Level::highlightLine(std::size_t idx)
     m_lines[idx].r = 255;
     m_lines[idx].g = 255;
     m_lines[idx].b = 255;
+    // TODO need to put draggable circles on each end of the line?
 }
 
 } // namespace

@@ -11,3 +11,9 @@ Need to be able to load existing levels
 
 Need to be able to save new levels
 
+Keys to be supported:
+    S - save to default file name (or specified on command line)
+    E - insert EXIT object
+    B - insert beginning location
+    F - insert FUEL object
+    * need some way of deleting and inserting lines between others
