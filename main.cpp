@@ -46,77 +46,15 @@ int main(int argc, char* argv[])
             sf::Style::Titlebar | sf::Style::Close);
         window.setFramerateLimit(30);
 
-        float zoomLevel = 0.4;
-        // viewport origin
-        int originX = 0;
-        int originY = 0;
         while (window.isOpen()) {
             sf::Event event;
             while (window.pollEvent(event)) {
-                if (event.type == sf::Event::Closed) {
-                    window.close();
-                }
-                if (event.type == sf::Event::KeyPressed) {
-                    switch (event.key.code) {
-                    case sf::Keyboard::Equal:
-                        zoomLevel *= 1.05f;
-                        break;
-                    case sf::Keyboard::Hyphen:
-                        zoomLevel *= 0.95f;
-                        break;
-                    case sf::Keyboard::Escape:
-                        window.close();
-                        break;
-                    case sf::Keyboard::S:
-                        level.save(saveFileName);
-                        break;
-                    default:
-                        break;
-                    }
-                }
-                if (event.type == sf::Event::MouseMoved) { }
-                if (event.type == sf::Event::MouseButtonPressed) {
-                    if (event.mouseButton.button == sf::Mouse::Left) {
-                        // Check to see if there is a line under the cursor
-                        auto lineUnderCursor = level.lineUnderCursor(
-                            event.mouseButton.x, event.mouseButton.y, zoomLevel, originX, originY);
-                        if (lineUnderCursor.has_value()) {
-                            level.highlightLine(lineUnderCursor.value());
-                        }
-                    }
-                }
-                if (event.type == sf::Event::MouseButtonReleased) {
-                    if (event.mouseButton.button == sf::Mouse::Left) {
-                        // std::cout << "The left button was released" << std::endl;
-                        // std::cout << "  mouse x: " << event.mouseButton.x << std::endl;
-                        // std::cout << "  mouse y: " << event.mouseButton.y << std::endl;
-                    }
-                }
-                if (event.mouseWheelScroll.wheel == sf::Mouse::HorizontalWheel) {
-                    float amt = event.mouseWheelScroll.delta;
-                    if (std::abs(amt) > 0.1 && std::abs(amt) < 10.f) {
-                        if (amt < 0.f) {
-                            originX += 10;
-                        } else if (amt > 0.f) {
-                            originX -= 10;
-                        }
-                    }
-                }
-                if (event.mouseWheelScroll.wheel == sf::Mouse::VerticalWheel) {
-                    float amt = event.mouseWheelScroll.delta;
-                    if (std::abs(amt) > 0.1 && std::abs(amt) < 10.f) {
-                        if (amt < 0.f) {
-                            originY += 10;
-                        } else if (amt > 0.f) {
-                            originY -= 10;
-                        }
-                    }
-                }
+                level.processEvent(window, event);
             }
 
             window.clear();
-            level.drawGridLines(window, zoomLevel, originX, originY);
-            level.draw(window, zoomLevel, originX, originY);
+            level.drawGridLines(window);
+            level.draw(window);
             window.display();
         }
         return 0;

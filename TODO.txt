@@ -1,3 +1,7 @@
+Add new lines on a blank grid (snapping)
+
+Add rudimentary dialog box functionality
+
 Mouse click will place a line start if no lines exist
 ELSE
 Mouse click will draw a line from the last line's end to the current point
@@ -10,6 +14,8 @@ and cause the lines either side (if present) to connect somehow
 Need to be able to load existing levels
 
 Need to be able to save new levels
+
+
 
 Keys to be supported:
     S - save to default file name (or specified on command line)

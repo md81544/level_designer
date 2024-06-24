@@ -25,21 +25,24 @@ class Level {
 public:
     void load(const std::string& filename);
     void save(const std::string& filename);
-    void draw(sf::RenderWindow& window, float zoomLevel, int originX, int originY);
+    void draw(sf::RenderWindow& window);
     void
-    drawLine(sf::RenderWindow& window, const Line& line, float zoomLevel, int originX, int originY);
-    void drawGridLines(sf::RenderWindow& window, float zoomLevel, int originX, int originY);
+    drawLine(sf::RenderWindow& window, const Line& line);
+    void drawGridLines(sf::RenderWindow& window);
     // Returns the index (into m_Lines) of the first (of potentially several) lines that are *near*
     // the cursor or no value if no lines are nearby.
     std::optional<std::size_t> lineUnderCursor(unsigned int mouseX,
-        unsigned int mouseY,
-        float zoomLevel,
-        int originX,
-        int originY);
+        unsigned int mouseY);
     void highlightLine(std::size_t idx);
+    void processEvent(sf::RenderWindow& window, const sf::Event& event);
 
 private:
     std::vector<Line> m_lines;
+    bool m_isDialogActive{false};
+    float m_zoomLevel{0.4};
+    std::string m_saveFilename;
+    int m_originX{0};
+    int m_originY{0};
 };
 
 } // namespace mgo

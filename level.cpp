@@ -122,40 +122,32 @@ void mgo::Level::save(const std::string& filename)
     std::cout << "TODO - pretending to save to " << filename << "\n";
 }
 
-void mgo::Level::draw(sf::RenderWindow& window, float zoomLevel, int originX, int originY)
+void mgo::Level::draw(sf::RenderWindow& window)
 {
     for (const auto& l : m_lines) {
-        drawLine(window, l, zoomLevel, originX, originY);
+        drawLine(window, l);
     }
 }
 
-void mgo::Level::drawLine(sf::RenderWindow& window,
-    const Line& l,
-    float zoomLevel,
-    int originX,
-    int originY)
+void mgo::Level::drawLine(sf::RenderWindow& window, const Line& l)
 {
-    sf::Vertex line[]
-        = { sf::Vertex(sf::Vector2f(l.x0 * zoomLevel - originX, l.y0 * zoomLevel - originY)),
-              sf::Vertex(sf::Vector2f(l.x1 * zoomLevel - originX, l.y1 * zoomLevel - originY)) };
+    sf::Vertex line[] = { sf::Vertex(sf::Vector2f(
+                              l.x0 * m_zoomLevel - m_originX, l.y0 * m_zoomLevel - m_originY)),
+        sf::Vertex(sf::Vector2f(l.x1 * m_zoomLevel - m_originX, l.y1 * m_zoomLevel - m_originY)) };
     line[0].color = sf::Color(l.r, l.g, l.b);
     line[1].color = sf::Color(l.r, l.g, l.b);
     window.draw(line, 2, sf::Lines);
 }
 
-void mgo::Level::drawGridLines(sf::RenderWindow& window, float zoomLevel, int originX, int originY)
+void mgo::Level::drawGridLines(sf::RenderWindow& window)
 {
     for (unsigned int n = 0; n <= 2000; n += 50) {
-        drawLine(window, { false, n, 0, n, 2000, 0, 64, 0, 1 }, zoomLevel, originX, originY);
-        drawLine(window, { false, 0, n, 2000, n, 0, 64, 0, 1 }, zoomLevel, originX, originY);
+        drawLine(window, { false, n, 0, n, 2000, 0, 64, 0, 1 });
+        drawLine(window, { false, 0, n, 2000, n, 0, 64, 0, 1 });
     }
 }
 
-std::optional<std::size_t> mgo::Level::lineUnderCursor(unsigned int mouseX,
-    unsigned int mouseY,
-    float zoomLevel,
-    int originX,
-    int originY)
+std::optional<std::size_t> mgo::Level::lineUnderCursor(unsigned int mouseX, unsigned int mouseY)
 {
     // Note mouseX and mouseY are *window* coordinates, these need to be converted into
     // workspace coordinates.
@@ -163,8 +155,8 @@ std::optional<std::size_t> mgo::Level::lineUnderCursor(unsigned int mouseX,
     // of these to see if they intersect any line on the workspace.
     // A positive origin e.g. 10,10 means the top left of the window is at, say, 10,10 on
     // the workspace, i.e. the workspace is slightly off screen to the left.
-    unsigned wx = mouseX / zoomLevel + originX / zoomLevel;
-    unsigned wy = mouseY / zoomLevel + originY / zoomLevel;
+    unsigned wx = mouseX / m_zoomLevel + m_originX / m_zoomLevel;
+    unsigned wy = mouseY / m_zoomLevel + m_originY / m_zoomLevel;
     std::size_t idx = 0;
     for (const auto& l : m_lines) {
         if (helperfunctions::doLinesIntersect(wx - 10, wy, wx, wy - 10, l.x0, l.y0, l.x1, l.y1)) {
@@ -195,6 +187,68 @@ void mgo::Level::highlightLine(std::size_t idx)
     m_lines[idx].g = 255;
     m_lines[idx].b = 255;
     // TODO need to put draggable circles on each end of the line?
+}
+
+void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
+{
+    if (event.type == sf::Event::Closed) {
+        window.close();
+    }
+    if (event.type == sf::Event::KeyPressed) {
+        switch (event.key.code) {
+        case sf::Keyboard::Equal:
+            m_zoomLevel *= 1.05f;
+            break;
+        case sf::Keyboard::Hyphen:
+            m_zoomLevel *= 0.95f;
+            break;
+        case sf::Keyboard::Escape:
+            window.close();
+            break;
+        case sf::Keyboard::S:
+            save(m_saveFilename);
+            break;
+        default:
+            break;
+        }
+    }
+    if (event.type == sf::Event::MouseMoved) { }
+    if (event.type == sf::Event::MouseButtonPressed) {
+        if (event.mouseButton.button == sf::Mouse::Left) {
+            // Check to see if there is a line under the cursor
+            auto line = lineUnderCursor(event.mouseButton.x, event.mouseButton.y);
+            if (line.has_value()) {
+                highlightLine(line.value());
+            }
+        }
+    }
+    if (event.type == sf::Event::MouseButtonReleased) {
+        if (event.mouseButton.button == sf::Mouse::Left) {
+            // std::cout << "The left button was released" << std::endl;
+            // std::cout << "  mouse x: " << event.mouseButton.x << std::endl;
+            // std::cout << "  mouse y: " << event.mouseButton.y << std::endl;
+        }
+    }
+    if (event.mouseWheelScroll.wheel == sf::Mouse::HorizontalWheel) {
+        float amt = event.mouseWheelScroll.delta;
+        if (std::abs(amt) > 0.1 && std::abs(amt) < 10.f) {
+            if (amt < 0.f) {
+                m_originX += 10;
+            } else if (amt > 0.f) {
+                m_originX -= 10;
+            }
+        }
+    }
+    if (event.mouseWheelScroll.wheel == sf::Mouse::VerticalWheel) {
+        float amt = event.mouseWheelScroll.delta;
+        if (std::abs(amt) > 0.1 && std::abs(amt) < 10.f) {
+            if (amt < 0.f) {
+                m_originY += 10;
+            } else if (amt > 0.f) {
+                m_originY -= 10;
+            }
+        }
+    }
 }
 
 } // namespace
