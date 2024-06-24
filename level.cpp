@@ -11,6 +11,12 @@
 #include <boost/algorithm/string/split.hpp>
 
 namespace mgo {
+mgo::Level::Level()
+{
+    if (!m_font.loadFromFile("DroidSansMono.ttf")) {
+        throw std::runtime_error("Could not load font file");
+    }
+}
 
 void Level::load(const std::string& filename)
 {
@@ -119,7 +125,8 @@ void Level::load(const std::string& filename)
 
 void mgo::Level::save(const std::string& filename)
 {
-    std::cout << "TODO - pretending to save to " << filename << "\n";
+    // TODO, just testing
+    msgbox("Save File", "Do you want to overwrite existing file?");
 }
 
 void mgo::Level::draw(sf::RenderWindow& window)
@@ -127,6 +134,16 @@ void mgo::Level::draw(sf::RenderWindow& window)
     for (const auto& l : m_lines) {
         drawLine(window, l);
     }
+}
+
+void mgo::Level::drawDialog(sf::RenderWindow& window)
+{
+    if (!m_isDialogActive) {
+        return;
+    }
+    window.draw(m_dialog);
+    window.draw(m_dialogTitle);
+    window.draw(m_dialogText);
 }
 
 void mgo::Level::drawLine(sf::RenderWindow& window, const Line& l)
@@ -194,6 +211,25 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
     if (event.type == sf::Event::Closed) {
         window.close();
     }
+    if (m_isDialogActive) {
+        // if a dialog is active then we respond differently to events:
+        // TODO
+        if (event.type == sf::Event::KeyPressed) {
+            switch (event.key.code) {
+            case sf::Keyboard::Escape:
+                m_isDialogActive = false;
+                m_dialogResult = false;
+                break;
+            case sf::Keyboard::Enter:
+                m_isDialogActive = false;
+                m_dialogResult = true;
+                break;
+            default:
+                break;
+            }
+        }
+        return;
+    }
     if (event.type == sf::Event::KeyPressed) {
         switch (event.key.code) {
         case sf::Keyboard::Equal:
@@ -249,6 +285,32 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
             }
         }
     }
+}
+
+bool mgo::Level::msgbox(const std::string& title, const std::string& message)
+{
+    m_isDialogActive = true;
+    m_dialog.setSize(sf::Vector2f(600, 200));
+    m_dialog.setFillColor(sf::Color(200, 200, 200));
+    m_dialog.setPosition({ 15.f, 15.f });
+    m_dialogTitle.setFont(m_font);
+    m_dialogTitle.setCharacterSize(20);
+    m_dialogTitle.setFillColor(sf::Color::Black);
+    m_dialogTitle.setStyle(sf::Text::Bold);
+    m_dialogTitle.setString(title);
+    m_dialogTitle.setPosition({ 20.f, 20.f });
+    m_dialogText.setFont(m_font);
+    m_dialogText.setCharacterSize(14);
+    m_dialogText.setFillColor(sf::Color::Black);
+    m_dialogText.setString(message + "\n\nEnter for OK, Esc for Cancel");
+    m_dialogText.setPosition({ 20.f, 60.f });
+    return false;
+}
+
+std::string mgo::Level::inputbox(const std::string& title, const std::string& message)
+{
+    m_isDialogActive = true;
+    return std::string("TODO");
 }
 
 } // namespace

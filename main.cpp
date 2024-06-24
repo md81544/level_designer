@@ -60,6 +60,7 @@ int main(int argc, char* argv[])
             window.clear();
             level.drawGridLines(window);
             level.draw(window);
+            level.drawDialog(window);
             window.display();
         }
         return 0;
