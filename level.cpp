@@ -2,6 +2,7 @@
 #include "helperfunctions.h"
 #include <cstdint>
 #include <fstream>
+#include <functional>
 #include <ios>
 #include <iostream>
 #include <stdexcept>
@@ -124,8 +125,18 @@ void Level::load(const std::string& filename)
 
 void mgo::Level::save(const std::string& filename)
 {
-    // TODO, just testing
-    msgbox("Save File", "Do you want to overwrite existing file " + filename);
+    // TODO, just testing at this stage
+    msgbox("Save File",
+        "Do you want to overwrite existing file '" + filename + "'?",
+        [&](bool okPressed, const std::string&) {
+            if (okPressed) {
+                // TODO actually save
+                for (const auto& l : m_lines) {
+                    std::cout << l.x0 << "," << l.y0 << "->" << l.x1 << "," << l.y1 << " ";
+                }
+                std::cout << "File '" << filename << "' saved!\n";
+            }
+        });
 }
 
 void mgo::Level::draw(sf::RenderWindow& window)
@@ -217,11 +228,11 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
             switch (event.key.code) {
             case sf::Keyboard::Escape:
                 m_isDialogActive = false;
-                m_dialogResult = false;
+                m_dialogCallback(false, "");
                 break;
             case sf::Keyboard::Enter:
                 m_isDialogActive = false;
-                m_dialogResult = true;
+                m_dialogCallback(true, "");
                 break;
             default:
                 break;
@@ -241,7 +252,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
             window.close();
             break;
         case sf::Keyboard::S:
-            save(m_saveFilename);
+            save(saveFilename);
             break;
         default:
             break;
@@ -286,7 +297,9 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
     }
 }
 
-bool mgo::Level::msgbox(const std::string& title, const std::string& message)
+bool mgo::Level::msgbox(const std::string& title,
+    const std::string& message,
+    std::function<void(bool, const std::string&)> callback)
 {
     m_isDialogActive = true;
     m_dialog.setSize(sf::Vector2f(600, 200));
@@ -303,6 +316,7 @@ bool mgo::Level::msgbox(const std::string& title, const std::string& message)
     m_dialogText.setFillColor(sf::Color::Black);
     m_dialogText.setString(message + "\n\nEnter for OK, Esc for Cancel");
     m_dialogText.setPosition({ 20.f, 60.f });
+    m_dialogCallback = callback;
     return false;
 }
 

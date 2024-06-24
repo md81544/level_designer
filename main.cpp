@@ -11,7 +11,6 @@ int main(int argc, char* argv[])
     try {
 
         mgo::Level level;
-        std::string saveFileName;
 
         namespace po = boost::program_options;
         po::options_description desc("Amaze Level Designer");
@@ -29,13 +28,13 @@ int main(int argc, char* argv[])
             return 1;
         }
         if (vm.count("save")) {
-            saveFileName = vm["save"].as<std::string>();
+            level.saveFilename = vm["save"].as<std::string>();
         }
         if (vm.count("load")) {
             std::string loadFileName = vm["load"].as<std::string>();
             level.load(loadFileName);
-            if (saveFileName.empty()) {
-                saveFileName = loadFileName;
+            if (level.saveFilename.empty()) {
+                level.saveFilename = loadFileName;
             }
         }
 
