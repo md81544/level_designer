@@ -50,6 +50,7 @@ private:
     sf::RectangleShape m_dialog;
     sf::Text m_dialogTitle;
     sf::Text m_dialogText;
+    sf::Text m_dialogInputText;
     sf::Font m_font;
     std::variant<bool, std::string> m_dialogResult; // true = OK, false = Cancel, string = input
 };

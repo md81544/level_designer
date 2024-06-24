@@ -35,7 +35,6 @@ void Level::load(const std::string& filename)
         }
         // When we get here, vec is a vector of all the items on the current line.
         char c = vec[0][0];
-        long bestTime;
         switch (c) {
         case '!': // timelimit, fuel, ship x, ship y, description
             // m_timeLimit = stoi(vec[1]);
@@ -126,7 +125,7 @@ void Level::load(const std::string& filename)
 void mgo::Level::save(const std::string& filename)
 {
     // TODO, just testing
-    msgbox("Save File", "Do you want to overwrite existing file?");
+    msgbox("Save File", "Do you want to overwrite existing file " + filename);
 }
 
 void mgo::Level::draw(sf::RenderWindow& window)
@@ -307,7 +306,7 @@ bool mgo::Level::msgbox(const std::string& title, const std::string& message)
     return false;
 }
 
-std::string mgo::Level::inputbox(const std::string& title, const std::string& message)
+std::string mgo::Level::inputbox(const std::string& /* title */, const std::string& /* message */)
 {
     m_isDialogActive = true;
     return std::string("TODO");
