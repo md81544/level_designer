@@ -234,7 +234,6 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
         case sf::Keyboard::Hyphen:
             m_zoomLevel *= 0.95f;
             break;
-        case sf::Keyboard::Escape:
         case sf::Keyboard::Q:
             msgbox("Quit", "Are you sure?", [&window](bool yes, const std::string) {
                 if (yes) {
@@ -260,6 +259,9 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 m_lines[m_highlightedLineIdx.value()].inactive = true;
                 m_highlightedLineIdx = std::nullopt;
             }
+            break;
+        case sf::Keyboard::Escape:
+            m_currentInsertionLine.inactive = true;
             break;
         default:
             break;
@@ -295,7 +297,9 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                         if (m_currentInsertionLine.x0 != m_currentInsertionLine.x1
                             || m_currentInsertionLine.y0 != m_currentInsertionLine.y1) {
                             m_lines.push_back(m_currentInsertionLine);
-                            m_currentInsertionLine.inactive = true;
+                            // next line starts at the current line's end:
+                            m_currentInsertionLine.x0 = m_currentInsertionLine.x1;
+                            m_currentInsertionLine.y0 = m_currentInsertionLine.y1;
                         }
                     } else {
                         // else this is a new line
