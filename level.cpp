@@ -190,8 +190,8 @@ mgo::Level::convertWindowToWorkspaceCoords(unsigned int windowX, unsigned int wi
 std::tuple<unsigned int, unsigned int>
 mgo::Level::convertWorkspaceToWindowCoords(unsigned int workspaceX, unsigned int workspaceY)
 {
-    unsigned int x = workspaceX * m_zoomLevel - m_zoomLevel;
-    unsigned int y = workspaceY * m_zoomLevel - m_zoomLevel;
+    unsigned int x = workspaceX * m_zoomLevel - m_originX;
+    unsigned int y = workspaceY * m_zoomLevel - m_originY;
     return { x, y };
 }
 
