@@ -235,6 +235,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
             m_zoomLevel *= 0.95f;
             break;
         case sf::Keyboard::Escape:
+        case sf::Keyboard::Q:
             msgbox("Quit", "Are you sure?", [&window](bool yes, const std::string) {
                 if (yes) {
                     window.close();
@@ -350,8 +351,8 @@ bool mgo::Level::msgbox(const std::string& title,
     std::function<void(bool, const std::string&)> callback)
 {
     m_isDialogActive = true;
-    m_dialog.setSize(sf::Vector2f(600, 200));
-    m_dialog.setFillColor(sf::Color(200, 200, 200));
+    m_dialog.setSize(sf::Vector2f(600, 120));
+    m_dialog.setFillColor(sf::Color(220, 220, 220));
     m_dialog.setPosition({ 25.f, 25.f });
     m_dialogTitle.setFont(m_font);
     m_dialogTitle.setCharacterSize(20);
