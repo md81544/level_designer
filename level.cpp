@@ -283,13 +283,22 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
             if (m_insertMode) {
                 // Insert a new line
                 if (m_currentNearestGridVertex.has_value()) {
-                    unsigned int x =std::get<0>(m_currentNearestGridVertex.value());
-                    unsigned int y =std::get<1>(m_currentNearestGridVertex.value());
-                    m_currentInsertionLine.x0 = x;
-                    m_currentInsertionLine.y0 = y;
-                    m_currentInsertionLine.x1 = x;
-                    m_currentInsertionLine.y1 = y;
-                    m_currentInsertionLine.inactive = false;
+                    // Are we in the middle of drawing a line? If so, add the current
+                    // insertion line into the vector
+                    if(!m_currentInsertionLine.inactive)
+                    {
+                        m_lines.push_back(m_currentInsertionLine);
+                        m_currentInsertionLine.inactive = true;
+                    }else{
+                        // else this is a new line
+                        unsigned int x =std::get<0>(m_currentNearestGridVertex.value());
+                        unsigned int y =std::get<1>(m_currentNearestGridVertex.value());
+                        m_currentInsertionLine.x0 = x;
+                        m_currentInsertionLine.y0 = y;
+                        m_currentInsertionLine.x1 = x;
+                        m_currentInsertionLine.y1 = y;
+                        m_currentInsertionLine.inactive = false;
+                    }
                 }
             } else {
                 // Check to see if there is a line under the cursor
