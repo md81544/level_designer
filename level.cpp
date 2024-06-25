@@ -18,6 +18,10 @@ mgo::Level::Level()
     if (!m_font.loadFromFile("DroidSansMono.ttf")) {
         throw std::runtime_error("Could not load font file");
     }
+    m_currentInsertionLine.inactive = true; // denotes "not active" in this case
+    m_currentInsertionLine.r = 255;
+    m_currentInsertionLine.g = 0;
+    m_currentInsertionLine.b = 0;
 }
 
 void Level::load(const std::string& filename)
@@ -83,7 +87,7 @@ void mgo::Level::save(const std::string& filename)
             if (okPressed) {
                 // TODO: actually save, this is just a test
                 for (const auto& l : m_lines) {
-                    if (!l.deleted) {
+                    if (!l.inactive) {
                         std::cout << l.x0 << "," << l.y0 << "->" << l.x1 << "," << l.y1 << " ";
                     }
                 }
@@ -96,7 +100,7 @@ void mgo::Level::draw(sf::RenderWindow& window)
 {
     std::size_t idx = 0;
     for (const auto& l : m_lines) {
-        if (!l.deleted) {
+        if (!l.inactive) {
             drawLine(window, l, idx);
         }
         ++idx;
@@ -111,6 +115,9 @@ void mgo::Level::draw(sf::RenderWindow& window)
         auto [windowX, windowY] = convertWorkspaceToWindowCoords(x, y);
         c.setPosition(windowX, windowY);
         window.draw(c);
+    }
+    if (m_currentInsertionLine.inactive == false) {
+        drawLine(window, m_currentInsertionLine, std::nullopt);
     }
 }
 
@@ -237,12 +244,14 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
             m_insertMode = !m_insertMode;
             if (m_insertMode) {
                 m_highlightedLineIdx = std::nullopt;
+            } else {
+                m_currentInsertionLine.inactive = true;
             }
             break;
         case sf::Keyboard::BackSpace:
         case sf::Keyboard::Delete:
             if (m_highlightedLineIdx.has_value()) {
-                m_lines[m_highlightedLineIdx.value()].deleted = true;
+                m_lines[m_highlightedLineIdx.value()].inactive = true;
                 m_highlightedLineIdx = std::nullopt;
             }
             break;
@@ -254,6 +263,17 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
         if (m_insertMode) {
             // Highlight nearest grid vertex
             highlightGridVertex(event.mouseMove.x, event.mouseMove.y);
+            if (m_currentInsertionLine.inactive == false) {
+                if (m_currentNearestGridVertex.has_value()) {
+                    m_currentInsertionLine.x1 = std::get<0>(m_currentNearestGridVertex.value());
+                    m_currentInsertionLine.y1 = std::get<1>(m_currentNearestGridVertex.value());
+                } else {
+                    auto [toX, toY]
+                        = convertWindowToWorkspaceCoords(event.mouseMove.x, event.mouseMove.y);
+                    m_currentInsertionLine.x1 = toX;
+                    m_currentInsertionLine.y1 = toY;
+                }
+            }
         } else {
             m_currentNearestGridVertex = std::nullopt;
         }
@@ -262,6 +282,15 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
         if (event.mouseButton.button == sf::Mouse::Left) {
             if (m_insertMode) {
                 // Insert a new line
+                if (m_currentNearestGridVertex.has_value()) {
+                    unsigned int x =std::get<0>(m_currentNearestGridVertex.value());
+                    unsigned int y =std::get<1>(m_currentNearestGridVertex.value());
+                    m_currentInsertionLine.x0 = x;
+                    m_currentInsertionLine.y0 = y;
+                    m_currentInsertionLine.x1 = x;
+                    m_currentInsertionLine.y1 = y;
+                    m_currentInsertionLine.inactive = false;
+                }
             } else {
                 // Check to see if there is a line under the cursor
                 auto line = lineUnderCursor(event.mouseButton.x, event.mouseButton.y);
@@ -349,7 +378,11 @@ void mgo::Level::highlightGridVertex(unsigned int mouseX, unsigned int mouseY)
     auto [wx, wy] = convertWindowToWorkspaceCoords(mouseX, mouseY);
     unsigned int x = static_cast<unsigned int>(static_cast<double>(wx) / 50.0 + 0.5) * 50.0;
     unsigned int y = static_cast<unsigned int>(static_cast<double>(wy) / 50.0 + 0.5) * 50.0;
-    m_currentNearestGridVertex = std::tie(x, y);
+    if (x > 2000 || y > 2000) {
+        m_currentNearestGridVertex = std::nullopt;
+    } else {
+        m_currentNearestGridVertex = std::tie(x, y);
+    }
 }
 
 } // namespace

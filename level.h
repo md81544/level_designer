@@ -19,8 +19,8 @@ struct Line {
     uint8_t r;
     uint8_t g;
     uint8_t b;
-    uint8_t thickness;
-    bool deleted {
+    uint8_t thickness; // unused currently
+    bool inactive {
         false
     }; // lines only get dropped when saving; this is to preserve vector indexes
 };
@@ -66,6 +66,7 @@ private:
     bool m_insertMode { true };
     std::optional<std::size_t> m_highlightedLineIdx;
     std::optional<std::tuple<unsigned int, unsigned int>> m_currentNearestGridVertex{std::nullopt};
+    Line m_currentInsertionLine;
 };
 
 } // namespace mgo
