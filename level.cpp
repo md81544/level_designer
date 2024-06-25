@@ -235,7 +235,11 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
             m_zoomLevel *= 0.95f;
             break;
         case sf::Keyboard::Escape:
-            window.close();
+            msgbox("Quit", "Are you sure?", [&window](bool yes, const std::string) {
+                if (yes) {
+                    window.close();
+                }
+            });
             break;
         case sf::Keyboard::S:
             save(saveFilename);
