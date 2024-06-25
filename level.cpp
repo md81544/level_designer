@@ -78,22 +78,23 @@ void Level::load(const std::string& filename)
     in.close();
 }
 
-void mgo::Level::save(const std::string& filename)
+void mgo::Level::save()
 {
-    // TODO, just testing at this stage
-    msgbox("Save File",
-        "Do you want to overwrite existing file '" + filename + "'?",
-        [&](bool okPressed, const std::string&) {
-            if (okPressed) {
-                // TODO: actually save, this is just a test
-                for (const auto& l : m_lines) {
-                    if (!l.inactive) {
-                        std::cout << l.x0 << "," << l.y0 << "->" << l.x1 << "," << l.y1 << " ";
-                    }
+    // TODO, currently just outputs to stdout - may actually be OK like that?
+    msgbox("Save File", "Do you want to save now?", [&](bool okPressed, const std::string&) {
+        if (okPressed) {
+            // Header
+            // time limit, fuel, startX, startY, title
+            std::cout << "!~0~0~125~1902~Title\n";
+            std::cout << "N~OBSTRUCTION~foo\n";
+            for (const auto& l : m_lines) {
+                if (!l.inactive) {
+                    std::cout << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1
+                              << "~255~0~0~2\n";
                 }
-                std::cout << "File '" << filename << "' saved!\n";
             }
-        });
+        }
+    });
 }
 
 void mgo::Level::draw(sf::RenderWindow& window)
@@ -242,7 +243,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
             });
             break;
         case sf::Keyboard::S:
-            save(saveFilename);
+            save();
             break;
         case sf::Keyboard::I:
             m_insertMode = !m_insertMode;

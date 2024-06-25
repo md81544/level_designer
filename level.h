@@ -29,7 +29,7 @@ class Level {
 public:
     Level();
     void load(const std::string& filename);
-    void save(const std::string& filename);
+    void save();
     void draw(sf::RenderWindow& window);
     void drawDialog(sf::RenderWindow& window);
     void drawLine(sf::RenderWindow& window, const Line& line, std::optional<std::size_t> idx);
@@ -46,7 +46,6 @@ public:
         const std::string& message,
         std::function<void(bool, const std::string&)> callback);
     std::string inputbox(const std::string& title, const std::string& message);
-    std::string saveFilename;
     void displayMode(sf::RenderWindow& window);
     void highlightGridVertex(unsigned int mouseX, unsigned int mouseY);
 

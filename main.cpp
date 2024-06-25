@@ -17,7 +17,6 @@ int main(int argc, char* argv[])
         // clang-format off
         desc.add_options()
             ("help,h", "show help message")
-            ("save,s", po::value<std::string>(), "filename to save to")
             ("load,l", po::value<std::string>(), "load file");
         // clang-format on
         po::variables_map vm;
@@ -27,15 +26,9 @@ int main(int argc, char* argv[])
             std::cout << desc << "\n";
             return 1;
         }
-        if (vm.count("save")) {
-            level.saveFilename = vm["save"].as<std::string>();
-        }
         if (vm.count("load")) {
             std::string loadFileName = vm["load"].as<std::string>();
             level.load(loadFileName);
-            if (level.saveFilename.empty()) {
-                level.saveFilename = loadFileName;
-            }
         }
 
         unsigned int screenWidth = sf::VideoMode::getDesktopMode().width;
