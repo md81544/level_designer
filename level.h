@@ -22,7 +22,7 @@ struct Line {
     uint8_t thickness; // unused currently
     bool inactive {
         false
-    }; // lines only get dropped when saving; this is to preserve vector indexes
+    }; // lines don't get deleted, just deactivated, to prevent index invalidation
 };
 
 class Level {
@@ -37,10 +37,10 @@ public:
     // Returns the index (into m_Lines) of the first (of potentially several) lines that are *near*
     // the cursor or no value if no lines are nearby.
     std::optional<std::size_t> lineUnderCursor(unsigned int mouseX, unsigned int mouseY);
-    std::tuple<unsigned, unsigned>
-        convertWindowToWorkspaceCoords(unsigned int windowX, unsigned int windowY);
-    std::tuple<unsigned, unsigned>
-        convertWorkspaceToWindowCoords(unsigned int workspaceX, unsigned int workspaceY);
+    std::tuple<unsigned, unsigned> convertWindowToWorkspaceCoords(unsigned int windowX,
+        unsigned int windowY);
+    std::tuple<unsigned, unsigned> convertWorkspaceToWindowCoords(unsigned int workspaceX,
+        unsigned int workspaceY);
     void processEvent(sf::RenderWindow& window, const sf::Event& event);
     bool msgbox(const std::string& title,
         const std::string& message,
@@ -64,7 +64,9 @@ private:
     sf::Text m_editModeText;
     bool m_insertMode { true };
     std::optional<std::size_t> m_highlightedLineIdx;
-    std::optional<std::tuple<unsigned int, unsigned int>> m_currentNearestGridVertex{std::nullopt};
+    std::optional<std::tuple<unsigned int, unsigned int>> m_currentNearestGridVertex {
+        std::nullopt
+    };
     Line m_currentInsertionLine;
 };
 

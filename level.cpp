@@ -42,15 +42,6 @@ void Level::load(const std::string& filename)
         char c = vec[0][0];
         switch (c) {
         case '!': // timelimit, fuel, ship x, ship y, description
-            // m_timeLimit = stoi(vec[1]);
-            // bestTime = static_cast<long>(timeGetTenthBest(levelNum));
-            // if (m_timeLimit > bestTime) {
-            //     m_timeLimit = bestTime;
-            // }
-            // m_shipModel->setFuel(stod(vec[2]));
-            // m_shipModel->setShipX(stod(vec[3]));
-            // m_shipModel->setShipY(stod(vec[4]));
-            // m_levelDescription = vec[5];
             break;
         case 'N': // New object, parameter 1 is type, parameter 2 appears unused
             // We don't care about this
@@ -81,20 +72,22 @@ void Level::load(const std::string& filename)
 void mgo::Level::save()
 {
     // TODO, currently just outputs to stdout - may actually be OK like that?
-    msgbox("Save File", "Do you want to save now?", [&](bool okPressed, const std::string&) {
-        if (okPressed) {
-            // Header
-            // time limit, fuel, startX, startY, title
-            std::cout << "!~0~0~125~1902~Title\n";
-            std::cout << "N~OBSTRUCTION~foo\n";
-            for (const auto& l : m_lines) {
-                if (!l.inactive) {
-                    std::cout << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1
-                              << "~255~0~0~2\n";
+    msgbox("Save File",
+        "Do you want to save (to stdout) now?",
+        [&](bool okPressed, const std::string&) {
+            if (okPressed) {
+                // Header
+                // time limit, fuel, startX, startY, title
+                std::cout << "!~0~0~125~1902~Title\n";
+                std::cout << "N~OBSTRUCTION~foo\n";
+                for (const auto& l : m_lines) {
+                    if (!l.inactive) {
+                        std::cout << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1
+                                  << "~255~0~0~2\n";
+                    }
                 }
             }
-        }
-    });
+        });
 }
 
 void mgo::Level::draw(sf::RenderWindow& window)
@@ -318,6 +311,15 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 auto line = lineUnderCursor(event.mouseButton.x, event.mouseButton.y);
                 if (line.has_value()) {
                     m_highlightedLineIdx = line.value();
+                } else {
+                    // Else the user has clicked in an empty space so we can offer the
+                    // option to place an object (start, exit, fuel) here
+                    msgbox("Place Object",
+                        "Do you want to place an object?\n"
+                        "Press S for Start, E for End, F for fuel",
+                        [](bool, const std::string) {
+                            // TODO: stuff
+                        });
                 }
             }
         }
