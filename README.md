@@ -14,7 +14,7 @@ The repository for the actual game 'Amaze' is set to private currently but I wil
 ### Usage
 Existing level files can be loaded by specifying the file name on the command line. There is an example.lvl file included.
 
-Currently there are two "modes", switchable by the "I" key - "Insert" (for line generation) and "Edit" for selecting existing lines and deleting them (press 'X' or delete or backspace).
+The editor uses the concept of "modes" for editing. Currently there are five, switchable by the "M" key - "LINE" (for line generation) and "EDIT" for selecting existing lines and deleting them (press 'X' or delete or backspace). The other modes, "START","EXIT", and "FUEL" allow placement of those items specifically.
 
 When in "Insert" mode, click to place a line and keep clicking to keep making lines. If you want to not connect a line to the last one, just press escape then click somewhere else to start a new line. Lines snap to the grid, this currently is the only behaviour.
 
