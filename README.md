@@ -22,10 +22,6 @@ Press "S" to 'save' (it currently just outputs to stdout, which is fine for eith
 
 Press "Q" to quit (or just close the window). Currently "Q" has a confirmation dialog, but closing the window does not. That's a TODO.
 
-### TODO
-* Ability to place start point
-* Ability to place exit point
-* Ability to place fuel markers
 * Confirmation dialog on window close
 
 ### Requirements
