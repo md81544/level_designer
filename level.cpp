@@ -26,11 +26,20 @@ mgo::Level::Level()
 
 void Level::load(const std::string& filename)
 {
+    // Note, this is likely to break if the format of the file is incorrect, there's
+    // no checking for size of vectors below currently. Which is reasonable as this
+    // program should be creating the files being imported.
     std::ifstream in(filename);
     if (!in) {
         throw(std::runtime_error("Failed to load Level file " + filename));
     }
     std::string currentLine;
+    enum class ObjectType {
+        OBSTRUCTION,
+        EXIT,
+        FUEL
+    };
+    ObjectType currentObject = ObjectType::OBSTRUCTION;
     while (!in.eof()) {
         getline(in, currentLine);
         std::vector<std::string> vec;
@@ -42,9 +51,18 @@ void Level::load(const std::string& filename)
         char c = vec[0][0];
         switch (c) {
             case '!': // timelimit, fuel, ship x, ship y, description
+                m_startPosition = std::make_pair(stoi(vec[3]), stoi(vec[4]));
                 break;
             case 'N': // New object, parameter 1 is type, parameter 2 appears unused
-                // We don't care about this
+                if (vec[1] == "OBSTRUCTION") {
+                    currentObject = ObjectType::OBSTRUCTION;
+                } else if (vec[1] == "EXIT") {
+                    currentObject = ObjectType::EXIT;
+                } else if (vec[1] == "FUEL") {
+                    currentObject = ObjectType::FUEL;
+                } else {
+                    std::cout << "Unrecognized object type '" << vec[1] << "' in file\n";
+                }
                 break;
             case 'L':
                 {
@@ -59,6 +77,12 @@ void Level::load(const std::string& filename)
                     break;
                 }
             case 'P': // position
+                if (currentObject == ObjectType::EXIT) {
+                    m_exitPosition = std::make_pair(stoi(vec[1]), stoi(vec[2]));
+                }
+                if (currentObject == ObjectType::FUEL) {
+                    m_fuelObjects.push_back(std::make_pair(stoi(vec[1]), stoi(vec[2])));
+                }
                 break;
             case 'T': // text
                 break;
@@ -79,13 +103,32 @@ void mgo::Level::save()
             if (okPressed) {
                 // Header
                 // time limit, fuel, startX, startY, title
-                std::cout << "!~0~0~125~1902~Title\n";
+                unsigned int startX = 0;
+                unsigned int startY = 0;
+                if (m_startPosition.has_value()) {
+                    startX = m_startPosition.value().first;
+                    startY = m_startPosition.value().second;
+                }
+                std::cout << "!~0~0~" << startX << "~" << startY << "~Title\n";
                 std::cout << "N~OBSTRUCTION~foo\n";
                 for (const auto& l : m_lines) {
                     if (!l.inactive) {
                         std::cout << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1
                                   << "~255~0~0~2\n";
                     }
+                }
+                if (m_exitPosition.has_value()) {
+                    std::cout << "N~EXIT~exit\n"
+                                 "T~EXIT~52~213~235\n"
+                                 "P~"
+                              << m_exitPosition.value().first << "~"
+                              << m_exitPosition.value().second << "\n";
+                }
+                for (const auto& p : m_fuelObjects) {
+                    std::cout << "N~FUEL~fuel\n"
+                                 "T~*~255~255~0~4\n"
+                                 "P~"
+                              << p.first << "~" << p.second << "\n";
                 }
             }
         });
@@ -338,26 +381,26 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                         break;
                     }
                 case Mode::START:
-                {
-                    auto [x, y]
-                        = convertWindowToWorkspaceCoords(event.mouseButton.x, event.mouseButton.y);
-                    m_startPosition = std::make_pair(x, y);
-                    break;
-                }
+                    {
+                        auto [x, y] = convertWindowToWorkspaceCoords(
+                            event.mouseButton.x, event.mouseButton.y);
+                        m_startPosition = std::make_pair(x, y);
+                        break;
+                    }
                 case Mode::EXIT:
-                {
-                    auto [x, y]
-                        = convertWindowToWorkspaceCoords(event.mouseButton.x, event.mouseButton.y);
-                    m_exitPosition = std::make_pair(x, y);
-                    break;
-                }
+                    {
+                        auto [x, y] = convertWindowToWorkspaceCoords(
+                            event.mouseButton.x, event.mouseButton.y);
+                        m_exitPosition = std::make_pair(x, y);
+                        break;
+                    }
                 case Mode::FUEL:
-                {
-                    auto [x, y]
-                        = convertWindowToWorkspaceCoords(event.mouseButton.x, event.mouseButton.y);
-                    m_fuelObjects.push_back(std::make_pair(x, y));
-                    break;
-                }
+                    {
+                        auto [x, y] = convertWindowToWorkspaceCoords(
+                            event.mouseButton.x, event.mouseButton.y);
+                        m_fuelObjects.push_back(std::make_pair(x, y));
+                        break;
+                    }
                 default:
                     break;
             }
