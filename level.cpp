@@ -102,7 +102,7 @@ void mgo::Level::draw(sf::RenderWindow& window)
     }
     if (m_currentNearestGridVertex.has_value()) {
         sf::CircleShape c;
-        c.setFillColor(sf::Color::Yellow);
+        c.setFillColor(sf::Color::Magenta);
         c.setRadius(3.f);
         c.setOrigin({ 3.f, 3.f });
         float x = std::get<0>(m_currentNearestGridVertex.value());
@@ -337,8 +337,28 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                         }
                         break;
                     }
+                case Mode::START:
+                {
+                    auto [x, y]
+                        = convertWindowToWorkspaceCoords(event.mouseButton.x, event.mouseButton.y);
+                    m_startPosition = std::make_pair(x, y);
+                    break;
+                }
+                case Mode::EXIT:
+                {
+                    auto [x, y]
+                        = convertWindowToWorkspaceCoords(event.mouseButton.x, event.mouseButton.y);
+                    m_exitPosition = std::make_pair(x, y);
+                    break;
+                }
+                case Mode::FUEL:
+                {
+                    auto [x, y]
+                        = convertWindowToWorkspaceCoords(event.mouseButton.x, event.mouseButton.y);
+                    m_fuelObjects.push_back(std::make_pair(x, y));
+                    break;
+                }
                 default:
-                    // TODO, support other modes
                     break;
             }
         }
@@ -439,6 +459,44 @@ void mgo::Level::highlightGridVertex(unsigned int mouseX, unsigned int mouseY)
         m_currentNearestGridVertex = std::nullopt;
     } else {
         m_currentNearestGridVertex = std::tie(x, y);
+    }
+}
+
+void Level::drawObjects(sf::RenderWindow& window)
+{
+    if (m_startPosition.has_value()) {
+        auto [x, y] = convertWorkspaceToWindowCoords(
+            m_startPosition.value().first, m_startPosition.value().second);
+        sf::CircleShape c;
+        c.setFillColor(sf::Color::Green);
+        float r = 20.f * m_zoomLevel;
+        c.setRadius(r);
+        c.setOrigin({ r, r });
+        c.setPosition(x, y);
+        window.draw(c);
+    }
+    if (m_exitPosition.has_value()) {
+        auto [x, y] = convertWorkspaceToWindowCoords(
+            m_exitPosition.value().first, m_exitPosition.value().second);
+        sf::CircleShape c;
+        c.setFillColor(sf::Color::Red);
+        float r = 20.f * m_zoomLevel;
+        c.setRadius(r);
+        c.setOrigin({ r, r });
+        c.setPosition(x, y);
+        window.draw(c);
+    }
+    if (!m_fuelObjects.empty()) {
+        for (const auto& p : m_fuelObjects) {
+            auto [x, y] = convertWorkspaceToWindowCoords(p.first, p.second);
+            sf::CircleShape c;
+            c.setFillColor(sf::Color::Yellow);
+            float r = 10.f * m_zoomLevel;
+            c.setRadius(r);
+            c.setOrigin({ r, r });
+            c.setPosition(x, y);
+            window.draw(c);
+        }
     }
 }
 

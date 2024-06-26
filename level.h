@@ -4,12 +4,19 @@
 #include <optional>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <variant>
 #include <vector>
 
 // As this application is a bit quick-and-dirty, this class holds pretty much everything in it
 
-enum class Mode { LINE, EDIT, EXIT, START, FUEL };
+enum class Mode {
+    LINE,
+    EDIT,
+    EXIT,
+    START,
+    FUEL
+};
 
 namespace mgo {
 
@@ -50,6 +57,7 @@ public:
     std::string inputbox(const std::string& title, const std::string& message);
     void displayMode(sf::RenderWindow& window);
     void highlightGridVertex(unsigned int mouseX, unsigned int mouseY);
+    void drawObjects(sf::RenderWindow& window);
 
 private:
     std::vector<Line> m_lines;
@@ -60,7 +68,6 @@ private:
     sf::RectangleShape m_dialog;
     sf::Text m_dialogTitle;
     sf::Text m_dialogText;
-    std::string m_dialogInputText;
     std::function<void(bool, std::string)> m_dialogCallback { [](bool, const std::string&) {} };
     sf::Font m_font;
     sf::Text m_editModeText;
@@ -71,6 +78,9 @@ private:
     Line m_currentInsertionLine;
     Mode m_currentMode { Mode::LINE };
     void changeMode();
+    std::optional<std::pair<unsigned int, unsigned int>> m_startPosition;
+    std::optional<std::pair<unsigned int, unsigned int>> m_exitPosition;
+    std::vector<std::pair<unsigned int, unsigned int>> m_fuelObjects;
 };
 
 } // namespace mgo
