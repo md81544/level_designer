@@ -18,7 +18,7 @@ mgo::Level::Level()
     if (!m_font.loadFromFile("DroidSansMono.ttf")) {
         throw std::runtime_error("Could not load font file");
     }
-    m_currentInsertionLine.inactive = true; // denotes "not active" in this case
+    m_currentInsertionLine.inactive = true;
     m_currentInsertionLine.r = 255;
     m_currentInsertionLine.g = 0;
     m_currentInsertionLine.b = 0;
