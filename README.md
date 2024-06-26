@@ -7,7 +7,7 @@ I tried that recently and Inkscape just has too many bugs and quirks to make it 
 
 I experimented with other SVG programs, both local and web-based, and none fitted my requirements. So I thought, how hard can it be to make my own? : )
 
-This is the result. Three days' worth of effort and I have an graphical editor I can use.
+This is the result. Three days' worth of effort and I have an graphical editor I can use. It's a bit quick-and-dirty, but functional.
 
 The repository for the actual game 'Amaze' is set to private currently but I will make it public once I've knocked it into what I'd deem a suitable first draft.
 

@@ -9,6 +9,8 @@
 
 // As this application is a bit quick-and-dirty, this class holds pretty much everything in it
 
+enum class Mode { LINE, EDIT, EXIT, START, FUEL };
+
 namespace mgo {
 
 struct Line {
@@ -62,12 +64,13 @@ private:
     std::function<void(bool, std::string)> m_dialogCallback { [](bool, const std::string&) {} };
     sf::Font m_font;
     sf::Text m_editModeText;
-    bool m_insertMode { true };
     std::optional<std::size_t> m_highlightedLineIdx;
     std::optional<std::tuple<unsigned int, unsigned int>> m_currentNearestGridVertex {
         std::nullopt
     };
     Line m_currentInsertionLine;
+    Mode m_currentMode { Mode::LINE };
+    void changeMode();
 };
 
 } // namespace mgo

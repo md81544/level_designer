@@ -41,28 +41,29 @@ void Level::load(const std::string& filename)
         // When we get here, vec is a vector of all the items on the current line.
         char c = vec[0][0];
         switch (c) {
-        case '!': // timelimit, fuel, ship x, ship y, description
-            break;
-        case 'N': // New object, parameter 1 is type, parameter 2 appears unused
-            // We don't care about this
-            break;
-        case 'L': {
-            unsigned int x0 = std::stoi(vec[1]);
-            unsigned int y0 = std::stoi(vec[2]);
-            unsigned int x1 = std::stoi(vec[3]);
-            unsigned int y1 = std::stoi(vec[4]);
-            uint8_t r = std::stoi(vec[5]);
-            uint8_t g = std::stoi(vec[6]);
-            uint8_t b = std::stoi(vec[7]);
-            m_lines.push_back({ x0, y0, x1, y1, r, g, b, 1 });
-            break;
-        }
-        case 'P': // position
-            break;
-        case 'T': // text
-            break;
-        default:
-            break;
+            case '!': // timelimit, fuel, ship x, ship y, description
+                break;
+            case 'N': // New object, parameter 1 is type, parameter 2 appears unused
+                // We don't care about this
+                break;
+            case 'L':
+                {
+                    unsigned int x0 = std::stoi(vec[1]);
+                    unsigned int y0 = std::stoi(vec[2]);
+                    unsigned int x1 = std::stoi(vec[3]);
+                    unsigned int y1 = std::stoi(vec[4]);
+                    uint8_t r = std::stoi(vec[5]);
+                    uint8_t g = std::stoi(vec[6]);
+                    uint8_t b = std::stoi(vec[7]);
+                    m_lines.push_back({ x0, y0, x1, y1, r, g, b, 1 });
+                    break;
+                }
+            case 'P': // position
+                break;
+            case 'T': // text
+                break;
+            default:
+                break;
         }
         currentLine.clear();
     }
@@ -206,63 +207,80 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
         // TODO
         if (event.type == sf::Event::KeyPressed) {
             switch (event.key.code) {
-            case sf::Keyboard::Escape:
-                m_isDialogActive = false;
-                m_dialogCallback(false, "");
-                break;
-            case sf::Keyboard::Enter:
-                m_isDialogActive = false;
-                m_dialogCallback(true, "");
-                break;
-            default:
-                break;
+                case sf::Keyboard::Escape:
+                    m_isDialogActive = false;
+                    m_dialogCallback(false, "");
+                    break;
+                case sf::Keyboard::Enter:
+                    m_isDialogActive = false;
+                    m_dialogCallback(true, "");
+                    break;
+                default:
+                    break;
             }
         }
         return;
     }
     if (event.type == sf::Event::KeyPressed) {
         switch (event.key.code) {
-        case sf::Keyboard::Equal:
-            m_zoomLevel *= 1.05f;
-            break;
-        case sf::Keyboard::Hyphen:
-            m_zoomLevel *= 0.95f;
-            break;
-        case sf::Keyboard::Q:
-            msgbox("Quit", "Are you sure?", [&window](bool yes, const std::string) {
-                if (yes) {
-                    window.close();
+            case sf::Keyboard::Equal:
+                m_zoomLevel *= 1.05f;
+                break;
+            case sf::Keyboard::Hyphen:
+                m_zoomLevel *= 0.95f;
+                break;
+            case sf::Keyboard::Q:
+                msgbox("Quit", "Are you sure?", [&window](bool yes, const std::string) {
+                    if (yes) {
+                        window.close();
+                    }
+                });
+                break;
+            case sf::Keyboard::S:
+                save();
+                break;
+            case sf::Keyboard::M:
+                switch (m_currentMode) {
+                    case Mode::LINE:
+                        changeMode();
+                        m_currentMode = Mode::EDIT;
+                        break;
+                    case Mode::EDIT:
+                        changeMode();
+                        m_currentMode = Mode::START;
+                        break;
+                    case Mode::START:
+                        changeMode();
+                        m_currentMode = Mode::EXIT;
+                        break;
+                    case Mode::EXIT:
+                        changeMode();
+                        m_currentMode = Mode::FUEL;
+                        break;
+                    case Mode::FUEL:
+                        changeMode();
+                        m_currentMode = Mode::LINE;
+                        break;
+                    default:
+                        break;
                 }
-            });
-            break;
-        case sf::Keyboard::S:
-            save();
-            break;
-        case sf::Keyboard::I:
-            m_insertMode = !m_insertMode;
-            if (m_insertMode) {
-                m_highlightedLineIdx = std::nullopt;
-            } else {
+            case sf::Keyboard::BackSpace:
+            case sf::Keyboard::Delete:
+            case sf::Keyboard::X:
+                if (m_highlightedLineIdx.has_value()) {
+                    m_lines[m_highlightedLineIdx.value()].inactive = true;
+                    m_highlightedLineIdx = std::nullopt;
+                }
+                break;
+            case sf::Keyboard::Escape:
                 m_currentInsertionLine.inactive = true;
-            }
-            break;
-        case sf::Keyboard::BackSpace:
-        case sf::Keyboard::Delete:
-        case sf::Keyboard::X:
-            if (m_highlightedLineIdx.has_value()) {
-                m_lines[m_highlightedLineIdx.value()].inactive = true;
-                m_highlightedLineIdx = std::nullopt;
-            }
-            break;
-        case sf::Keyboard::Escape:
-            m_currentInsertionLine.inactive = true;
-            break;
-        default:
-            break;
+                break;
+            default:
+                break;
         }
     }
     if (event.type == sf::Event::MouseMoved) {
-        if (m_insertMode) {
+        if (m_currentMode == Mode::LINE) {
             // Highlight nearest grid vertex
             highlightGridVertex(event.mouseMove.x, event.mouseMove.y);
             if (m_currentInsertionLine.inactive == false) {
@@ -282,45 +300,46 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
     }
     if (event.type == sf::Event::MouseButtonPressed) {
         if (event.mouseButton.button == sf::Mouse::Left) {
-            if (m_insertMode) {
-                // Insert a new line
-                if (m_currentNearestGridVertex.has_value()) {
-                    // Are we in the middle of drawing a line? If so, add the current
-                    // insertion line into the vector
-                    if (!m_currentInsertionLine.inactive) {
-                        if (m_currentInsertionLine.x0 != m_currentInsertionLine.x1
-                            || m_currentInsertionLine.y0 != m_currentInsertionLine.y1) {
-                            m_lines.push_back(m_currentInsertionLine);
-                            // next line starts at the current line's end:
-                            m_currentInsertionLine.x0 = m_currentInsertionLine.x1;
-                            m_currentInsertionLine.y0 = m_currentInsertionLine.y1;
+            switch (m_currentMode) {
+                case Mode::LINE:
+                    {
+                        // Insert a new line
+                        if (m_currentNearestGridVertex.has_value()) {
+                            // Are we in the middle of drawing a line? If so, add the current
+                            // insertion line into the vector
+                            if (!m_currentInsertionLine.inactive) {
+                                if (m_currentInsertionLine.x0 != m_currentInsertionLine.x1
+                                    || m_currentInsertionLine.y0 != m_currentInsertionLine.y1) {
+                                    m_lines.push_back(m_currentInsertionLine);
+                                    // next line starts at the current line's end:
+                                    m_currentInsertionLine.x0 = m_currentInsertionLine.x1;
+                                    m_currentInsertionLine.y0 = m_currentInsertionLine.y1;
+                                }
+                            } else {
+                                // else this is a new line
+                                unsigned int x = std::get<0>(m_currentNearestGridVertex.value());
+                                unsigned int y = std::get<1>(m_currentNearestGridVertex.value());
+                                m_currentInsertionLine.x0 = x;
+                                m_currentInsertionLine.y0 = y;
+                                m_currentInsertionLine.x1 = x;
+                                m_currentInsertionLine.y1 = y;
+                                m_currentInsertionLine.inactive = false;
+                            }
                         }
-                    } else {
-                        // else this is a new line
-                        unsigned int x = std::get<0>(m_currentNearestGridVertex.value());
-                        unsigned int y = std::get<1>(m_currentNearestGridVertex.value());
-                        m_currentInsertionLine.x0 = x;
-                        m_currentInsertionLine.y0 = y;
-                        m_currentInsertionLine.x1 = x;
-                        m_currentInsertionLine.y1 = y;
-                        m_currentInsertionLine.inactive = false;
+                        break;
                     }
-                }
-            } else {
-                // Check to see if there is a line under the cursor
-                auto line = lineUnderCursor(event.mouseButton.x, event.mouseButton.y);
-                if (line.has_value()) {
-                    m_highlightedLineIdx = line.value();
-                } else {
-                    // Else the user has clicked in an empty space so we can offer the
-                    // option to place an object (start, exit, fuel) here
-                    msgbox("Place Object",
-                        "Do you want to place an object?\n"
-                        "Press S for Start, E for End, F for fuel",
-                        [](bool, const std::string) {
-                            // TODO: stuff
-                        });
-                }
+                case Mode::EDIT:
+                    {
+                        // Check to see if there is a line under the cursor
+                        auto line = lineUnderCursor(event.mouseButton.x, event.mouseButton.y);
+                        if (line.has_value()) {
+                            m_highlightedLineIdx = line.value();
+                        }
+                        break;
+                    }
+                default:
+                    // TODO, support other modes
+                    break;
             }
         }
     }
@@ -389,10 +408,24 @@ void mgo::Level::displayMode(sf::RenderWindow& window)
     t.setFillColor(sf::Color::Cyan);
     t.setCharacterSize(14);
     t.setPosition({ 5.f, 5.f });
-    if (m_insertMode) {
-        t.setString("INSERT");
-    } else {
-        t.setString("EDIT");
+    switch (m_currentMode) {
+        case Mode::LINE:
+            t.setString("LINE");
+            break;
+        case Mode::EDIT:
+            t.setString("EDIT");
+            break;
+        case Mode::START:
+            t.setString("START");
+            break;
+        case Mode::EXIT:
+            t.setString("EXIT");
+            break;
+        case Mode::FUEL:
+            t.setString("FUEL");
+            break;
+        default:
+            break;
     }
     window.draw(t);
 }
@@ -407,6 +440,12 @@ void mgo::Level::highlightGridVertex(unsigned int mouseX, unsigned int mouseY)
     } else {
         m_currentNearestGridVertex = std::tie(x, y);
     }
+}
+
+void Level::changeMode()
+{
+    m_highlightedLineIdx = std::nullopt;
+    m_currentInsertionLine.inactive = true;
 }
 
 } // namespace
