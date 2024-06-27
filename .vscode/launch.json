@@ -9,7 +9,7 @@
             "request": "launch",
             "name": "Debug",
             "program": "${workspaceFolder}/level_designer",
-            "args": ["../amaze/data/level6.cfg"],
+            "args": ["../amaze/data/level4.cfg"],
             "cwd": "${workspaceFolder}"
         }
     ]
