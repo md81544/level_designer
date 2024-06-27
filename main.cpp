@@ -14,16 +14,11 @@ int main(int argc, char* argv[])
 {
     try {
 
-        mgo::Level level;
         if (argc > 1) {
             if (argv[1][0] == '-') {
                 print_help();
                 return 1;
             }
-        }
-        if (argc == 2) {
-            std::string loadFileName = argv[1];
-            level.load(loadFileName);
         }
         if (argc > 2) {
             print_help();
@@ -41,6 +36,12 @@ int main(int argc, char* argv[])
             "Amaze Level Designer",
             sf::Style::Titlebar | sf::Style::Close);
         window.setFramerateLimit(30);
+
+        mgo::Level level(screenWidth - 200, screenHeight - 200);
+        if (argc == 2) {
+            std::string loadFileName = argv[1];
+            level.load(loadFileName);
+        }
 
         while (window.isOpen()) {
             sf::Event event;

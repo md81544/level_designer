@@ -13,7 +13,7 @@
 #include <boost/algorithm/string/split.hpp>
 
 namespace mgo {
-mgo::Level::Level()
+mgo::Level::Level(unsigned int /*windowWidth*/, unsigned int windowHeight)
 {
     if (!m_font.loadFromFile("DroidSansMono.ttf")) {
         throw std::runtime_error("Could not load font file");
@@ -22,6 +22,7 @@ mgo::Level::Level()
     m_currentInsertionLine.r = 255;
     m_currentInsertionLine.g = 0;
     m_currentInsertionLine.b = 0;
+    m_zoomLevel = windowHeight / 2000.f;
 }
 
 void Level::load(const std::string& filename)
@@ -398,13 +399,14 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     {
                         auto [x, y] = convertWindowToWorkspaceCoords(
                             event.mouseButton.x, event.mouseButton.y);
-                        // if we are within 50 workspace units of an existing fuel object, we treat
+                        // if we are within r workspace units of an existing fuel object, we treat
                         // this as a request to delete it instead of placing a new one
+                        unsigned int r = 20;
                         std::size_t idx = 0;
                         bool erased { false };
                         for (const auto& f : m_fuelObjects) {
-                            if ((f.first > x - 50 && f.first < x + 50)
-                                && (f.second > y - 50 && f.second < y + 50)) {
+                            if ((f.first > x - r && f.first < x + r)
+                                && (f.second > y - r && f.second < y + r)) {
                                 m_fuelObjects.erase(m_fuelObjects.begin() + idx);
                                 erased = true;
                                 break;

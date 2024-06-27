@@ -36,7 +36,7 @@ struct Line {
 
 class Level {
 public:
-    Level();
+    Level(unsigned int windowWidth, unsigned int windowHeight);
     void load(const std::string& filename);
     void save();
     void draw(sf::RenderWindow& window);
@@ -62,7 +62,7 @@ public:
 private:
     std::vector<Line> m_lines;
     bool m_isDialogActive { false };
-    float m_zoomLevel { 0.4 };
+    float m_zoomLevel { 0.333 };
     int m_originX { 0 };
     int m_originY { 0 };
     sf::RectangleShape m_dialog;

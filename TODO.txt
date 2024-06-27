@@ -1,3 +1,2 @@
-Need to be able to delete fuel items if required
 Maybe snap on to other lines as well as the grid?
 Confirmation dialog on window close
