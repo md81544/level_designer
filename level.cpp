@@ -110,7 +110,7 @@ void mgo::Level::save()
                     startY = m_startPosition.value().second;
                 }
                 std::cout << "!~0~0~" << startX << "~" << startY << "~Title\n";
-                std::cout << "N~OBSTRUCTION~foo\n";
+                std::cout << "N~OBSTRUCTION~obstruction\n";
                 for (const auto& l : m_lines) {
                     if (!l.inactive) {
                         std::cout << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1
@@ -398,7 +398,22 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     {
                         auto [x, y] = convertWindowToWorkspaceCoords(
                             event.mouseButton.x, event.mouseButton.y);
-                        m_fuelObjects.push_back(std::make_pair(x, y));
+                        // if we are within 50 workspace units of an existing fuel object, we treat
+                        // this as a request to delete it instead of placing a new one
+                        std::size_t idx = 0;
+                        bool erased { false };
+                        for (const auto& f : m_fuelObjects) {
+                            if ((f.first > x - 50 && f.first < x + 50)
+                                && (f.second > y - 50 && f.second < y + 50)) {
+                                m_fuelObjects.erase(m_fuelObjects.begin() + idx);
+                                erased = true;
+                                break;
+                            }
+                            ++idx;
+                        }
+                        if (!erased) {
+                            m_fuelObjects.push_back(std::make_pair(x, y));
+                        }
                         break;
                     }
                 default:
