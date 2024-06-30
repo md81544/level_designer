@@ -1,45 +1,38 @@
-#include "level.h"
 #include "configreader.h"
+#include "level.h"
 #include <SFML/Graphics.hpp>
 #include <cmath>
 #include <filesystem>
 #include <iostream>
 #include <stdexcept>
 
-void print_help()
-{
-    std::cout << "level_designer [-h|--help] <optional file to load>\n";
-}
-
 int main(int argc, char* argv[])
 {
+    std::string loadFileName;
     try {
-
         if (argc > 1) {
-            if (argv[1][0] == '-') {
-                print_help();
-                return 1;
+            for (int n = 1; n < argc; ++n) {
+                if (argv[n][0] != '-') {
+                    loadFileName = argv[n];
+                }
             }
-        }
-        if (argc > 2) {
-            print_help();
-            return 2;
         }
 
         mgo::ConfigReader config("level_designer.cfg");
 
         // To get around SFML's inability to cope with high-DPI screens (e.g. Apple's "Retina"
-        // displays) we just set the window size to whatever the user has in the config file
+        // displays) we just set the window size to whatever the user has in the config file - the
+        // user (I) can adjust to whatever is best for the machine being used
         unsigned int screenWidth = static_cast<unsigned int>(config.readLong("WindowWidth", 800));
         unsigned int screenHeight = static_cast<unsigned int>(config.readLong("WindowHeight", 800));
         sf::RenderWindow window(sf::VideoMode(screenWidth, screenHeight),
             "Amaze Level Designer",
             sf::Style::Titlebar | sf::Style::Close);
-        window.setFramerateLimit(30);
+        window.setFramerateLimit(24);
 
         mgo::Level level(screenWidth, screenHeight);
-        if (argc == 2) {
-            std::string loadFileName = argv[1];
+
+        if (!loadFileName.empty()) {
             level.load(loadFileName);
         }
 

@@ -13,7 +13,7 @@
 #include <boost/algorithm/string/split.hpp>
 
 namespace mgo {
-mgo::Level::Level(unsigned int /*windowWidth*/, unsigned int windowHeight)
+mgo::Level::Level(unsigned int /* windowWidth */, unsigned int windowHeight)
 {
     if (!m_font.loadFromFile("DroidSansMono.ttf")) {
         throw std::runtime_error("Could not load font file");
@@ -268,11 +268,21 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
     if (event.type == sf::Event::KeyPressed) {
         switch (event.key.code) {
             case sf::Keyboard::Equal:
-                m_zoomLevel *= 1.05f;
-                break;
+                {
+                    m_zoomLevel += 0.1f;
+                    if (m_zoomLevel >= 10.f) {
+                        m_zoomLevel = 10.f;
+                    }
+                    break;
+                }
             case sf::Keyboard::Hyphen:
-                m_zoomLevel *= 0.95f;
-                break;
+                {
+                    m_zoomLevel -= 0.1f;
+                    if (m_zoomLevel < 0.1f) {
+                        m_zoomLevel = 0.1f;
+                    }
+                    break;
+                }
             case sf::Keyboard::Q:
                 msgbox("Quit", "Are you sure?", [&window](bool yes, const std::string) {
                     if (yes) {
@@ -423,20 +433,13 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
             }
         }
     }
-    if (event.type == sf::Event::MouseButtonReleased) {
-        if (event.mouseButton.button == sf::Mouse::Left) {
-            // std::cout << "The left button was released" << std::endl;
-            // std::cout << "  mouse x: " << event.mouseButton.x << std::endl;
-            // std::cout << "  mouse y: " << event.mouseButton.y << std::endl;
-        }
-    }
     if (event.mouseWheelScroll.wheel == sf::Mouse::HorizontalWheel) {
         float amt = event.mouseWheelScroll.delta;
         if (std::abs(amt) > 0.1 && std::abs(amt) < 10.f) {
             if (amt < 0.f) {
-                m_originX += 10;
+                m_originX += 50;
             } else if (amt > 0.f) {
-                m_originX -= 10;
+                m_originX -= 50;
             }
         }
     }
@@ -444,9 +447,9 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
         float amt = event.mouseWheelScroll.delta;
         if (std::abs(amt) > 0.1 && std::abs(amt) < 10.f) {
             if (amt < 0.f) {
-                m_originY += 10;
+                m_originY += 50;
             } else if (amt > 0.f) {
-                m_originY -= 10;
+                m_originY -= 50;
             }
         }
     }
