@@ -120,14 +120,14 @@ void mgo::Level::save()
                 }
                 if (m_exitPosition.has_value()) {
                     std::cout << "N~EXIT~exit\n"
-                                 "T~EXIT~52~213~235\n"
+                                 "T~EXIT~52~213~235~6\n"
                                  "P~"
                               << m_exitPosition.value().first << "~"
                               << m_exitPosition.value().second << "\n";
                 }
                 for (const auto& p : m_fuelObjects) {
                     std::cout << "N~FUEL~fuel\n"
-                                 "T~*~255~255~0~4\n"
+                                 "T~*~255~255~0~12\n"
                                  "P~"
                               << p.first << "~" << p.second << "\n";
                 }
