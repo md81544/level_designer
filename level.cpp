@@ -222,20 +222,23 @@ std::optional<std::size_t> mgo::Level::lineUnderCursor(unsigned int mouseX, unsi
     auto [wx, wy] = convertWindowToWorkspaceCoords(mouseX, mouseY);
     std::size_t idx = 0;
     for (const auto& l : m_lines) {
-        if (l.inactive) {
-            continue;
-        }
-        if (helperfunctions::doLinesIntersect(wx - 10, wy, wx, wy - 10, l.x0, l.y0, l.x1, l.y1)) {
-            return idx;
-        }
-        if (helperfunctions::doLinesIntersect(wx, wy - 10, wx + 10, wy, l.x0, l.y0, l.x1, l.y1)) {
-            return idx;
-        }
-        if (helperfunctions::doLinesIntersect(wx + 10, wy, wx, wy + 10, l.x0, l.y0, l.x1, l.y1)) {
-            return idx;
-        }
-        if (helperfunctions::doLinesIntersect(wx, wy + 10, wx - 10, wy, l.x0, l.y0, l.x1, l.y1)) {
-            return idx;
+        if (!l.inactive) {
+            if (helperfunctions::doLinesIntersect(
+                    wx - 10, wy, wx, wy - 10, l.x0, l.y0, l.x1, l.y1)) {
+                return idx;
+            }
+            if (helperfunctions::doLinesIntersect(
+                    wx, wy - 10, wx + 10, wy, l.x0, l.y0, l.x1, l.y1)) {
+                return idx;
+            }
+            if (helperfunctions::doLinesIntersect(
+                    wx + 10, wy, wx, wy + 10, l.x0, l.y0, l.x1, l.y1)) {
+                return idx;
+            }
+            if (helperfunctions::doLinesIntersect(
+                    wx, wy + 10, wx - 10, wy, l.x0, l.y0, l.x1, l.y1)) {
+                return idx;
+            }
         }
         ++idx;
     }
