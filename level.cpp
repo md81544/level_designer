@@ -38,7 +38,8 @@ void Level::load(const std::string& filename)
     enum class ObjectType {
         OBSTRUCTION,
         EXIT,
-        FUEL
+        FUEL,
+        BREAKABLE
     };
     ObjectType currentObject = ObjectType::OBSTRUCTION;
     while (!in.eof()) {
@@ -61,6 +62,8 @@ void Level::load(const std::string& filename)
                     currentObject = ObjectType::EXIT;
                 } else if (vec[1] == "FUEL") {
                     currentObject = ObjectType::FUEL;
+                } else if (vec[1] == "BREAKABLE") {
+                    currentObject = ObjectType::BREAKABLE;
                 } else {
                     std::cout << "Unrecognized object type '" << vec[1] << "' in file\n";
                 }
@@ -74,7 +77,11 @@ void Level::load(const std::string& filename)
                     uint8_t r = std::stoi(vec[5]);
                     uint8_t g = std::stoi(vec[6]);
                     uint8_t b = std::stoi(vec[7]);
-                    m_lines.push_back({ x0, y0, x1, y1, r, g, b, 1 });
+                    if (currentObject == ObjectType::OBSTRUCTION) {
+                        m_lines.push_back({ x0, y0, x1, y1, r, g, b, 1, false, false });
+                    } else {
+                        m_lines.push_back({ x0, y0, x1, y1, r, g, b, 1, false, true });
+                    }
                     break;
                 }
             case 'P': // position
@@ -98,7 +105,8 @@ void Level::load(const std::string& filename)
 void mgo::Level::save()
 {
     // TODO, currently just outputs to stdout - may actually be OK like that?
-    msgbox("Save File",
+    msgbox(
+        "Save File",
         "Do you want to save (to stdout) now?",
         [&](bool okPressed, const std::string&) {
             if (okPressed) {
@@ -113,9 +121,17 @@ void mgo::Level::save()
                 std::cout << "!~0~0~" << startX << "~" << startY << "~Title\n";
                 std::cout << "N~OBSTRUCTION~obstruction\n";
                 for (const auto& l : m_lines) {
-                    if (!l.inactive) {
+                    if (!l.inactive && !l.breakable) {
                         std::cout << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1
                                   << "~255~0~0~2\n";
+                    }
+                }
+                // Each breakable line is its own object
+                for (const auto& l : m_lines) {
+                    if (!l.inactive && l.breakable) {
+                        std::cout << "N~BREAKABLE~breakable\n";
+                        std::cout << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1
+                                  << "~255~150~50~2\n";
                     }
                 }
                 if (m_exitPosition.has_value()) {
@@ -172,12 +188,10 @@ void mgo::Level::drawDialog(sf::RenderWindow& window)
 
 void mgo::Level::drawLine(sf::RenderWindow& window, const Line& l, std::optional<std::size_t> idx)
 {
-    // clang-format off
     sf::Vertex line[] = {
         sf::Vertex(sf::Vector2f(l.x0 * m_zoomLevel - m_originX, l.y0 * m_zoomLevel - m_originY)),
         sf::Vertex(sf::Vector2f(l.x1 * m_zoomLevel - m_originX, l.y1 * m_zoomLevel - m_originY))
-        };
-    // clang-format on
+    };
     if (idx.has_value() && m_highlightedLineIdx.has_value()
         && m_highlightedLineIdx.value() == idx.value()) {
         line[0].color = sf::Color(sf::Color::White);
@@ -208,6 +222,9 @@ std::optional<std::size_t> mgo::Level::lineUnderCursor(unsigned int mouseX, unsi
     auto [wx, wy] = convertWindowToWorkspaceCoords(mouseX, mouseY);
     std::size_t idx = 0;
     for (const auto& l : m_lines) {
+        if (l.inactive) {
+            continue;
+        }
         if (helperfunctions::doLinesIntersect(wx - 10, wy, wx, wy - 10, l.x0, l.y0, l.x1, l.y1)) {
             return idx;
         }
@@ -297,6 +314,13 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 switch (m_currentMode) {
                     case Mode::LINE:
                         changeMode();
+                        m_currentMode = Mode::BREAKABLE;
+                        m_currentInsertionLine.r = 255;
+                        m_currentInsertionLine.g = 150;
+                        m_currentInsertionLine.b = 50;
+                        break;
+                    case Mode::BREAKABLE:
+                        changeMode();
                         m_currentMode = Mode::EDIT;
                         break;
                     case Mode::EDIT:
@@ -314,6 +338,9 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     case Mode::FUEL:
                         changeMode();
                         m_currentMode = Mode::LINE;
+                        m_currentInsertionLine.r = 255;
+                        m_currentInsertionLine.g = 0;
+                        m_currentInsertionLine.b = 0;
                         break;
                     default:
                         break;
@@ -334,7 +361,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
         }
     }
     if (event.type == sf::Event::MouseMoved) {
-        if (m_currentMode == Mode::LINE) {
+        if (m_currentMode == Mode::LINE || m_currentMode == Mode::BREAKABLE) {
             // Highlight nearest grid vertex
             highlightGridVertex(event.mouseMove.x, event.mouseMove.y);
             if (m_currentInsertionLine.inactive == false) {
@@ -356,6 +383,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
         if (event.mouseButton.button == sf::Mouse::Left) {
             switch (m_currentMode) {
                 case Mode::LINE:
+                case Mode::BREAKABLE:
                     {
                         // Insert a new line
                         if (m_currentNearestGridVertex.has_value()) {
@@ -364,6 +392,11 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                             if (!m_currentInsertionLine.inactive) {
                                 if (m_currentInsertionLine.x0 != m_currentInsertionLine.x1
                                     || m_currentInsertionLine.y0 != m_currentInsertionLine.y1) {
+                                    if (m_currentMode == Mode::LINE) {
+                                        m_currentInsertionLine.breakable = false;
+                                    } else {
+                                        m_currentInsertionLine.breakable = true;
+                                    }
                                     m_lines.push_back(m_currentInsertionLine);
                                     // next line starts at the current line's end:
                                     m_currentInsertionLine.x0 = m_currentInsertionLine.x1;
@@ -455,7 +488,8 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
     }
 }
 
-bool mgo::Level::msgbox(const std::string& title,
+bool mgo::Level::msgbox(
+    const std::string& title,
     const std::string& message,
     std::function<void(bool, const std::string&)> callback)
 {
@@ -494,6 +528,9 @@ void mgo::Level::displayMode(sf::RenderWindow& window)
     switch (m_currentMode) {
         case Mode::LINE:
             t.setString("LINE");
+            break;
+        case Mode::BREAKABLE:
+            t.setString("BREAKABLE");
             break;
         case Mode::EDIT:
             t.setString("EDIT");

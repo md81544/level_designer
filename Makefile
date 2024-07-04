@@ -1,33 +1,15 @@
-PROJECT=level_designer
-SOURCES=$(shell ls *cpp)
-INCPATHS=
-LIBPATHS=
-LDFLAGS=-lsfml-graphics -lsfml-window -lsfml-system -lsfml-audio
-CFLAGS=-std=c++20 -c -Wall -Wextra -Wpedantic -Werror
-CC=clang++
+MAKEFLAGS += --silent
 
-# Automatic generation of some important lists
-OBJECTS=$(SOURCES:.cpp=.o)
-	INCFLAGS=$(foreach TMP,$(INCPATHS),-I$(TMP))
-	LIBFLAGS=$(foreach TMP,$(LIBPATHS),-L$(TMP))
+.PHONY: all debug clean release
 
-	BINARY=$(PROJECT)
+all:
+	./m.sh
 
-all: CFLAGS += -O3
-all: $(SOURCES) $(BINARY)
-
-debug: CFLAGS += -O0 -g -D_DEBUG
-debug: $(BINARY)
-
-$(BINARY): $(OBJECTS)
-	$(CC) $(LIBFLAGS) $(OBJECTS) $(LDFLAGS) -o $@
-
-.cpp.o:
-	$(CC) $(INCFLAGS) $(CFLAGS) $< -o $@
-
-distclean: clean
-	rm -f $(BINARY)
+debug:
+	./m.sh debug
 
 clean:
-	rm -f $(OBJECTS)
+	./m.sh clean
 
+release:
+	./m.sh release

@@ -1,5 +1,6 @@
 #pragma once
 #include <SFML/Graphics.hpp>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -12,6 +13,7 @@
 
 enum class Mode {
     LINE,
+    BREAKABLE,
     EDIT,
     EXIT,
     START,
@@ -29,9 +31,8 @@ struct Line {
     uint8_t g;
     uint8_t b;
     uint8_t thickness; // unused currently
-    bool inactive {
-        false
-    }; // lines don't get deleted, just deactivated, to prevent index invalidation
+    bool inactive { false }; // lines don't get deleted, just deactivated, avoids index invalidation
+    bool breakable { false };
 };
 
 class Level {
@@ -46,12 +47,13 @@ public:
     // Returns the index (into m_Lines) of the first (of potentially several) lines that are *near*
     // the cursor or no value if no lines are nearby.
     std::optional<std::size_t> lineUnderCursor(unsigned int mouseX, unsigned int mouseY);
-    std::tuple<unsigned, unsigned> convertWindowToWorkspaceCoords(unsigned int windowX,
-        unsigned int windowY);
-    std::tuple<unsigned, unsigned> convertWorkspaceToWindowCoords(unsigned int workspaceX,
-        unsigned int workspaceY);
+    std::tuple<unsigned, unsigned>
+    convertWindowToWorkspaceCoords(unsigned int windowX, unsigned int windowY);
+    std::tuple<unsigned, unsigned>
+    convertWorkspaceToWindowCoords(unsigned int workspaceX, unsigned int workspaceY);
     void processEvent(sf::RenderWindow& window, const sf::Event& event);
-    bool msgbox(const std::string& title,
+    bool msgbox(
+        const std::string& title,
         const std::string& message,
         std::function<void(bool, const std::string&)> callback);
     std::string inputbox(const std::string& title, const std::string& message);
