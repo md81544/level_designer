@@ -79,7 +79,7 @@ private:
     };
     Line m_currentInsertionLine;
     Mode m_currentMode { Mode::LINE };
-    void changeMode();
+    void changeMode(bool backwards);
     std::optional<std::pair<unsigned int, unsigned int>> m_startPosition;
     std::optional<std::pair<unsigned int, unsigned int>> m_exitPosition;
     std::vector<std::pair<unsigned int, unsigned int>> m_fuelObjects;

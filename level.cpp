@@ -314,40 +314,8 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 save();
                 break;
             case sf::Keyboard::M:
-                switch (m_currentMode) {
-                    case Mode::LINE:
-                        changeMode();
-                        m_currentMode = Mode::BREAKABLE;
-                        m_currentInsertionLine.r = 255;
-                        m_currentInsertionLine.g = 150;
-                        m_currentInsertionLine.b = 50;
-                        break;
-                    case Mode::BREAKABLE:
-                        changeMode();
-                        m_currentMode = Mode::EDIT;
-                        break;
-                    case Mode::EDIT:
-                        changeMode();
-                        m_currentMode = Mode::START;
-                        break;
-                    case Mode::START:
-                        changeMode();
-                        m_currentMode = Mode::EXIT;
-                        break;
-                    case Mode::EXIT:
-                        changeMode();
-                        m_currentMode = Mode::FUEL;
-                        break;
-                    case Mode::FUEL:
-                        changeMode();
-                        m_currentMode = Mode::LINE;
-                        m_currentInsertionLine.r = 255;
-                        m_currentInsertionLine.g = 0;
-                        m_currentInsertionLine.b = 0;
-                        break;
-                    default:
-                        break;
-                }
+                changeMode(event.key.shift);
+                break;
             case sf::Keyboard::BackSpace:
             case sf::Keyboard::Delete:
             case sf::Keyboard::X:
@@ -603,10 +571,65 @@ void Level::drawObjects(sf::RenderWindow& window)
     }
 }
 
-void Level::changeMode()
+void Level::changeMode(bool backwards)
 {
     m_highlightedLineIdx = std::nullopt;
     m_currentInsertionLine.inactive = true;
+    switch (m_currentMode) {
+        case Mode::LINE:
+            if (backwards) {
+                m_currentMode = Mode::FUEL;
+            } else {
+                m_currentMode = Mode::BREAKABLE;
+            }
+            break;
+        case Mode::BREAKABLE:
+            if (backwards) {
+                m_currentMode = Mode::LINE;
+            } else {
+                m_currentMode = Mode::EDIT;
+            }
+            break;
+        case Mode::EDIT:
+            if (backwards) {
+                m_currentMode = Mode::BREAKABLE;
+            } else {
+                m_currentMode = Mode::START;
+            }
+            break;
+        case Mode::START:
+            if (backwards) {
+                m_currentMode = Mode::EDIT;
+            } else {
+                m_currentMode = Mode::EXIT;
+            }
+            break;
+        case Mode::EXIT:
+            if (backwards) {
+                m_currentMode = Mode::START;
+            } else {
+                m_currentMode = Mode::FUEL;
+            }
+            break;
+        case Mode::FUEL:
+            if (backwards) {
+                m_currentMode = Mode::EXIT;
+            } else {
+                m_currentMode = Mode::LINE;
+            }
+            break;
+        default:
+            break;
+    }
+    if (m_currentMode == Mode::LINE) {
+        m_currentInsertionLine.r = 255;
+        m_currentInsertionLine.g = 0;
+        m_currentInsertionLine.b = 0;
+    } else if (m_currentMode == Mode::BREAKABLE) {
+        m_currentInsertionLine.r = 255;
+        m_currentInsertionLine.g = 150;
+        m_currentInsertionLine.b = 50;
+    }
 }
 
 } // namespace
