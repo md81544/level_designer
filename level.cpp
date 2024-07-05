@@ -131,7 +131,7 @@ void mgo::Level::save()
                     if (!l.inactive && l.breakable) {
                         std::cout << "N~BREAKABLE~breakable\n";
                         std::cout << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1
-                                  << "~255~150~50~2\n";
+                                  << "~255~150~50~10\n";
                     }
                 }
                 if (m_exitPosition.has_value()) {
