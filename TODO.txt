@@ -1,2 +1,3 @@
 Maybe snap on to other lines as well as the grid?
 Confirmation dialog on window close
+Need to be able to specify the starting rotation

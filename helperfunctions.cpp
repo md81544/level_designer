@@ -1,5 +1,18 @@
 #include "helperfunctions.h"
 
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+
+namespace {
+
+unsigned int squaredDistance(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2)
+{
+    return (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
+}
+
+}
+
 namespace mgo {
 namespace helperfunctions {
 
@@ -89,6 +102,43 @@ bool doLinesIntersect(long x1, long y1, long x2, long y2, long x3, long y3, long
 
     // if we get here, the lines either intersect or are collinear.
     return true;
+}
+
+std::optional<std::pair<unsigned, unsigned>> closestPointOnLine(
+    unsigned int x0,
+    unsigned int y0,
+    unsigned int x1,
+    unsigned int y1,
+    unsigned int x,
+    unsigned int y,
+    unsigned int d)
+{
+    int dx = x1 - x0;
+    int dy = y1 - y0;
+
+    if (dx == 0 && dy == 0) {
+        if (squaredDistance(x, y, x0, y0) <= d * d) {
+            return { { x0, y0 } };
+        } else {
+            return std::nullopt;
+        }
+    }
+
+    int px = x - x0;
+    int py = y - y0;
+
+    double t = (px * dx + py * dy) / (double)(dx * dx + dy * dy);
+    t = std::max(0.0, std::min(1.0, t)); // Clamping t to the range [0, 1]
+
+    unsigned int nearestX = x0 + t * dx;
+    unsigned int nearestY = y0 + t * dy;
+
+    // Check if this nearest point is within the allowed distance `d`
+    if (squaredDistance(x, y, nearestX, nearestY) <= d * d) {
+        return { { nearestX, nearestY } };
+    } else {
+        return std::nullopt;
+    }
 }
 
 } // namespace helperfunctions

@@ -20,6 +20,12 @@ enum class Mode {
     FUEL
 };
 
+enum class SnapMode {
+    NONE,
+    GRID,
+    LINE
+};
+
 namespace mgo {
 
 struct Line {
@@ -59,6 +65,7 @@ public:
     std::string inputbox(const std::string& title, const std::string& message);
     void displayMode(sf::RenderWindow& window);
     void highlightGridVertex(unsigned int mouseX, unsigned int mouseY);
+    void highlightNearestLinePoint(unsigned int mouseX, unsigned int mouseY);
     void drawObjects(sf::RenderWindow& window);
 
 private:
@@ -70,7 +77,7 @@ private:
     sf::RectangleShape m_dialog;
     sf::Text m_dialogTitle;
     sf::Text m_dialogText;
-    std::function<void(bool, std::string)> m_dialogCallback { [](bool, const std::string&) {} };
+    std::function<void(bool, std::string)> m_dialogCallback { [](bool, const std::string&) { } };
     sf::Font m_font;
     sf::Text m_editModeText;
     std::optional<std::size_t> m_highlightedLineIdx;
@@ -79,6 +86,7 @@ private:
     };
     Line m_currentInsertionLine;
     Mode m_currentMode { Mode::LINE };
+    SnapMode m_snapMode { SnapMode::LINE };
     void changeMode(bool backwards);
     std::optional<std::pair<unsigned int, unsigned int>> m_startPosition;
     std::optional<std::pair<unsigned int, unsigned int>> m_exitPosition;

@@ -335,6 +335,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
         if (m_currentMode == Mode::LINE || m_currentMode == Mode::BREAKABLE) {
             // Highlight nearest grid vertex
             highlightGridVertex(event.mouseMove.x, event.mouseMove.y);
+            highlightNearestLinePoint(event.mouseMove.x, event.mouseMove.y);
             if (m_currentInsertionLine.inactive == false) {
                 if (m_currentNearestGridVertex.has_value()) {
                     m_currentInsertionLine.x1 = std::get<0>(m_currentNearestGridVertex.value());
@@ -530,6 +531,18 @@ void mgo::Level::highlightGridVertex(unsigned int mouseX, unsigned int mouseY)
         m_currentNearestGridVertex = std::nullopt;
     } else {
         m_currentNearestGridVertex = std::tie(x, y);
+    }
+}
+
+void Level::highlightNearestLinePoint(unsigned int mouseX, unsigned int mouseY)
+{
+    auto [wx, wy] = convertWindowToWorkspaceCoords(mouseX, mouseY);
+    for (const auto& l : m_lines) {
+        auto nearest = helperfunctions::closestPointOnLine(l.x0, l.y0, l.x1, l.y1, wx, wy, 20);
+        if (nearest.has_value()) {
+            m_currentNearestGridVertex = std::tie(nearest.value().first, nearest.value().second);
+            return;
+        }
     }
 }
 
