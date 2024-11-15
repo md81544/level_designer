@@ -268,7 +268,6 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
     }
     if (m_isDialogActive) {
         // if a dialog is active then we respond differently to events:
-        // TODO
         if (event.type == sf::Event::KeyPressed) {
             switch (event.key.code) {
                 case sf::Keyboard::Escape:
@@ -327,6 +326,18 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
             case sf::Keyboard::Escape:
                 m_currentInsertionLine.inactive = true;
                 break;
+            case sf::Keyboard::Left:
+                m_originX -= 50;
+                break;
+            case sf::Keyboard::Right:
+                m_originX += 50;
+                break;
+            case sf::Keyboard::Up:
+                m_originY -= 50;
+                break;
+            case sf::Keyboard::Down:
+                m_originY += 50;
+                break;
             default:
                 break;
         }
@@ -352,7 +363,9 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
         }
     }
     if (event.type == sf::Event::MouseButtonPressed) {
-        if (event.mouseButton.button == sf::Mouse::Left) {
+        if (event.mouseButton.button == sf::Mouse::Right) {
+            m_currentInsertionLine.inactive = true;
+        } else if (event.mouseButton.button == sf::Mouse::Left) {
             switch (m_currentMode) {
                 case Mode::LINE:
                 case Mode::BREAKABLE:
@@ -438,23 +451,19 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
             }
         }
     }
-    if (event.mouseWheelScroll.wheel == sf::Mouse::HorizontalWheel) {
-        float amt = event.mouseWheelScroll.delta;
-        if (std::abs(amt) > 0.1 && std::abs(amt) < 10.f) {
-            if (amt < 0.f) {
-                m_originX += 50;
-            } else if (amt > 0.f) {
-                m_originX -= 50;
-            }
-        }
-    }
     if (event.mouseWheelScroll.wheel == sf::Mouse::VerticalWheel) {
         float amt = event.mouseWheelScroll.delta;
         if (std::abs(amt) > 0.1 && std::abs(amt) < 10.f) {
-            if (amt < 0.f) {
-                m_originY += 50;
-            } else if (amt > 0.f) {
-                m_originY -= 50;
+            if (amt > 0.f) {
+                m_zoomLevel += 0.05f;
+                if (m_zoomLevel >= 10.f) {
+                    m_zoomLevel = 10.f;
+                }
+            } else if (amt < 0.f) {
+                m_zoomLevel -= 0.05f;
+                if (m_zoomLevel < 0.1f) {
+                    m_zoomLevel = 0.1f;
+                }
             }
         }
     }

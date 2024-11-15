@@ -1,3 +1,3 @@
-Maybe snap on to other lines as well as the grid?
+Ability to set snapping to grid, line, or none
 Confirmation dialog on window close
 Need to be able to specify the starting rotation
