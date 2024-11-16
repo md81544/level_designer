@@ -272,16 +272,12 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
         switch (event.key.code) {
             case sf::Keyboard::Equal:
                 {
-                    if (m_view.getSize().x > 100.f) {
-                        m_view.zoom(0.95f);
-                    }
+                    zoomOut();
                     break;
                 }
             case sf::Keyboard::Hyphen:
                 {
-                    if (m_view.getSize().x < 2400.f) {
-                        m_view.zoom(1.05f);
-                    }
+                    zoomIn();
                     break;
                 }
             case sf::Keyboard::Q:
@@ -438,11 +434,47 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
         float amt = event.mouseWheelScroll.delta;
         if (std::abs(amt) > 0.1 && std::abs(amt) < 10.f) {
             if (amt > 0.f) {
-                // TODO
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift)) {
+                    m_view.move(0, -25);
+                } else {
+                    zoomOut();
+                }
             } else if (amt < 0.f) {
-                // TODO
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift)) {
+                    m_view.move(0, 25);
+                } else {
+                    zoomIn();
+                }
             }
         }
+    }
+    if (event.mouseWheelScroll.wheel == sf::Mouse::HorizontalWheel) {
+        float amt = event.mouseWheelScroll.delta;
+        if (std::abs(amt) > 0.1 && std::abs(amt) < 10.f) {
+            if (amt > 0.f) {
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift)) {
+                    m_view.move(-25, 0);
+                }
+            } else if (amt < 0.f) {
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift)) {
+                    m_view.move(25, 0);
+                }
+            }
+        }
+    }
+}
+
+void Level::zoomIn()
+{
+    if (m_view.getSize().x < 2400.f) {
+        m_view.zoom(1.05f);
+    }
+}
+
+void Level::zoomOut()
+{
+    if (m_view.getSize().x > 100.f) {
+        m_view.zoom(0.95f);
     }
 }
 
@@ -476,7 +508,7 @@ std::string mgo::Level::inputbox(const std::string& /* title */, const std::stri
     return std::string("TODO");
 }
 
-void mgo::Level::displayMode(sf::RenderWindow& window)
+void mgo::Level::drawMode(sf::RenderWindow& window)
 {
     sf::Text t;
     t.setFont(m_font);

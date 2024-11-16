@@ -23,7 +23,8 @@ enum class Mode {
 enum class SnapMode {
     NONE,
     GRID,
-    LINE
+    LINE,
+    AUTO
 };
 
 namespace mgo {
@@ -55,12 +56,14 @@ public:
     std::optional<std::size_t>
     lineUnderCursor(sf::RenderWindow& window, unsigned int mouseX, unsigned int mouseY);
     void processEvent(sf::RenderWindow& window, const sf::Event& event);
+    void zoomIn();
+    void zoomOut();
     bool msgbox(
         const std::string& title,
         const std::string& message,
         std::function<void(bool, const std::string&)> callback);
     std::string inputbox(const std::string& title, const std::string& message);
-    void displayMode(sf::RenderWindow& window);
+    void drawMode(sf::RenderWindow& window);
     void highlightGridVertex(sf::RenderWindow& window, unsigned int mouseX, unsigned int mouseY);
     void
     highlightNearestLinePoint(sf::RenderWindow& window, unsigned int mouseX, unsigned int mouseY);
