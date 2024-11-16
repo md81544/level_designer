@@ -51,7 +51,7 @@ int main(int argc, char* argv[])
             level.draw(window);
             level.drawObjects(window);
             window.setView(level.getFixedView());
-            level.drawMode(window);
+            level.drawModes(window);
             level.drawDialog(window);
             // Set view back otherwise mouse coords appear to be
             // reported in the wrong position

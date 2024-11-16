@@ -134,7 +134,7 @@ void mgo::Level::save()
                     if (!l.inactive && l.breakable) {
                         std::cout << "N~BREAKABLE~breakable\n";
                         std::cout << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1
-                                  << "~255~150~50~10\n";
+                                  << "~255~150~50~6\n";
                     }
                 }
                 if (m_exitPosition.has_value()) {
@@ -288,7 +288,11 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 });
                 break;
             case sf::Keyboard::S:
-                save();
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::LSystem)) {
+                    save();
+                } else {
+                    changeSnapMode();
+                }
                 break;
             case sf::Keyboard::M:
                 changeMode(event.key.shift);
@@ -323,8 +327,12 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
     if (event.type == sf::Event::MouseMoved) {
         if (m_currentMode == Mode::LINE || m_currentMode == Mode::BREAKABLE) {
             // Highlight nearest grid vertex
-            highlightGridVertex(window, event.mouseMove.x, event.mouseMove.y);
-            highlightNearestLinePoint(window, event.mouseMove.x, event.mouseMove.y);
+            if (m_snapMode == SnapMode::AUTO || m_snapMode == SnapMode::GRID) {
+                highlightGridVertex(window, event.mouseMove.x, event.mouseMove.y);
+            }
+            if (m_snapMode == SnapMode::AUTO || m_snapMode == SnapMode::LINE) {
+                highlightNearestLinePoint(window, event.mouseMove.x, event.mouseMove.y);
+            }
             if (m_currentInsertionLine.inactive == false) {
                 if (m_currentNearestGridVertex.has_value()) {
                     m_currentInsertionLine.x1 = std::get<0>(m_currentNearestGridVertex.value());
@@ -349,7 +357,8 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 case Mode::BREAKABLE:
                     {
                         // Insert a new line
-                        if (m_currentNearestGridVertex.has_value()) {
+                        if (m_currentNearestGridVertex.has_value()
+                            || m_snapMode == SnapMode::NONE) {
                             // Are we in the middle of drawing a line? If so, add the current
                             // insertion line into the vector
                             if (!m_currentInsertionLine.inactive) {
@@ -508,36 +517,61 @@ std::string mgo::Level::inputbox(const std::string& /* title */, const std::stri
     return std::string("TODO");
 }
 
-void mgo::Level::drawMode(sf::RenderWindow& window)
+void mgo::Level::drawModes(sf::RenderWindow& window)
 {
-    sf::Text t;
-    t.setFont(m_font);
-    t.setFillColor(sf::Color::Cyan);
-    t.setCharacterSize(14);
-    t.setPosition({ 5.f, 5.f });
+    // Main insertion mode:
+    sf::Text txtMode;
+    txtMode.setFont(m_font);
+    txtMode.setFillColor(sf::Color::Cyan);
+    txtMode.setCharacterSize(14);
+    txtMode.setPosition({ 5.f, 5.f });
     switch (m_currentMode) {
         case Mode::LINE:
-            t.setString("LINE");
+            txtMode.setString("LINE");
             break;
         case Mode::BREAKABLE:
-            t.setString("BREAKABLE");
+            txtMode.setString("BREAKABLE");
             break;
         case Mode::EDIT:
-            t.setString("EDIT");
+            txtMode.setString("EDIT");
             break;
         case Mode::START:
-            t.setString("START");
+            txtMode.setString("START");
             break;
         case Mode::EXIT:
-            t.setString("EXIT");
+            txtMode.setString("EXIT");
             break;
         case Mode::FUEL:
-            t.setString("FUEL");
+            txtMode.setString("FUEL");
             break;
         default:
             break;
     }
-    window.draw(t);
+    window.draw(txtMode);
+
+    // Snapping mode:
+    sf::Text txtSnap;
+    txtSnap.setFont(m_font);
+    txtSnap.setFillColor(sf::Color::Green);
+    txtSnap.setCharacterSize(14);
+    txtSnap.setPosition({ 95.f, 5.f });
+    switch (m_snapMode) {
+        case SnapMode::AUTO:
+            txtSnap.setString("Snap: AUTO");
+            break;
+        case SnapMode::GRID:
+            txtSnap.setString("Snap: GRID");
+            break;
+        case SnapMode::LINE:
+            txtSnap.setString("Snap: LINE");
+            break;
+        case SnapMode::NONE:
+            txtSnap.setString("Snap: NONE");
+            break;
+        default:
+            break;
+    }
+    window.draw(txtSnap);
 }
 
 void mgo::Level::highlightGridVertex(
@@ -701,6 +735,28 @@ void Level::changeMode(bool backwards)
         m_currentInsertionLine.g = 150;
         m_currentInsertionLine.b = 50;
     }
+}
+
+void Level::changeSnapMode()
+{
+    switch (m_snapMode) {
+        case SnapMode::AUTO:
+            m_snapMode = SnapMode::LINE;
+            break;
+        case SnapMode::LINE:
+            m_snapMode = SnapMode::GRID;
+            break;
+        case SnapMode::GRID:
+            m_snapMode = SnapMode::NONE;
+            break;
+        case SnapMode::NONE:
+            m_snapMode = SnapMode::AUTO;
+            break;
+        default:
+            assert(false);
+            break;
+    }
+    m_currentNearestGridVertex = std::nullopt;
 }
 
 } // namespace

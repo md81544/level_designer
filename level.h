@@ -63,7 +63,7 @@ public:
         const std::string& message,
         std::function<void(bool, const std::string&)> callback);
     std::string inputbox(const std::string& title, const std::string& message);
-    void drawMode(sf::RenderWindow& window);
+    void drawModes(sf::RenderWindow& window);
     void highlightGridVertex(sf::RenderWindow& window, unsigned int mouseX, unsigned int mouseY);
     void
     highlightNearestLinePoint(sf::RenderWindow& window, unsigned int mouseX, unsigned int mouseY);
@@ -87,8 +87,9 @@ private:
     };
     Line m_currentInsertionLine;
     Mode m_currentMode { Mode::LINE };
-    SnapMode m_snapMode { SnapMode::LINE };
+    SnapMode m_snapMode { SnapMode::AUTO };
     void changeMode(bool backwards);
+    void changeSnapMode();
     std::optional<std::pair<unsigned int, unsigned int>> m_startPosition;
     std::optional<std::pair<unsigned int, unsigned int>> m_exitPosition;
     std::vector<std::pair<unsigned int, unsigned int>> m_fuelObjects;
