@@ -25,7 +25,8 @@ int main(int argc, char* argv[])
         // user (I) can adjust to whatever is best for the machine being used
         unsigned int screenWidth = static_cast<unsigned int>(config.readLong("WindowWidth", 800));
         unsigned int screenHeight = static_cast<unsigned int>(config.readLong("WindowHeight", 800));
-        sf::RenderWindow window(sf::VideoMode(screenWidth, screenHeight),
+        sf::RenderWindow window(
+            sf::VideoMode(screenWidth, screenHeight),
             "Amaze Level Designer",
             sf::Style::Titlebar | sf::Style::Close);
         window.setFramerateLimit(24);
@@ -42,12 +43,19 @@ int main(int argc, char* argv[])
                 level.processEvent(window, event);
             }
 
+            level.processViewport();
+
+            window.setView(level.getView());
             window.clear();
             level.drawGridLines(window);
             level.draw(window);
             level.drawObjects(window);
+            window.setView(level.getFixedView());
             level.displayMode(window);
             level.drawDialog(window);
+            // Set view back otherwise mouse coords appear to be
+            // reported in the wrong position
+            window.setView(level.getView());
             window.display();
         }
         return 0;

@@ -64,16 +64,17 @@ public:
         std::function<void(bool, const std::string&)> callback);
     std::string inputbox(const std::string& title, const std::string& message);
     void displayMode(sf::RenderWindow& window);
-    void highlightGridVertex(unsigned int mouseX, unsigned int mouseY);
-    void highlightNearestLinePoint(unsigned int mouseX, unsigned int mouseY);
+    void highlightGridVertex(sf::RenderWindow& window, unsigned int mouseX, unsigned int mouseY);
+    void
+    highlightNearestLinePoint(sf::RenderWindow& window, unsigned int mouseX, unsigned int mouseY);
     void drawObjects(sf::RenderWindow& window);
+    sf::View& getView();
+    sf::View& getFixedView();
+    void processViewport();
 
 private:
     std::vector<Line> m_lines;
     bool m_isDialogActive { false };
-    float m_zoomLevel { 0.333 };
-    int m_originX { 0 };
-    int m_originY { 0 };
     sf::RectangleShape m_dialog;
     sf::Text m_dialogTitle;
     sf::Text m_dialogText;
@@ -91,6 +92,8 @@ private:
     std::optional<std::pair<unsigned int, unsigned int>> m_startPosition;
     std::optional<std::pair<unsigned int, unsigned int>> m_exitPosition;
     std::vector<std::pair<unsigned int, unsigned int>> m_fuelObjects;
+    sf::View m_view;
+    sf::View m_fixedView; // for non-moving elements, e.g. dialog
 };
 
 } // namespace mgo

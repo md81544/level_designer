@@ -13,7 +13,7 @@
 #include <boost/algorithm/string/split.hpp>
 
 namespace mgo {
-mgo::Level::Level(unsigned int /* windowWidth */, unsigned int windowHeight)
+mgo::Level::Level(unsigned int windowWidth, unsigned int windowHeight)
 {
     if (!m_font.loadFromFile("DroidSansMono.ttf")) {
         throw std::runtime_error("Could not load font file");
@@ -22,7 +22,10 @@ mgo::Level::Level(unsigned int /* windowWidth */, unsigned int windowHeight)
     m_currentInsertionLine.r = 255;
     m_currentInsertionLine.g = 0;
     m_currentInsertionLine.b = 0;
-    m_zoomLevel = windowHeight / 2000.f;
+    m_view.reset(sf::FloatRect(0, 0, windowWidth, windowHeight));
+    m_view.setViewport(sf::FloatRect(0, 0, 1, 1));
+    m_fixedView.reset(sf::FloatRect(0, 0, windowWidth, windowHeight));
+    m_fixedView.setViewport(sf::FloatRect(0, 0, 1, 1));
 }
 
 void Level::load(const std::string& filename)
@@ -188,10 +191,8 @@ void mgo::Level::drawDialog(sf::RenderWindow& window)
 
 void mgo::Level::drawLine(sf::RenderWindow& window, const Line& l, std::optional<std::size_t> idx)
 {
-    sf::Vertex line[] = {
-        sf::Vertex(sf::Vector2f(l.x0 * m_zoomLevel - m_originX, l.y0 * m_zoomLevel - m_originY)),
-        sf::Vertex(sf::Vector2f(l.x1 * m_zoomLevel - m_originX, l.y1 * m_zoomLevel - m_originY))
-    };
+    sf::Vertex line[]
+        = { sf::Vertex(sf::Vector2f(l.x0, l.y0)), sf::Vertex(sf::Vector2f(l.x1, l.y1)) };
     if (idx.has_value() && m_highlightedLineIdx.has_value()
         && m_highlightedLineIdx.value() == idx.value()) {
         line[0].color = sf::Color(sf::Color::White);
@@ -248,17 +249,13 @@ std::optional<std::size_t> mgo::Level::lineUnderCursor(unsigned int mouseX, unsi
 std::tuple<unsigned int, unsigned int>
 mgo::Level::convertWindowToWorkspaceCoords(unsigned int windowX, unsigned int windowY)
 {
-    unsigned int x = (windowX + m_originX) / m_zoomLevel;
-    unsigned int y = (windowY + m_originY) / m_zoomLevel;
-    return { x, y };
+    return { windowX, windowY };
 }
 
 std::tuple<unsigned int, unsigned int>
 mgo::Level::convertWorkspaceToWindowCoords(unsigned int workspaceX, unsigned int workspaceY)
 {
-    unsigned int x = workspaceX * m_zoomLevel - m_originX;
-    unsigned int y = workspaceY * m_zoomLevel - m_originY;
-    return { x, y };
+    return { workspaceX, workspaceY };
 }
 
 void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
@@ -288,17 +285,15 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
         switch (event.key.code) {
             case sf::Keyboard::Equal:
                 {
-                    m_zoomLevel += 0.1f;
-                    if (m_zoomLevel >= 10.f) {
-                        m_zoomLevel = 10.f;
+                    if (m_view.getSize().x > 100.f) {
+                        m_view.zoom(0.95f);
                     }
                     break;
                 }
             case sf::Keyboard::Hyphen:
                 {
-                    m_zoomLevel -= 0.1f;
-                    if (m_zoomLevel < 0.1f) {
-                        m_zoomLevel = 0.1f;
+                    if (m_view.getSize().x < 2400.f) {
+                        m_view.zoom(1.05f);
                     }
                     break;
                 }
@@ -327,16 +322,16 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 m_currentInsertionLine.inactive = true;
                 break;
             case sf::Keyboard::Left:
-                m_originX -= 50;
+                m_view.move(-25, 0);
                 break;
             case sf::Keyboard::Right:
-                m_originX += 50;
+                m_view.move(25, 0);
                 break;
             case sf::Keyboard::Up:
-                m_originY -= 50;
+                m_view.move(0, -25);
                 break;
             case sf::Keyboard::Down:
-                m_originY += 50;
+                m_view.move(0, 25);
                 break;
             default:
                 break;
@@ -345,8 +340,8 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
     if (event.type == sf::Event::MouseMoved) {
         if (m_currentMode == Mode::LINE || m_currentMode == Mode::BREAKABLE) {
             // Highlight nearest grid vertex
-            highlightGridVertex(event.mouseMove.x, event.mouseMove.y);
-            highlightNearestLinePoint(event.mouseMove.x, event.mouseMove.y);
+            highlightGridVertex(window, event.mouseMove.x, event.mouseMove.y);
+            highlightNearestLinePoint(window, event.mouseMove.x, event.mouseMove.y);
             if (m_currentInsertionLine.inactive == false) {
                 if (m_currentNearestGridVertex.has_value()) {
                     m_currentInsertionLine.x1 = std::get<0>(m_currentNearestGridVertex.value());
@@ -455,15 +450,9 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
         float amt = event.mouseWheelScroll.delta;
         if (std::abs(amt) > 0.1 && std::abs(amt) < 10.f) {
             if (amt > 0.f) {
-                m_zoomLevel += 0.05f;
-                if (m_zoomLevel >= 10.f) {
-                    m_zoomLevel = 10.f;
-                }
+                // TODO
             } else if (amt < 0.f) {
-                m_zoomLevel -= 0.05f;
-                if (m_zoomLevel < 0.1f) {
-                    m_zoomLevel = 0.1f;
-                }
+                // TODO
             }
         }
     }
@@ -531,11 +520,16 @@ void mgo::Level::displayMode(sf::RenderWindow& window)
     window.draw(t);
 }
 
-void mgo::Level::highlightGridVertex(unsigned int mouseX, unsigned int mouseY)
+void mgo::Level::highlightGridVertex(
+    sf::RenderWindow& window,
+    unsigned int mouseX,
+    unsigned int mouseY)
 {
-    auto [wx, wy] = convertWindowToWorkspaceCoords(mouseX, mouseY);
-    unsigned int x = static_cast<unsigned int>(static_cast<double>(wx) / 50.0 + 0.5) * 50.0;
-    unsigned int y = static_cast<unsigned int>(static_cast<double>(wy) / 50.0 + 0.5) * 50.0;
+    // auto [wx, wy] = convertWindowToWorkspaceCoords(mouseX, mouseY);
+    auto w = window.mapPixelToCoords({ static_cast<int>(mouseX), static_cast<int>(mouseY) });
+
+    unsigned int x = static_cast<unsigned int>(static_cast<double>(w.x) / 50.0 + 0.5) * 50.0;
+    unsigned int y = static_cast<unsigned int>(static_cast<double>(w.y) / 50.0 + 0.5) * 50.0;
     if (x > 2000 || y > 2000) {
         m_currentNearestGridVertex = std::nullopt;
     } else {
@@ -543,11 +537,15 @@ void mgo::Level::highlightGridVertex(unsigned int mouseX, unsigned int mouseY)
     }
 }
 
-void Level::highlightNearestLinePoint(unsigned int mouseX, unsigned int mouseY)
+void Level::highlightNearestLinePoint(
+    sf::RenderWindow& window,
+    unsigned int mouseX,
+    unsigned int mouseY)
 {
-    auto [wx, wy] = convertWindowToWorkspaceCoords(mouseX, mouseY);
+    // auto [wx, wy] = convertWindowToWorkspaceCoords(mouseX, mouseY);
+    auto w = window.mapPixelToCoords({ static_cast<int>(mouseX), static_cast<int>(mouseY) });
     for (const auto& l : m_lines) {
-        auto nearest = helperfunctions::closestPointOnLine(l.x0, l.y0, l.x1, l.y1, wx, wy, 20);
+        auto nearest = helperfunctions::closestPointOnLine(l.x0, l.y0, l.x1, l.y1, w.x, w.y, 20);
         if (nearest.has_value()) {
             m_currentNearestGridVertex = std::tie(nearest.value().first, nearest.value().second);
             return;
@@ -562,7 +560,7 @@ void Level::drawObjects(sf::RenderWindow& window)
             m_startPosition.value().first, m_startPosition.value().second);
         sf::CircleShape c;
         c.setFillColor(sf::Color::Green);
-        float r = 20.f * m_zoomLevel;
+        float r = 20.f;
         c.setRadius(r);
         c.setOrigin({ r, r });
         c.setPosition(x, y);
@@ -573,7 +571,7 @@ void Level::drawObjects(sf::RenderWindow& window)
             m_exitPosition.value().first, m_exitPosition.value().second);
         sf::CircleShape c;
         c.setFillColor(sf::Color::Red);
-        float r = 20.f * m_zoomLevel;
+        float r = 20.f;
         c.setRadius(r);
         c.setOrigin({ r, r });
         c.setPosition(x, y);
@@ -584,12 +582,47 @@ void Level::drawObjects(sf::RenderWindow& window)
             auto [x, y] = convertWorkspaceToWindowCoords(p.first, p.second);
             sf::CircleShape c;
             c.setFillColor(sf::Color::Yellow);
-            float r = 10.f * m_zoomLevel;
+            float r = 10.f;
             c.setRadius(r);
             c.setOrigin({ r, r });
             c.setPosition(x, y);
             window.draw(c);
         }
+    }
+}
+
+sf::View& Level::getView()
+{
+    return m_view;
+}
+
+sf::View& Level::getFixedView()
+{
+    return m_fixedView;
+}
+
+void Level::processViewport()
+{
+    // Clamp the view within the bounds of the map
+    sf::Vector2f viewSize = m_view.getSize();
+    sf::Vector2f viewCenter = m_view.getCenter();
+
+    float leftBound = viewSize.x / 3;
+    float rightBound = 2000 - viewSize.x / 3;
+    float topBound = viewSize.y / 3;
+    float bottomBound = 2000 - viewSize.y / 3;
+
+    if (viewCenter.x < leftBound) {
+        m_view.setCenter(leftBound, viewCenter.y);
+    }
+    if (viewCenter.x > rightBound) {
+        m_view.setCenter(rightBound, viewCenter.y);
+    }
+    if (viewCenter.y < topBound) {
+        m_view.setCenter(viewCenter.x, topBound);
+    }
+    if (viewCenter.y > bottomBound) {
+        m_view.setCenter(viewCenter.x, bottomBound);
     }
 }
 
