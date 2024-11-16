@@ -52,11 +52,8 @@ public:
     void drawGridLines(sf::RenderWindow& window);
     // Returns the index (into m_Lines) of the first (of potentially several) lines that are *near*
     // the cursor or no value if no lines are nearby.
-    std::optional<std::size_t> lineUnderCursor(unsigned int mouseX, unsigned int mouseY);
-    std::tuple<unsigned, unsigned>
-    convertWindowToWorkspaceCoords(unsigned int windowX, unsigned int windowY);
-    std::tuple<unsigned, unsigned>
-    convertWorkspaceToWindowCoords(unsigned int workspaceX, unsigned int workspaceY);
+    std::optional<std::size_t>
+    lineUnderCursor(sf::RenderWindow& window, unsigned int mouseX, unsigned int mouseY);
     void processEvent(sf::RenderWindow& window, const sf::Event& event);
     bool msgbox(
         const std::string& title,

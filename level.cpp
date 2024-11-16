@@ -170,8 +170,7 @@ void mgo::Level::draw(sf::RenderWindow& window)
         c.setOrigin({ 3.f, 3.f });
         float x = std::get<0>(m_currentNearestGridVertex.value());
         float y = std::get<1>(m_currentNearestGridVertex.value());
-        auto [windowX, windowY] = convertWorkspaceToWindowCoords(x, y);
-        c.setPosition(windowX, windowY);
+        c.setPosition(x, y);
         window.draw(c);
     }
     if (m_currentInsertionLine.inactive == false) {
@@ -211,8 +210,8 @@ void mgo::Level::drawGridLines(sf::RenderWindow& window)
         drawLine(window, { 0, n, 2000, n, 0, 100, 0, 1 }, std::nullopt);
     }
 }
-
-std::optional<std::size_t> mgo::Level::lineUnderCursor(unsigned int mouseX, unsigned int mouseY)
+std::optional<std::size_t>
+Level::lineUnderCursor(sf::RenderWindow& window, unsigned int mouseX, unsigned int mouseY)
 {
     // Note mouseX and mouseY are *window* coordinates, these need to be converted into
     // workspace coordinates.
@@ -220,42 +219,30 @@ std::optional<std::size_t> mgo::Level::lineUnderCursor(unsigned int mouseX, unsi
     // of these to see if they intersect any line on the workspace.
     // A positive origin e.g. 10,10 means the top left of the window is at, say, 10,10 on
     // the workspace, i.e. the workspace is slightly off screen to the left.
-    auto [wx, wy] = convertWindowToWorkspaceCoords(mouseX, mouseY);
+    auto w = window.mapPixelToCoords({ static_cast<int>(mouseX), static_cast<int>(mouseY) });
     std::size_t idx = 0;
     for (const auto& l : m_lines) {
         if (!l.inactive) {
             if (helperfunctions::doLinesIntersect(
-                    wx - 10, wy, wx, wy - 10, l.x0, l.y0, l.x1, l.y1)) {
+                    w.x - 10, w.y, w.x, w.y - 10, l.x0, l.y0, l.x1, l.y1)) {
                 return idx;
             }
             if (helperfunctions::doLinesIntersect(
-                    wx, wy - 10, wx + 10, wy, l.x0, l.y0, l.x1, l.y1)) {
+                    w.x, w.y - 10, w.x + 10, w.y, l.x0, l.y0, l.x1, l.y1)) {
                 return idx;
             }
             if (helperfunctions::doLinesIntersect(
-                    wx + 10, wy, wx, wy + 10, l.x0, l.y0, l.x1, l.y1)) {
+                    w.x + 10, w.y, w.x, w.y + 10, l.x0, l.y0, l.x1, l.y1)) {
                 return idx;
             }
             if (helperfunctions::doLinesIntersect(
-                    wx, wy + 10, wx - 10, wy, l.x0, l.y0, l.x1, l.y1)) {
+                    w.x, w.y + 10, w.x - 10, w.y, l.x0, l.y0, l.x1, l.y1)) {
                 return idx;
             }
         }
         ++idx;
     }
     return std::nullopt;
-}
-
-std::tuple<unsigned int, unsigned int>
-mgo::Level::convertWindowToWorkspaceCoords(unsigned int windowX, unsigned int windowY)
-{
-    return { windowX, windowY };
-}
-
-std::tuple<unsigned int, unsigned int>
-mgo::Level::convertWorkspaceToWindowCoords(unsigned int workspaceX, unsigned int workspaceY)
-{
-    return { workspaceX, workspaceY };
 }
 
 void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
@@ -347,10 +334,10 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     m_currentInsertionLine.x1 = std::get<0>(m_currentNearestGridVertex.value());
                     m_currentInsertionLine.y1 = std::get<1>(m_currentNearestGridVertex.value());
                 } else {
-                    auto [toX, toY]
-                        = convertWindowToWorkspaceCoords(event.mouseMove.x, event.mouseMove.y);
-                    m_currentInsertionLine.x1 = toX;
-                    m_currentInsertionLine.y1 = toY;
+                    auto w = window.mapPixelToCoords({ static_cast<int>(event.mouseMove.x),
+                                                       static_cast<int>(event.mouseMove.y) });
+                    m_currentInsertionLine.x1 = w.x;
+                    m_currentInsertionLine.y1 = w.y;
                 }
             }
         } else {
@@ -398,7 +385,8 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 case Mode::EDIT:
                     {
                         // Check to see if there is a line under the cursor
-                        auto line = lineUnderCursor(event.mouseButton.x, event.mouseButton.y);
+                        auto line
+                            = lineUnderCursor(window, event.mouseButton.x, event.mouseButton.y);
                         if (line.has_value()) {
                             m_highlightedLineIdx = line.value();
                         }
@@ -406,30 +394,30 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     }
                 case Mode::START:
                     {
-                        auto [x, y] = convertWindowToWorkspaceCoords(
-                            event.mouseButton.x, event.mouseButton.y);
-                        m_startPosition = std::make_pair(x, y);
+                        auto w = window.mapPixelToCoords({ static_cast<int>(event.mouseButton.x),
+                                                           static_cast<int>(event.mouseButton.y) });
+                        m_startPosition = std::make_pair(w.x, w.y);
                         break;
                     }
                 case Mode::EXIT:
                     {
-                        auto [x, y] = convertWindowToWorkspaceCoords(
-                            event.mouseButton.x, event.mouseButton.y);
-                        m_exitPosition = std::make_pair(x, y);
+                        auto w = window.mapPixelToCoords({ static_cast<int>(event.mouseButton.x),
+                                                           static_cast<int>(event.mouseButton.y) });
+                        m_exitPosition = std::make_pair(w.x, w.y);
                         break;
                     }
                 case Mode::FUEL:
                     {
-                        auto [x, y] = convertWindowToWorkspaceCoords(
-                            event.mouseButton.x, event.mouseButton.y);
+                        auto w = window.mapPixelToCoords({ static_cast<int>(event.mouseButton.x),
+                                                           static_cast<int>(event.mouseButton.y) });
                         // if we are within r workspace units of an existing fuel object, we treat
                         // this as a request to delete it instead of placing a new one
                         unsigned int r = 20;
                         std::size_t idx = 0;
                         bool erased { false };
                         for (const auto& f : m_fuelObjects) {
-                            if ((f.first > x - r && f.first < x + r)
-                                && (f.second > y - r && f.second < y + r)) {
+                            if ((f.first > w.x - r && f.first < w.x + r)
+                                && (f.second > w.y - r && f.second < w.y + r)) {
                                 m_fuelObjects.erase(m_fuelObjects.begin() + idx);
                                 erased = true;
                                 break;
@@ -437,7 +425,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                             ++idx;
                         }
                         if (!erased) {
-                            m_fuelObjects.push_back(std::make_pair(x, y));
+                            m_fuelObjects.push_back(std::make_pair(w.x, w.y));
                         }
                         break;
                     }
@@ -525,7 +513,6 @@ void mgo::Level::highlightGridVertex(
     unsigned int mouseX,
     unsigned int mouseY)
 {
-    // auto [wx, wy] = convertWindowToWorkspaceCoords(mouseX, mouseY);
     auto w = window.mapPixelToCoords({ static_cast<int>(mouseX), static_cast<int>(mouseY) });
 
     unsigned int x = static_cast<unsigned int>(static_cast<double>(w.x) / 50.0 + 0.5) * 50.0;
@@ -542,7 +529,6 @@ void Level::highlightNearestLinePoint(
     unsigned int mouseX,
     unsigned int mouseY)
 {
-    // auto [wx, wy] = convertWindowToWorkspaceCoords(mouseX, mouseY);
     auto w = window.mapPixelToCoords({ static_cast<int>(mouseX), static_cast<int>(mouseY) });
     for (const auto& l : m_lines) {
         auto nearest = helperfunctions::closestPointOnLine(l.x0, l.y0, l.x1, l.y1, w.x, w.y, 20);
@@ -556,36 +542,34 @@ void Level::highlightNearestLinePoint(
 void Level::drawObjects(sf::RenderWindow& window)
 {
     if (m_startPosition.has_value()) {
-        auto [x, y] = convertWorkspaceToWindowCoords(
-            m_startPosition.value().first, m_startPosition.value().second);
         sf::CircleShape c;
         c.setFillColor(sf::Color::Green);
         float r = 20.f;
         c.setRadius(r);
         c.setOrigin({ r, r });
-        c.setPosition(x, y);
+        // c.setPosition(w.x, w.y);
+        c.setPosition({ static_cast<float>(m_startPosition.value().first),
+                        static_cast<float>(m_startPosition.value().second) });
         window.draw(c);
     }
     if (m_exitPosition.has_value()) {
-        auto [x, y] = convertWorkspaceToWindowCoords(
-            m_exitPosition.value().first, m_exitPosition.value().second);
         sf::CircleShape c;
         c.setFillColor(sf::Color::Red);
         float r = 20.f;
         c.setRadius(r);
         c.setOrigin({ r, r });
-        c.setPosition(x, y);
+        c.setPosition({ static_cast<float>(m_exitPosition.value().first),
+                        static_cast<float>(m_exitPosition.value().second) });
         window.draw(c);
     }
     if (!m_fuelObjects.empty()) {
         for (const auto& p : m_fuelObjects) {
-            auto [x, y] = convertWorkspaceToWindowCoords(p.first, p.second);
             sf::CircleShape c;
             c.setFillColor(sf::Color::Yellow);
             float r = 10.f;
             c.setRadius(r);
             c.setOrigin({ r, r });
-            c.setPosition(x, y);
+            c.setPosition(static_cast<float>(p.first), static_cast<float>(p.second));
             window.draw(c);
         }
     }
