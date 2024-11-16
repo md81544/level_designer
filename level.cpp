@@ -376,8 +376,18 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                                 }
                             } else {
                                 // else this is a new line
-                                unsigned int x = std::get<0>(m_currentNearestGridVertex.value());
-                                unsigned int y = std::get<1>(m_currentNearestGridVertex.value());
+                                unsigned x;
+                                unsigned y;
+                                if (!m_currentNearestGridVertex.has_value()) {
+                                    auto w = window.mapPixelToCoords(
+                                        { static_cast<int>(event.mouseButton.x),
+                                          static_cast<int>(event.mouseButton.y) });
+                                    x = w.x;
+                                    y = w.y;
+                                } else {
+                                    x = std::get<0>(m_currentNearestGridVertex.value());
+                                    y = std::get<1>(m_currentNearestGridVertex.value());
+                                }
                                 m_currentInsertionLine.x0 = x;
                                 m_currentInsertionLine.y0 = y;
                                 m_currentInsertionLine.x1 = x;
