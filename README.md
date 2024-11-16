@@ -16,9 +16,10 @@ Existing level files can be loaded by specifying the file name on the command li
 
 The editor uses the concept of "modes" for editing. Currently there are five, switchable by the "M" key - "LINE" (for line generation) and "EDIT" for selecting existing lines and deleting them (press 'X' or delete or backspace). The other modes, "START","EXIT", and "FUEL" allow placement of those items specifically.
 
-When in "LINE" mode, click to place a line and keep clicking to keep making lines. If you don't want to connect a line to the last one, just press escape then click somewhere else to start a new line. Lines snap to the grid, this currently is the only behaviour.
+When in "LINE" mode, click to place a line and keep clicking to keep making lines. If you don't want to connect a line to the last one, just press escape (or right click) then click somewhere else to start a new line. Line snapping is controlled
+by the "S" key - "AUTO" will snap to grid vertices or existing lines, "GRID" is vertices only, "LINE" is line only, and "NONE" is no snapping.
 
-Press "S" to 'save' (it currently just outputs to stdout, which is fine for either copy/pasting or piping from the terminal).
+Press Cmd-S to 'save' (it currently just outputs to stdout, which is fine for either copy/pasting or piping from the terminal).
 
 Press "Q" to quit (or just close the window). Currently "Q" has a confirmation dialog, but closing the window does not. That's a TODO.
 
