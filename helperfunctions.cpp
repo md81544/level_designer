@@ -6,7 +6,7 @@
 
 namespace {
 
-unsigned int squaredDistance(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2)
+unsigned squaredDistance(unsigned x1, unsigned y1, unsigned x2, unsigned y2)
 {
     return (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
 }
@@ -105,13 +105,13 @@ bool doLinesIntersect(long x1, long y1, long x2, long y2, long x3, long y3, long
 }
 
 std::optional<std::pair<unsigned, unsigned>> closestPointOnLine(
-    unsigned int x0,
-    unsigned int y0,
-    unsigned int x1,
-    unsigned int y1,
-    unsigned int x,
-    unsigned int y,
-    unsigned int d)
+    unsigned x0,
+    unsigned y0,
+    unsigned x1,
+    unsigned y1,
+    unsigned x,
+    unsigned y,
+    unsigned d)
 {
     int dx = x1 - x0;
     int dy = y1 - y0;
@@ -130,8 +130,8 @@ std::optional<std::pair<unsigned, unsigned>> closestPointOnLine(
     double t = (px * dx + py * dy) / (double)(dx * dx + dy * dy);
     t = std::max(0.0, std::min(1.0, t)); // Clamping t to the range [0, 1]
 
-    unsigned int nearestX = x0 + t * dx;
-    unsigned int nearestY = y0 + t * dy;
+    unsigned nearestX = x0 + t * dx;
+    unsigned nearestY = y0 + t * dy;
 
     // Check if this nearest point is within the allowed distance `d`
     if (squaredDistance(x, y, nearestX, nearestY) <= d * d) {

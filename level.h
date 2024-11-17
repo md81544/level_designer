@@ -30,10 +30,10 @@ enum class SnapMode {
 namespace mgo {
 
 struct Line {
-    unsigned int x0;
-    unsigned int y0;
-    unsigned int x1;
-    unsigned int y1;
+    unsigned x0;
+    unsigned y0;
+    unsigned x1;
+    unsigned y1;
     uint8_t r;
     uint8_t g;
     uint8_t b;
@@ -42,9 +42,15 @@ struct Line {
     bool breakable { false };
 };
 
+struct StartPosition {
+    unsigned x;
+    unsigned y;
+    unsigned r;
+};
+
 class Level {
 public:
-    Level(unsigned int windowWidth, unsigned int windowHeight);
+    Level(unsigned windowWidth, unsigned windowHeight);
     void load(const std::string& filename);
     void save();
     void draw(sf::RenderWindow& window);
@@ -54,7 +60,7 @@ public:
     // Returns the index (into m_Lines) of the first (of potentially several) lines that are *near*
     // the cursor or no value if no lines are nearby.
     std::optional<std::size_t>
-    lineUnderCursor(sf::RenderWindow& window, unsigned int mouseX, unsigned int mouseY);
+    lineUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsigned mouseY);
     void processEvent(sf::RenderWindow& window, const sf::Event& event);
     void zoomIn();
     void zoomOut();
@@ -64,9 +70,8 @@ public:
         std::function<void(bool, const std::string&)> callback);
     std::string inputbox(const std::string& title, const std::string& message);
     void drawModes(sf::RenderWindow& window);
-    void highlightGridVertex(sf::RenderWindow& window, unsigned int mouseX, unsigned int mouseY);
-    void
-    highlightNearestLinePoint(sf::RenderWindow& window, unsigned int mouseX, unsigned int mouseY);
+    void highlightGridVertex(sf::RenderWindow& window, unsigned mouseX, unsigned mouseY);
+    void highlightNearestLinePoint(sf::RenderWindow& window, unsigned mouseX, unsigned mouseY);
     void drawObjects(sf::RenderWindow& window);
     sf::View& getView();
     sf::View& getFixedView();
@@ -82,17 +87,15 @@ private:
     sf::Font m_font;
     sf::Text m_editModeText;
     std::optional<std::size_t> m_highlightedLineIdx;
-    std::optional<std::tuple<unsigned int, unsigned int>> m_currentNearestGridVertex {
-        std::nullopt
-    };
+    std::optional<std::tuple<unsigned, unsigned>> m_currentNearestGridVertex { std::nullopt };
     Line m_currentInsertionLine;
     Mode m_currentMode { Mode::LINE };
     SnapMode m_snapMode { SnapMode::AUTO };
     void changeMode(bool backwards);
     void changeSnapMode();
-    std::optional<std::pair<unsigned int, unsigned int>> m_startPosition;
-    std::optional<std::pair<unsigned int, unsigned int>> m_exitPosition;
-    std::vector<std::pair<unsigned int, unsigned int>> m_fuelObjects;
+    std::optional<StartPosition> m_startPosition;
+    std::optional<std::pair<unsigned, unsigned>> m_exitPosition;
+    std::vector<std::pair<unsigned, unsigned>> m_fuelObjects;
     sf::View m_view;
     sf::View m_fixedView; // for non-moving elements, e.g. dialog
 };

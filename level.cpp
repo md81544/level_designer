@@ -13,7 +13,7 @@
 #include <boost/algorithm/string/split.hpp>
 
 namespace mgo {
-mgo::Level::Level(unsigned int windowWidth, unsigned int windowHeight)
+mgo::Level::Level(unsigned windowWidth, unsigned windowHeight)
 {
     if (!m_font.loadFromFile("DroidSansMono.ttf")) {
         throw std::runtime_error("Could not load font file");
@@ -55,8 +55,10 @@ void Level::load(const std::string& filename)
         // When we get here, vec is a vector of all the items on the current line.
         char c = vec[0][0];
         switch (c) {
-            case '!': // timelimit, fuel, ship x, ship y, description
-                m_startPosition = std::make_pair(stoi(vec[3]), stoi(vec[4]));
+            case '!': // timelimit, fuel, ship x, ship y, angle, description
+                m_startPosition = { static_cast<unsigned>(stoi(vec[3])),
+                                    static_cast<unsigned>(stoi(vec[4])),
+                                    static_cast<unsigned>(stoi(vec[5])) };
                 break;
             case 'N': // New object, parameter 1 is type, parameter 2 appears unused
                 if (vec[1] == "OBSTRUCTION") {
@@ -73,10 +75,10 @@ void Level::load(const std::string& filename)
                 break;
             case 'L':
                 {
-                    unsigned int x0 = std::stoi(vec[1]);
-                    unsigned int y0 = std::stoi(vec[2]);
-                    unsigned int x1 = std::stoi(vec[3]);
-                    unsigned int y1 = std::stoi(vec[4]);
+                    unsigned x0 = std::stoi(vec[1]);
+                    unsigned y0 = std::stoi(vec[2]);
+                    unsigned x1 = std::stoi(vec[3]);
+                    unsigned y1 = std::stoi(vec[4]);
                     uint8_t r = std::stoi(vec[5]);
                     uint8_t g = std::stoi(vec[6]);
                     uint8_t b = std::stoi(vec[7]);
@@ -115,13 +117,15 @@ void mgo::Level::save()
             if (okPressed) {
                 // Header
                 // time limit, fuel, startX, startY, title
-                unsigned int startX = 0;
-                unsigned int startY = 0;
+                unsigned startX = 0;
+                unsigned startY = 0;
+                unsigned rotation = 0;
                 if (m_startPosition.has_value()) {
-                    startX = m_startPosition.value().first;
-                    startY = m_startPosition.value().second;
+                    startX = m_startPosition.value().x;
+                    startY = m_startPosition.value().y;
+                    rotation = m_startPosition.value().r;
                 }
-                std::cout << "!~0~0~" << startX << "~" << startY << "~Title\n";
+                std::cout << "!~0~0~" << startX << "~" << startY << "~" << rotation << "~Title\n";
                 std::cout << "N~OBSTRUCTION~obstruction\n";
                 for (const auto& l : m_lines) {
                     if (!l.inactive && !l.breakable) {
@@ -205,13 +209,13 @@ void mgo::Level::drawLine(sf::RenderWindow& window, const Line& l, std::optional
 
 void mgo::Level::drawGridLines(sf::RenderWindow& window)
 {
-    for (unsigned int n = 0; n <= 2000; n += 50) {
+    for (unsigned n = 0; n <= 2000; n += 50) {
         drawLine(window, { n, 0, n, 2000, 0, 100, 0, 1 }, std::nullopt);
         drawLine(window, { 0, n, 2000, n, 0, 100, 0, 1 }, std::nullopt);
     }
 }
 std::optional<std::size_t>
-Level::lineUnderCursor(sf::RenderWindow& window, unsigned int mouseX, unsigned int mouseY)
+Level::lineUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsigned mouseY)
 {
     // Note mouseX and mouseY are *window* coordinates, these need to be converted into
     // workspace coordinates.
@@ -411,7 +415,22 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     {
                         auto w = window.mapPixelToCoords({ static_cast<int>(event.mouseButton.x),
                                                            static_cast<int>(event.mouseButton.y) });
-                        m_startPosition = std::make_pair(w.x, w.y);
+                        // if we're within r workspace units of an existing start object,
+                        // we treat additional clicks as a way to modify the object's rotation
+                        unsigned r = 20;
+                        if (m_startPosition.has_value()
+                            && ((m_startPosition.value().x > w.x - r
+                                 && m_startPosition.value().x < w.x + r)
+                                && (m_startPosition.value().y > w.y - r
+                                    && m_startPosition.value().y < w.y + r))) {
+                            m_startPosition.value().r += 15;
+                            if (m_startPosition.value().r >= 360) {
+                                m_startPosition.value().r = 0;
+                            }
+                        } else {
+                            m_startPosition
+                                = { static_cast<unsigned>(w.x), static_cast<unsigned>(w.y), 0 };
+                        }
                         break;
                     }
                 case Mode::EXIT:
@@ -427,7 +446,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                                                            static_cast<int>(event.mouseButton.y) });
                         // if we are within r workspace units of an existing fuel object, we treat
                         // this as a request to delete it instead of placing a new one
-                        unsigned int r = 20;
+                        unsigned r = 20;
                         std::size_t idx = 0;
                         bool erased { false };
                         for (const auto& f : m_fuelObjects) {
@@ -584,15 +603,12 @@ void mgo::Level::drawModes(sf::RenderWindow& window)
     window.draw(txtSnap);
 }
 
-void mgo::Level::highlightGridVertex(
-    sf::RenderWindow& window,
-    unsigned int mouseX,
-    unsigned int mouseY)
+void mgo::Level::highlightGridVertex(sf::RenderWindow& window, unsigned mouseX, unsigned mouseY)
 {
     auto w = window.mapPixelToCoords({ static_cast<int>(mouseX), static_cast<int>(mouseY) });
 
-    unsigned int x = static_cast<unsigned int>(static_cast<double>(w.x) / 50.0 + 0.5) * 50.0;
-    unsigned int y = static_cast<unsigned int>(static_cast<double>(w.y) / 50.0 + 0.5) * 50.0;
+    unsigned x = static_cast<unsigned>(static_cast<double>(w.x) / 50.0 + 0.5) * 50.0;
+    unsigned y = static_cast<unsigned>(static_cast<double>(w.y) / 50.0 + 0.5) * 50.0;
     if (x > 2000 || y > 2000) {
         m_currentNearestGridVertex = std::nullopt;
     } else {
@@ -600,10 +616,7 @@ void mgo::Level::highlightGridVertex(
     }
 }
 
-void Level::highlightNearestLinePoint(
-    sf::RenderWindow& window,
-    unsigned int mouseX,
-    unsigned int mouseY)
+void Level::highlightNearestLinePoint(sf::RenderWindow& window, unsigned mouseX, unsigned mouseY)
 {
     auto w = window.mapPixelToCoords({ static_cast<int>(mouseX), static_cast<int>(mouseY) });
     for (const auto& l : m_lines) {
@@ -618,15 +631,17 @@ void Level::highlightNearestLinePoint(
 void Level::drawObjects(sf::RenderWindow& window)
 {
     if (m_startPosition.has_value()) {
-        sf::CircleShape c;
-        c.setFillColor(sf::Color::Green);
-        float r = 20.f;
-        c.setRadius(r);
-        c.setOrigin({ r, r });
-        // c.setPosition(w.x, w.y);
-        c.setPosition({ static_cast<float>(m_startPosition.value().first),
-                        static_cast<float>(m_startPosition.value().second) });
-        window.draw(c);
+        sf::ConvexShape ship;
+        ship.setPointCount(3);
+        // define the points
+        ship.setPoint(0, sf::Vector2f(0, -20));
+        ship.setPoint(1, sf::Vector2f(10, 20));
+        ship.setPoint(2, sf::Vector2f(-10, 20));
+        ship.setFillColor(sf::Color::Green);
+        ship.setPosition({ static_cast<float>(m_startPosition.value().x),
+                           static_cast<float>(m_startPosition.value().y) });
+        ship.setRotation(360 - m_startPosition.value().r);
+        window.draw(ship);
     }
     if (m_exitPosition.has_value()) {
         sf::CircleShape c;
