@@ -1,2 +1,2 @@
 Confirmation dialog on window close
-Need to be able to specify the starting rotation
+Proper file save
