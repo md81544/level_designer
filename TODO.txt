@@ -1,2 +1,0 @@
-Confirmation dialog on window close
-Proper file save

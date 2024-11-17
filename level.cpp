@@ -1,6 +1,7 @@
 #include "level.h"
 #include "helperfunctions.h"
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <functional>
 #include <ios>
@@ -33,6 +34,12 @@ void Level::load(const std::string& filename)
     // Note, this is likely to break if the format of the file is incorrect, there's
     // no checking for size of vectors below currently. Which is reasonable as this
     // program should be creating the files being imported.
+    m_fileName = filename;
+    if(!std::filesystem::exists(filename)){
+        // file doesn't exist, so we save the name and will write to it when we save
+        return;
+    }
+
     std::ifstream in(filename);
     if (!in) {
         throw(std::runtime_error("Failed to load Level file " + filename));
@@ -112,11 +119,12 @@ void mgo::Level::save()
     // TODO, currently just outputs to stdout - may actually be OK like that?
     msgbox(
         "Save File",
-        "Do you want to save (to stdout) now?",
+        "Saving to: " + m_fileName,
         [&](bool okPressed, const std::string&) {
             if (okPressed) {
+                std::ofstream outfile(m_fileName, std::ios::trunc);
                 // Header
-                // time limit, fuel, startX, startY, title
+                // time limit, fuel, startX, startY, angle, title
                 unsigned startX = 0;
                 unsigned startY = 0;
                 unsigned rotation = 0;
@@ -125,35 +133,36 @@ void mgo::Level::save()
                     startY = m_startPosition.value().y;
                     rotation = m_startPosition.value().r;
                 }
-                std::cout << "!~0~0~" << startX << "~" << startY << "~" << rotation << "~Title\n";
-                std::cout << "N~OBSTRUCTION~obstruction\n";
+                outfile << "!~0~0~" << startX << "~" << startY << "~" << rotation << "~Title\n";
+                outfile << "N~OBSTRUCTION~obstruction\n";
                 for (const auto& l : m_lines) {
                     if (!l.inactive && !l.breakable) {
-                        std::cout << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1
+                        outfile << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1
                                   << "~255~0~0~2\n";
                     }
                 }
                 // Each breakable line is its own object
                 for (const auto& l : m_lines) {
                     if (!l.inactive && l.breakable) {
-                        std::cout << "N~BREAKABLE~breakable\n";
-                        std::cout << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1
+                        outfile << "N~BREAKABLE~breakable\n";
+                        outfile << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1
                                   << "~255~150~50~6\n";
                     }
                 }
                 if (m_exitPosition.has_value()) {
-                    std::cout << "N~EXIT~exit\n"
+                    outfile << "N~EXIT~exit\n"
                                  "T~EXIT~52~213~235~6\n"
                                  "P~"
                               << m_exitPosition.value().first << "~"
                               << m_exitPosition.value().second << "\n";
                 }
                 for (const auto& p : m_fuelObjects) {
-                    std::cout << "N~FUEL~fuel\n"
+                    outfile << "N~FUEL~fuel\n"
                                  "T~*~255~255~0~12\n"
                                  "P~"
                               << p.first << "~" << p.second << "\n";
                 }
+                outfile.close();
             }
         });
 }
@@ -252,7 +261,7 @@ Level::lineUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsigned mouse
 void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
 {
     if (event.type == sf::Event::Closed) {
-        window.close();
+        close(window);
     }
     if (m_isDialogActive) {
         // if a dialog is active then we respond differently to events:
@@ -285,11 +294,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     break;
                 }
             case sf::Keyboard::Q:
-                msgbox("Quit", "Are you sure?", [&window](bool yes, const std::string) {
-                    if (yes) {
-                        window.close();
-                    }
-                });
+                close(window);
                 break;
             case sf::Keyboard::S:
                 if (sf::Keyboard::isKeyPressed(sf::Keyboard::LSystem)) {
@@ -500,6 +505,15 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
             }
         }
     }
+}
+
+void Level::close(sf::RenderWindow& window)
+{
+    msgbox("Quit", "Are you sure?", [&window](bool yes, const std::string) {
+        if (yes) {
+            window.close();
+        }
+    });
 }
 
 void Level::zoomIn()

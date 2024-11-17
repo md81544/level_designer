@@ -1,5 +1,6 @@
 #include "configreader.h"
 #include "level.h"
+
 #include <SFML/Graphics.hpp>
 #include <cmath>
 #include <filesystem>
@@ -10,12 +11,11 @@ int main(int argc, char* argv[])
 {
     std::string loadFileName;
     try {
-        if (argc > 1) {
-            for (int n = 1; n < argc; ++n) {
-                if (argv[n][0] != '-') {
-                    loadFileName = argv[n];
-                }
-            }
+
+        if(argc != 2) {
+            std::cout << "Usage: level_designer <filename>\n\n";
+            std::cout << "If the file doesn't exist it will be created on save\n\n";
+            return 1;
         }
 
         mgo::ConfigReader config("level_designer.cfg");
@@ -33,9 +33,7 @@ int main(int argc, char* argv[])
 
         mgo::Level level(screenWidth, screenHeight);
 
-        if (!loadFileName.empty()) {
-            level.load(loadFileName);
-        }
+        level.load(argv[1]);
 
         while (window.isOpen()) {
             sf::Event event;
