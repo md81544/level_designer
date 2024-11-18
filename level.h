@@ -91,7 +91,8 @@ private:
     Line m_currentInsertionLine;
     Mode m_currentMode { Mode::LINE };
     SnapMode m_snapMode { SnapMode::AUTO };
-    void changeMode(bool backwards);
+    void changeMode(Mode mode);
+    void cycleMode(bool backwards);
     void changeSnapMode();
     std::optional<StartPosition> m_startPosition;
     std::optional<std::pair<unsigned, unsigned>> m_exitPosition;

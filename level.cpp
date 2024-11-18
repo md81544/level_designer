@@ -284,22 +284,22 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
         if (event.key.shift) {
             switch (event.key.code) {
                 case sf::Keyboard::B:
-                    m_currentMode = Mode::BREAKABLE;
+                    changeMode(Mode::BREAKABLE);
                     break;
                 case sf::Keyboard::E:
-                    m_currentMode = Mode::EDIT;
+                    changeMode(Mode::EDIT);
                     break;
                 case sf::Keyboard::L:
-                    m_currentMode = Mode::LINE;
+                    changeMode(Mode::LINE);
                     break;
                 case sf::Keyboard::F:
-                    m_currentMode = Mode::FUEL;
+                    changeMode(Mode::FUEL);
                     break;
                 case sf::Keyboard::S:
-                    m_currentMode = Mode::START;
+                    changeMode(Mode::START);
                     break;
                 case sf::Keyboard::X:
-                    m_currentMode = Mode::EXIT;
+                    changeMode(Mode::EXIT);
                     break;
                 default:
                     break;
@@ -328,7 +328,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     }
                     break;
                 case sf::Keyboard::M:
-                    changeMode(event.key.shift);
+                    cycleMode(event.key.shift);
                     break;
                 case sf::Keyboard::BackSpace:
                 case sf::Keyboard::Delete:
@@ -745,56 +745,8 @@ void Level::processViewport()
     }
 }
 
-void Level::changeMode(bool backwards)
-{
-    m_highlightedLineIdx = std::nullopt;
-    m_currentInsertionLine.inactive = true;
-    switch (m_currentMode) {
-        case Mode::LINE:
-            if (backwards) {
-                m_currentMode = Mode::FUEL;
-            } else {
-                m_currentMode = Mode::BREAKABLE;
-            }
-            break;
-        case Mode::BREAKABLE:
-            if (backwards) {
-                m_currentMode = Mode::LINE;
-            } else {
-                m_currentMode = Mode::EDIT;
-            }
-            break;
-        case Mode::EDIT:
-            if (backwards) {
-                m_currentMode = Mode::BREAKABLE;
-            } else {
-                m_currentMode = Mode::START;
-            }
-            break;
-        case Mode::START:
-            if (backwards) {
-                m_currentMode = Mode::EDIT;
-            } else {
-                m_currentMode = Mode::EXIT;
-            }
-            break;
-        case Mode::EXIT:
-            if (backwards) {
-                m_currentMode = Mode::START;
-            } else {
-                m_currentMode = Mode::FUEL;
-            }
-            break;
-        case Mode::FUEL:
-            if (backwards) {
-                m_currentMode = Mode::EXIT;
-            } else {
-                m_currentMode = Mode::LINE;
-            }
-            break;
-        default:
-            break;
-    }
+void Level::changeMode(Mode mode) {
+    m_currentMode = mode;
     if (m_currentMode == Mode::LINE) {
         m_currentInsertionLine.r = 255;
         m_currentInsertionLine.g = 0;
@@ -803,6 +755,58 @@ void Level::changeMode(bool backwards)
         m_currentInsertionLine.r = 255;
         m_currentInsertionLine.g = 150;
         m_currentInsertionLine.b = 50;
+    }
+}
+
+void Level::cycleMode(bool backwards)
+{
+    m_highlightedLineIdx = std::nullopt;
+    m_currentInsertionLine.inactive = true;
+    switch (m_currentMode) {
+        case Mode::LINE:
+            if (backwards) {
+                changeMode(Mode::FUEL);
+            } else {
+                changeMode(Mode::BREAKABLE);
+            }
+            break;
+        case Mode::BREAKABLE:
+            if (backwards) {
+                changeMode(Mode::LINE);
+            } else {
+                changeMode(Mode::EDIT);
+            }
+            break;
+        case Mode::EDIT:
+            if (backwards) {
+                changeMode(Mode::BREAKABLE);
+            } else {
+                changeMode(Mode::START);
+            }
+            break;
+        case Mode::START:
+            if (backwards) {
+                changeMode(Mode::EDIT);
+            } else {
+                changeMode(Mode::EXIT);
+            }
+            break;
+        case Mode::EXIT:
+            if (backwards) {
+                changeMode(Mode::START);
+            } else {
+                changeMode(Mode::FUEL);
+            }
+            break;
+        case Mode::FUEL:
+            if (backwards) {
+                changeMode(Mode::EXIT);
+            } else {
+                changeMode(Mode::LINE);
+            }
+            break;
+        default:
+            break;
     }
 }
 
