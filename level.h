@@ -63,8 +63,8 @@ public:
     lineUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsigned mouseY);
     void processEvent(sf::RenderWindow& window, const sf::Event& event);
     void quit(sf::RenderWindow& window);
-    void zoomIn();
     void zoomOut();
+    void zoomIn();
     bool msgbox(
         const std::string& title,
         const std::string& message,

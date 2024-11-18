@@ -308,12 +308,12 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
             switch (event.key.code) {
                 case sf::Keyboard::Equal:
                     {
-                        zoomOut();
+                        zoomIn();
                         break;
                     }
                 case sf::Keyboard::Hyphen:
                     {
-                        zoomIn();
+                        zoomOut();
                         break;
                     }
                 case sf::Keyboard::Q:
@@ -512,13 +512,13 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift)) {
                     m_view.move(0, -25);
                 } else {
-                    zoomOut();
+                    zoomIn();
                 }
             } else if (amt < 0.f) {
                 if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift)) {
                     m_view.move(0, 25);
                 } else {
-                    zoomIn();
+                    zoomOut();
                 }
             }
         }
@@ -552,14 +552,14 @@ void Level::quit(sf::RenderWindow& window)
     });
 }
 
-void Level::zoomIn()
+void Level::zoomOut()
 {
     if (m_view.getSize().x < 2400.f) {
         m_view.zoom(1.05f);
     }
 }
 
-void Level::zoomOut()
+void Level::zoomIn()
 {
     if (m_view.getSize().x > 100.f) {
         m_view.zoom(0.95f);
