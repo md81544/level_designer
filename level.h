@@ -62,7 +62,7 @@ public:
     std::optional<std::size_t>
     lineUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsigned mouseY);
     void processEvent(sf::RenderWindow& window, const sf::Event& event);
-    void close(sf::RenderWindow& window);
+    void quit(sf::RenderWindow& window);
     void zoomIn();
     void zoomOut();
     bool msgbox(
@@ -99,6 +99,7 @@ private:
     sf::View m_view;
     sf::View m_fixedView; // for non-moving elements, e.g. dialog
     std::string m_fileName;
+    bool m_dirty {false};
 };
 
 } // namespace mgo

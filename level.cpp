@@ -35,7 +35,7 @@ void Level::load(const std::string& filename)
     // no checking for size of vectors below currently. Which is reasonable as this
     // program should be creating the files being imported.
     m_fileName = filename;
-    if(!std::filesystem::exists(filename)){
+    if (!std::filesystem::exists(filename)) {
         // file doesn't exist, so we save the name and will write to it when we save
         return;
     }
@@ -117,54 +117,52 @@ void Level::load(const std::string& filename)
 void mgo::Level::save()
 {
     // TODO, currently just outputs to stdout - may actually be OK like that?
-    msgbox(
-        "Save File",
-        "Saving to: " + m_fileName,
-        [&](bool okPressed, const std::string&) {
-            if (okPressed) {
-                std::ofstream outfile(m_fileName, std::ios::trunc);
-                // Header
-                // time limit, fuel, startX, startY, angle, title
-                unsigned startX = 0;
-                unsigned startY = 0;
-                unsigned rotation = 0;
-                if (m_startPosition.has_value()) {
-                    startX = m_startPosition.value().x;
-                    startY = m_startPosition.value().y;
-                    rotation = m_startPosition.value().r;
-                }
-                outfile << "!~0~0~" << startX << "~" << startY << "~" << rotation << "~Title\n";
-                outfile << "N~OBSTRUCTION~obstruction\n";
-                for (const auto& l : m_lines) {
-                    if (!l.inactive && !l.breakable) {
-                        outfile << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1
-                                  << "~255~0~0~2\n";
-                    }
-                }
-                // Each breakable line is its own object
-                for (const auto& l : m_lines) {
-                    if (!l.inactive && l.breakable) {
-                        outfile << "N~BREAKABLE~breakable\n";
-                        outfile << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1
-                                  << "~255~150~50~6\n";
-                    }
-                }
-                if (m_exitPosition.has_value()) {
-                    outfile << "N~EXIT~exit\n"
-                                 "T~EXIT~52~213~235~6\n"
-                                 "P~"
-                              << m_exitPosition.value().first << "~"
-                              << m_exitPosition.value().second << "\n";
-                }
-                for (const auto& p : m_fuelObjects) {
-                    outfile << "N~FUEL~fuel\n"
-                                 "T~*~255~255~0~12\n"
-                                 "P~"
-                              << p.first << "~" << p.second << "\n";
-                }
-                outfile.close();
+    msgbox("Save File", "Saving to: " + m_fileName, [&](bool okPressed, const std::string&) {
+        if (okPressed) {
+            std::ofstream outfile(m_fileName, std::ios::trunc);
+            // Header
+            // time limit, fuel, startX, startY, angle, title
+            unsigned startX = 0;
+            unsigned startY = 0;
+            unsigned rotation = 0;
+            if (m_startPosition.has_value()) {
+                startX = m_startPosition.value().x;
+                startY = m_startPosition.value().y;
+                rotation = m_startPosition.value().r;
             }
-        });
+            outfile << "!~0~0~" << startX << "~" << startY << "~" << rotation << "~Title\n";
+            outfile << "N~OBSTRUCTION~obstruction\n";
+            for (const auto& l : m_lines) {
+                if (!l.inactive && !l.breakable) {
+                    outfile << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1
+                            << "~255~0~0~2\n";
+                }
+            }
+            // Each breakable line is its own object
+            for (const auto& l : m_lines) {
+                if (!l.inactive && l.breakable) {
+                    outfile << "N~BREAKABLE~breakable\n";
+                    outfile << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1
+                            << "~255~150~50~6\n";
+                }
+            }
+            if (m_exitPosition.has_value()) {
+                outfile << "N~EXIT~exit\n"
+                           "T~EXIT~52~213~235~6\n"
+                           "P~"
+                        << m_exitPosition.value().first << "~" << m_exitPosition.value().second
+                        << "\n";
+            }
+            for (const auto& p : m_fuelObjects) {
+                outfile << "N~FUEL~fuel\n"
+                           "T~*~255~255~0~12\n"
+                           "P~"
+                        << p.first << "~" << p.second << "\n";
+            }
+            outfile.close();
+            m_dirty = false;
+        }
+    });
 }
 
 void mgo::Level::draw(sf::RenderWindow& window)
@@ -261,7 +259,7 @@ Level::lineUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsigned mouse
 void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
 {
     if (event.type == sf::Event::Closed) {
-        close(window);
+        quit(window);
     }
     if (m_isDialogActive) {
         // if a dialog is active then we respond differently to events:
@@ -282,55 +280,83 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
         return;
     }
     if (event.type == sf::Event::KeyPressed) {
-        switch (event.key.code) {
-            case sf::Keyboard::Equal:
-                {
-                    zoomOut();
+        // Mode switchers - require shift key, e.g. Shift-L for line etc
+        if (event.key.shift) {
+            switch (event.key.code) {
+                case sf::Keyboard::B:
+                    m_currentMode = Mode::BREAKABLE;
                     break;
-                }
-            case sf::Keyboard::Hyphen:
-                {
-                    zoomIn();
+                case sf::Keyboard::E:
+                    m_currentMode = Mode::EDIT;
                     break;
-                }
-            case sf::Keyboard::Q:
-                close(window);
-                break;
-            case sf::Keyboard::S:
-                if (sf::Keyboard::isKeyPressed(sf::Keyboard::LSystem)) {
-                    save();
-                } else {
-                    changeSnapMode();
-                }
-                break;
-            case sf::Keyboard::M:
-                changeMode(event.key.shift);
-                break;
-            case sf::Keyboard::BackSpace:
-            case sf::Keyboard::Delete:
-            case sf::Keyboard::X:
-                if (m_highlightedLineIdx.has_value()) {
-                    m_lines[m_highlightedLineIdx.value()].inactive = true;
-                    m_highlightedLineIdx = std::nullopt;
-                }
-                break;
-            case sf::Keyboard::Escape:
-                m_currentInsertionLine.inactive = true;
-                break;
-            case sf::Keyboard::Left:
-                m_view.move(-25, 0);
-                break;
-            case sf::Keyboard::Right:
-                m_view.move(25, 0);
-                break;
-            case sf::Keyboard::Up:
-                m_view.move(0, -25);
-                break;
-            case sf::Keyboard::Down:
-                m_view.move(0, 25);
-                break;
-            default:
-                break;
+                case sf::Keyboard::L:
+                    m_currentMode = Mode::LINE;
+                    break;
+                case sf::Keyboard::F:
+                    m_currentMode = Mode::FUEL;
+                    break;
+                case sf::Keyboard::S:
+                    m_currentMode = Mode::START;
+                    break;
+                case sf::Keyboard::X:
+                    m_currentMode = Mode::EXIT;
+                    break;
+                default:
+                    break;
+            }
+        } else {
+            switch (event.key.code) {
+                case sf::Keyboard::Equal:
+                    {
+                        zoomOut();
+                        break;
+                    }
+                case sf::Keyboard::Hyphen:
+                    {
+                        zoomIn();
+                        break;
+                    }
+                case sf::Keyboard::Q:
+                    quit(window);
+                    break;
+                case sf::Keyboard::S:
+                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::LSystem)
+                        || sf::Keyboard::isKeyPressed(sf::Keyboard::RSystem)) {
+                        save();
+                    } else {
+                        changeSnapMode();
+                    }
+                    break;
+                case sf::Keyboard::M:
+                    changeMode(event.key.shift);
+                    break;
+                case sf::Keyboard::BackSpace:
+                case sf::Keyboard::Delete:
+                case sf::Keyboard::X:
+                    if (m_highlightedLineIdx.has_value()) {
+                        m_lines[m_highlightedLineIdx.value()].inactive = true;
+                        m_highlightedLineIdx = std::nullopt;
+                        m_dirty = true;
+                    }
+                    break;
+                case sf::Keyboard::Escape:
+                    m_currentInsertionLine.inactive = true;
+                    break;
+                case sf::Keyboard::Left:
+                    m_view.move(-25, 0);
+                    break;
+                case sf::Keyboard::Right:
+                    m_view.move(25, 0);
+                    break;
+                case sf::Keyboard::Up:
+                    m_view.move(0, -25);
+                    break;
+                case sf::Keyboard::Down:
+                    m_view.move(0, 25);
+                    break;
+                default:
+                    break;
+            }
         }
     }
     if (event.type == sf::Event::MouseMoved) {
@@ -379,6 +405,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                                         m_currentInsertionLine.breakable = true;
                                     }
                                     m_lines.push_back(m_currentInsertionLine);
+                                    m_dirty = true;
                                     // next line starts at the current line's end:
                                     m_currentInsertionLine.x0 = m_currentInsertionLine.x1;
                                     m_currentInsertionLine.y0 = m_currentInsertionLine.y1;
@@ -429,12 +456,14 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                                 && (m_startPosition.value().y > w.y - r
                                     && m_startPosition.value().y < w.y + r))) {
                             m_startPosition.value().r += 15;
+                            m_dirty = true;
                             if (m_startPosition.value().r >= 360) {
                                 m_startPosition.value().r = 0;
                             }
                         } else {
                             m_startPosition
                                 = { static_cast<unsigned>(w.x), static_cast<unsigned>(w.y), 0 };
+                            m_dirty = true;
                         }
                         break;
                     }
@@ -443,6 +472,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                         auto w = window.mapPixelToCoords({ static_cast<int>(event.mouseButton.x),
                                                            static_cast<int>(event.mouseButton.y) });
                         m_exitPosition = std::make_pair(w.x, w.y);
+                        m_dirty = true;
                         break;
                     }
                 case Mode::FUEL:
@@ -459,12 +489,14 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                                 && (f.second > w.y - r && f.second < w.y + r)) {
                                 m_fuelObjects.erase(m_fuelObjects.begin() + idx);
                                 erased = true;
+                                m_dirty = true;
                                 break;
                             }
                             ++idx;
                         }
                         if (!erased) {
                             m_fuelObjects.push_back(std::make_pair(w.x, w.y));
+                            m_dirty = true;
                         }
                         break;
                     }
@@ -507,9 +539,13 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
     }
 }
 
-void Level::close(sf::RenderWindow& window)
+void Level::quit(sf::RenderWindow& window)
 {
-    msgbox("Quit", "Are you sure?", [&window](bool yes, const std::string) {
+    std::string msg = "Are you sure?";
+    if (m_dirty) {
+        msg = "File has UNSAVED CHANGES! Are you sure?";
+    }
+    msgbox("Quit", msg, [&window](bool yes, const std::string) {
         if (yes) {
             window.close();
         }
