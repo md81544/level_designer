@@ -512,6 +512,12 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift)) {
                     m_view.move(0, -25);
                 } else {
+                    auto c = m_view.getCenter();
+                    auto m = window.mapPixelToCoords(
+                        { event.mouseWheelScroll.x, event.mouseWheelScroll.y });
+                    float dx = (m.x - c.x) * 0.05f;
+                    float dy = (m.y - c.y) * 0.05f;
+                    m_view.move(dx, dy);
                     zoomIn();
                 }
             } else if (amt < 0.f) {
@@ -745,7 +751,8 @@ void Level::processViewport()
     }
 }
 
-void Level::changeMode(Mode mode) {
+void Level::changeMode(Mode mode)
+{
     m_currentMode = mode;
     if (m_currentMode == Mode::LINE) {
         m_currentInsertionLine.r = 255;
