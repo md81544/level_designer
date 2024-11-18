@@ -69,7 +69,6 @@ public:
         const std::string& title,
         const std::string& message,
         std::function<void(bool, const std::string&)> callback);
-    std::string inputbox(const std::string& title, const std::string& message);
     void drawModes(sf::RenderWindow& window);
     void highlightGridVertex(sf::RenderWindow& window, unsigned mouseX, unsigned mouseY);
     void highlightNearestLinePoint(sf::RenderWindow& window, unsigned mouseX, unsigned mouseY);

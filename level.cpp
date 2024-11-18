@@ -554,12 +554,6 @@ bool mgo::Level::msgbox(
     return false;
 }
 
-std::string mgo::Level::inputbox(const std::string& /* title */, const std::string& /* message */)
-{
-    m_isDialogActive = true;
-    return std::string("TODO");
-}
-
 void mgo::Level::drawModes(sf::RenderWindow& window)
 {
     // Main insertion mode:
