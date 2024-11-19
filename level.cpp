@@ -670,6 +670,9 @@ void Level::highlightNearestLinePoint(sf::RenderWindow& window, unsigned mouseX,
 {
     auto w = window.mapPixelToCoords({ static_cast<int>(mouseX), static_cast<int>(mouseY) });
     for (const auto& l : m_lines) {
+        if (l.inactive) {
+            continue;
+        }
         auto nearest = helperfunctions::closestPointOnLine(l.x0, l.y0, l.x1, l.y1, w.x, w.y, 5);
         if (nearest.has_value()) {
             m_currentNearestGridVertex = std::tie(nearest.value().first, nearest.value().second);
