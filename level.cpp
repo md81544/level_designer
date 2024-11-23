@@ -330,11 +330,17 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 case sf::Keyboard::M:
                     cycleMode(event.key.shift);
                     break;
+                case sf::Keyboard::Z:
+                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::LSystem)
+                        || sf::Keyboard::isKeyPressed(sf::Keyboard::RSystem)) {
+                        undo();
+                    }
                 case sf::Keyboard::BackSpace:
                 case sf::Keyboard::Delete:
                 case sf::Keyboard::X:
                     if (m_highlightedLineIdx.has_value()) {
                         m_lines[m_highlightedLineIdx.value()].inactive = true;
+                        addReplayItem({ Mode::EDIT, m_highlightedLineIdx.value() });
                         m_highlightedLineIdx = std::nullopt;
                         m_dirty = true;
                     }
@@ -405,6 +411,13 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                                         m_currentInsertionLine.breakable = true;
                                     }
                                     m_lines.push_back(m_currentInsertionLine);
+                                    addReplayItem({ m_currentMode,
+                                                    0,
+                                                    m_currentInsertionLine.x0,
+                                                    m_currentInsertionLine.y0,
+                                                    m_currentInsertionLine.x1,
+                                                    m_currentInsertionLine.y1,
+                                                    0 });
                                     m_dirty = true;
                                     // next line starts at the current line's end:
                                     m_currentInsertionLine.x0 = m_currentInsertionLine.x1;
@@ -456,13 +469,20 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                                 && (m_startPosition.value().y > w.y - r
                                     && m_startPosition.value().y < w.y + r))) {
                             m_startPosition.value().r += 15;
-                            m_dirty = true;
                             if (m_startPosition.value().r >= 360) {
                                 m_startPosition.value().r = 0;
                             }
+                            addReplayItem({ Mode::START, 0, 0, 0, 0, m_startPosition.value().r });
+                            m_dirty = true;
                         } else {
                             m_startPosition
                                 = { static_cast<unsigned>(w.x), static_cast<unsigned>(w.y), 0 };
+                            addReplayItem({ Mode::START,
+                                            0,
+                                            static_cast<unsigned>(w.x),
+                                            static_cast<unsigned>(w.y),
+                                            0,
+                                            0 });
                             m_dirty = true;
                         }
                         break;
@@ -472,6 +492,12 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                         auto w = window.mapPixelToCoords({ static_cast<int>(event.mouseButton.x),
                                                            static_cast<int>(event.mouseButton.y) });
                         m_exitPosition = std::make_pair(w.x, w.y);
+                        addReplayItem({ Mode::EXIT,
+                                        0,
+                                        static_cast<unsigned>(w.x),
+                                        static_cast<unsigned>(w.y),
+                                        0,
+                                        0 });
                         m_dirty = true;
                         break;
                     }
@@ -489,6 +515,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                                 && (f.second > w.y - r && f.second < w.y + r)) {
                                 m_fuelObjects.erase(m_fuelObjects.begin() + idx);
                                 erased = true;
+                                addReplayItem({ Mode::FUEL, idx, 0, 0, 0, 0, 0, true });
                                 m_dirty = true;
                                 break;
                             }
@@ -496,6 +523,10 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                         }
                         if (!erased) {
                             m_fuelObjects.push_back(std::make_pair(w.x, w.y));
+                            addReplayItem({ Mode::FUEL,
+                                            idx,
+                                            static_cast<unsigned>(w.x),
+                                            static_cast<unsigned>(w.y) });
                             m_dirty = true;
                         }
                         break;
@@ -754,7 +785,8 @@ void Level::processViewport()
     }
 }
 
-void Level::revert() {
+void Level::revert()
+{
     // Revert to last saved state
     // Clear collections:
     m_lines.clear();
@@ -764,6 +796,68 @@ void Level::revert() {
     // reload
     load(m_fileName);
     m_dirty = false;
+}
+
+void Level::undo()
+{
+    // The way undo works is to revert to the last save,
+    // then reapply all steps held in m_replay
+    m_currentInsertionLine.inactive = true;
+    revert();
+    for (std::size_t i = 0; i < m_replayIndex; ++i) {
+        const auto& a = m_replay[i];
+        switch (a.actionType) {
+            case Mode::LINE:
+                {
+                    Line line;
+                    line.breakable = false;
+                    line.x0 = a.x0;
+                    line.y0 = a.y0;
+                    line.x1 = a.x1;
+                    line.y1 = a.y1;
+                    line.r = 255;
+                    m_lines.push_back(line);
+                }
+                break;
+            case Mode::BREAKABLE:
+                {
+                    Line line;
+                    line.breakable = true;
+                    line.x0 = a.x0;
+                    line.y0 = a.y0;
+                    line.x1 = a.x1;
+                    line.y1 = a.y1;
+                    m_lines.push_back(line);
+                }
+                break;
+            case Mode::EDIT:
+                m_lines[a.index].inactive = true;
+                break;
+            case Mode::EXIT:
+                m_exitPosition = std::make_pair(a.x0, a.y0);
+                break;
+            case Mode::START:
+                // TODO
+                break;
+            case Mode::FUEL:
+                // TODO
+                break;
+            default:
+                assert(false);
+        }
+    }
+    if (m_replayIndex > 0) {
+        --m_replayIndex;
+    }
+}
+
+void Level::addReplayItem(const Action& action)
+{
+    if (!m_replay.empty() && m_replayIndex < m_replay.size() - 1) {
+        m_replay.erase(m_replay.begin() + m_replayIndex, m_replay.end());
+    }
+    m_replay.push_back(action);
+    m_replayIndex = m_replay.size() - 1;
 }
 
 void Level::changeMode(Mode mode)

@@ -29,14 +29,25 @@ enum class SnapMode {
 
 namespace mgo {
 
+struct Action {
+    Mode actionType;
+    std::size_t index;
+    unsigned x0 { 0 };
+    unsigned y0 { 0 };
+    unsigned x1 { 0 };
+    unsigned y1 { 0 };
+    unsigned rotation { 0 };
+    bool erased { false };
+};
+
 struct Line {
     unsigned x0;
     unsigned y0;
     unsigned x1;
     unsigned y1;
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
+    uint8_t r { 0 };
+    uint8_t g { 0 };
+    uint8_t b { 0 };
     uint8_t thickness; // unused currently
     bool inactive { false }; // lines don't get deleted, just deactivated, avoids index invalidation
     bool breakable { false };
@@ -77,12 +88,17 @@ public:
     sf::View& getFixedView();
     void processViewport();
     void revert();
+    void undo();
+    void addReplayItem(const Action& action);
 
 private:
     std::vector<Line> m_lines;
     std::optional<StartPosition> m_startPosition;
     std::optional<std::pair<unsigned, unsigned>> m_exitPosition;
     std::vector<std::pair<unsigned, unsigned>> m_fuelObjects;
+
+    std::vector<Action> m_replay; // this is used for undo/redo
+    std::size_t m_replayIndex { 0 };
 
     bool m_isDialogActive { false };
     sf::RectangleShape m_dialog;
@@ -102,7 +118,7 @@ private:
     sf::View m_view;
     sf::View m_fixedView; // for non-moving elements, e.g. dialog
     std::string m_fileName;
-    bool m_dirty {false};
+    bool m_dirty { false };
 };
 
 } // namespace mgo
