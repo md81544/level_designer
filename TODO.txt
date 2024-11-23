@@ -1,0 +1,2 @@
+An undo function would be nice
+scrolling doesn't work properly with a real scroll wheeel

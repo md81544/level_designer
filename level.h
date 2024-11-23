@@ -76,9 +76,14 @@ public:
     sf::View& getView();
     sf::View& getFixedView();
     void processViewport();
+    void revert();
 
 private:
     std::vector<Line> m_lines;
+    std::optional<StartPosition> m_startPosition;
+    std::optional<std::pair<unsigned, unsigned>> m_exitPosition;
+    std::vector<std::pair<unsigned, unsigned>> m_fuelObjects;
+
     bool m_isDialogActive { false };
     sf::RectangleShape m_dialog;
     sf::Text m_dialogTitle;
@@ -94,9 +99,6 @@ private:
     void changeMode(Mode mode);
     void cycleMode(bool backwards);
     void changeSnapMode();
-    std::optional<StartPosition> m_startPosition;
-    std::optional<std::pair<unsigned, unsigned>> m_exitPosition;
-    std::vector<std::pair<unsigned, unsigned>> m_fuelObjects;
     sf::View m_view;
     sf::View m_fixedView; // for non-moving elements, e.g. dialog
     std::string m_fileName;

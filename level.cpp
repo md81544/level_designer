@@ -754,8 +754,22 @@ void Level::processViewport()
     }
 }
 
+void Level::revert() {
+    // Revert to last saved state
+    // Clear collections:
+    m_lines.clear();
+    m_startPosition = std::nullopt;
+    m_exitPosition = std::nullopt;
+    m_fuelObjects.clear();
+    // reload
+    load(m_fileName);
+    m_dirty = false;
+}
+
 void Level::changeMode(Mode mode)
 {
+    m_highlightedLineIdx = std::nullopt;
+    m_currentInsertionLine.inactive = true;
     m_currentMode = mode;
     if (m_currentMode == Mode::LINE) {
         m_currentInsertionLine.r = 255;
@@ -770,8 +784,6 @@ void Level::changeMode(Mode mode)
 
 void Level::cycleMode(bool backwards)
 {
-    m_highlightedLineIdx = std::nullopt;
-    m_currentInsertionLine.inactive = true;
     switch (m_currentMode) {
         case Mode::LINE:
             if (backwards) {
