@@ -89,6 +89,8 @@ public:
     void processViewport();
     void revert();
     void undo();
+    void replay();
+    void redo();
     void addReplayItem(const Action& action);
 
 private:
@@ -98,7 +100,7 @@ private:
     std::vector<std::pair<unsigned, unsigned>> m_fuelObjects;
 
     std::vector<Action> m_replay; // this is used for undo/redo
-    std::size_t m_replayIndex { 0 };
+    long m_replayIndex { 0 };
 
     bool m_isDialogActive { false };
     sf::RectangleShape m_dialog;

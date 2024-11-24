@@ -330,7 +330,12 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 case sf::Keyboard::M:
                     cycleMode(event.key.shift);
                     break;
-                case sf::Keyboard::Z:
+                case sf::Keyboard::Y: // redo
+                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::LSystem)
+                        || sf::Keyboard::isKeyPressed(sf::Keyboard::RSystem)) {
+                        redo();
+                    }
+                case sf::Keyboard::Z: // undo
                     if (sf::Keyboard::isKeyPressed(sf::Keyboard::LSystem)
                         || sf::Keyboard::isKeyPressed(sf::Keyboard::RSystem)) {
                         undo();
@@ -472,7 +477,13 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                             if (m_startPosition.value().r >= 360) {
                                 m_startPosition.value().r = 0;
                             }
-                            addReplayItem({ Mode::START, 0, 0, 0, 0, m_startPosition.value().r });
+                            addReplayItem({ Mode::START,
+                                            0,
+                                            m_startPosition.value().x,
+                                            m_startPosition.value().y,
+                                            0,
+                                            0,
+                                            m_startPosition.value().r });
                             m_dirty = true;
                         } else {
                             m_startPosition
@@ -480,9 +491,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                             addReplayItem({ Mode::START,
                                             0,
                                             static_cast<unsigned>(w.x),
-                                            static_cast<unsigned>(w.y),
-                                            0,
-                                            0 });
+                                            static_cast<unsigned>(w.y) });
                             m_dirty = true;
                         }
                         break;
@@ -800,11 +809,22 @@ void Level::revert()
 
 void Level::undo()
 {
-    // The way undo works is to revert to the last save,
-    // then reapply all steps held in m_replay
+    // The way undo works is to revert to the last save, then reapply all steps held in m_replay.
+    // This will allow for redo as well.
     m_currentInsertionLine.inactive = true;
     revert();
-    for (std::size_t i = 0; i < m_replayIndex; ++i) {
+    replay();
+    if (m_replayIndex >= 0) {
+        --m_replayIndex; // can go to -1
+    }
+}
+
+void Level::replay()
+{
+    for (long i = 0; i < m_replayIndex; ++i) {
+        if (i > static_cast<long>(m_replay.size()) - 1) {
+            break;
+        }
         const auto& a = m_replay[i];
         switch (a.actionType) {
             case Mode::LINE:
@@ -837,23 +857,33 @@ void Level::undo()
                 m_exitPosition = std::make_pair(a.x0, a.y0);
                 break;
             case Mode::START:
-                // TODO
+                m_startPosition = { a.x0, a.y0, a.rotation };
                 break;
             case Mode::FUEL:
-                // TODO
+                if (a.erased) {
+                    m_fuelObjects.erase(m_fuelObjects.begin() + a.index);
+                } else {
+                    m_fuelObjects.push_back(std::make_pair(a.x0, a.y0));
+                }
                 break;
             default:
                 assert(false);
         }
     }
-    if (m_replayIndex > 0) {
-        --m_replayIndex;
+}
+
+void Level::redo()
+{
+    if (m_replay.empty() || m_replayIndex >= static_cast<long>(m_replay.size())) {
+        return;
     }
+    m_replayIndex += 2;
+    replay();
 }
 
 void Level::addReplayItem(const Action& action)
 {
-    if (!m_replay.empty() && m_replayIndex < m_replay.size() - 1) {
+    if (!m_replay.empty() && m_replayIndex < static_cast<long>(m_replay.size()) - 1) {
         m_replay.erase(m_replay.begin() + m_replayIndex, m_replay.end());
     }
     m_replay.push_back(action);
