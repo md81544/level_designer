@@ -371,28 +371,40 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
         }
     }
     if (event.type == sf::Event::MouseMoved) {
-        if (m_currentMode == Mode::LINE || m_currentMode == Mode::BREAKABLE) {
-            // Highlight nearest grid vertex
-            if (m_snapMode == SnapMode::AUTO || m_snapMode == SnapMode::GRID) {
-                highlightGridVertex(window, event.mouseMove.x, event.mouseMove.y);
-            }
-            if (m_snapMode == SnapMode::AUTO || m_snapMode == SnapMode::LINE) {
-                highlightNearestLinePoint(window, event.mouseMove.x, event.mouseMove.y);
-            }
-            if (m_currentInsertionLine.inactive == false) {
-                if (m_currentNearestGridVertex.has_value()) {
-                    m_currentInsertionLine.x1 = std::get<0>(m_currentNearestGridVertex.value());
-                    m_currentInsertionLine.y1 = std::get<1>(m_currentNearestGridVertex.value());
-                } else {
-                    auto w = window.mapPixelToCoords({ static_cast<int>(event.mouseMove.x),
-                                                       static_cast<int>(event.mouseMove.y) });
-                    m_currentInsertionLine.x1 = w.x;
-                    m_currentInsertionLine.y1 = w.y;
-                }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift)) {
+            if (m_oldMouseX.has_value()) {
+                int xDelta = m_oldMouseX.value() - event.mouseMove.x;
+                int yDelta = m_oldMouseY.value() - event.mouseMove.y;
+                xDelta *= m_viewZoomLevel;
+                yDelta *= m_viewZoomLevel;
+                m_view.move(xDelta, yDelta);
             }
         } else {
-            m_currentNearestGridVertex = std::nullopt;
+            if (m_currentMode == Mode::LINE || m_currentMode == Mode::BREAKABLE) {
+                // Highlight nearest grid vertex
+                if (m_snapMode == SnapMode::AUTO || m_snapMode == SnapMode::GRID) {
+                    highlightGridVertex(window, event.mouseMove.x, event.mouseMove.y);
+                }
+                if (m_snapMode == SnapMode::AUTO || m_snapMode == SnapMode::LINE) {
+                    highlightNearestLinePoint(window, event.mouseMove.x, event.mouseMove.y);
+                }
+                if (m_currentInsertionLine.inactive == false) {
+                    if (m_currentNearestGridVertex.has_value()) {
+                        m_currentInsertionLine.x1 = std::get<0>(m_currentNearestGridVertex.value());
+                        m_currentInsertionLine.y1 = std::get<1>(m_currentNearestGridVertex.value());
+                    } else {
+                        auto w = window.mapPixelToCoords({ static_cast<int>(event.mouseMove.x),
+                                                           static_cast<int>(event.mouseMove.y) });
+                        m_currentInsertionLine.x1 = w.x;
+                        m_currentInsertionLine.y1 = w.y;
+                    }
+                }
+            } else {
+                m_currentNearestGridVertex = std::nullopt;
+            }
         }
+        m_oldMouseX = event.mouseMove.x;
+        m_oldMouseY = event.mouseMove.y;
     }
     if (event.type == sf::Event::MouseButtonPressed) {
         if (event.mouseButton.button == sf::Mouse::Right) {
@@ -545,13 +557,11 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
             }
         }
     }
-    if (event.mouseWheelScroll.wheel == sf::Mouse::VerticalWheel) {
-        float amt = event.mouseWheelScroll.delta;
-        if (std::abs(amt) > 0.1 && std::abs(amt) < 10.f) {
-            if (amt > 0.f) {
-                if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift)) {
-                    m_view.move(0, -25);
-                } else {
+    if (event.type == sf::Event::MouseWheelScrolled) {
+        if (event.mouseWheelScroll.wheel == sf::Mouse::VerticalWheel) {
+            float amt = event.mouseWheelScroll.delta;
+            if (std::abs(amt) > 0.1 && std::abs(amt) < 10.f) {
+                if (amt > 0.f) {
                     auto c = m_view.getCenter();
                     auto m = window.mapPixelToCoords(
                         { event.mouseWheelScroll.x, event.mouseWheelScroll.y });
@@ -559,26 +569,8 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     float dy = (m.y - c.y) * 0.05f;
                     m_view.move(dx, dy);
                     zoomIn();
-                }
-            } else if (amt < 0.f) {
-                if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift)) {
-                    m_view.move(0, 25);
-                } else {
+                } else if (amt < 0.f) {
                     zoomOut();
-                }
-            }
-        }
-    }
-    if (event.mouseWheelScroll.wheel == sf::Mouse::HorizontalWheel) {
-        float amt = event.mouseWheelScroll.delta;
-        if (std::abs(amt) > 0.1 && std::abs(amt) < 10.f) {
-            if (amt > 0.f) {
-                if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift)) {
-                    m_view.move(-25, 0);
-                }
-            } else if (amt < 0.f) {
-                if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift)) {
-                    m_view.move(25, 0);
                 }
             }
         }
@@ -602,6 +594,7 @@ void Level::zoomOut()
 {
     if (m_view.getSize().x < 2400.f) {
         m_view.zoom(1.05f);
+        m_viewZoomLevel *= 1.05f;
     }
 }
 
@@ -609,6 +602,7 @@ void Level::zoomIn()
 {
     if (m_view.getSize().x > 100.f) {
         m_view.zoom(0.95f);
+        m_viewZoomLevel *= 0.95f;
     }
 }
 

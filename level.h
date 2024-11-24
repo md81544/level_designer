@@ -118,9 +118,12 @@ private:
     void cycleMode(bool backwards);
     void changeSnapMode();
     sf::View m_view;
+    float m_viewZoomLevel { 1.f };
     sf::View m_fixedView; // for non-moving elements, e.g. dialog
     std::string m_fileName;
     bool m_dirty { false };
+    std::optional<int> m_oldMouseX;
+    std::optional<int> m_oldMouseY;
 };
 
 } // namespace mgo
