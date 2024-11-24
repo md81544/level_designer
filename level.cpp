@@ -883,8 +883,9 @@ void Level::redo()
 
 void Level::addReplayItem(const Action& action)
 {
-    if (!m_replay.empty() && m_replayIndex < static_cast<long>(m_replay.size()) - 1) {
-        m_replay.erase(m_replay.begin() + m_replayIndex, m_replay.end());
+    std::size_t from = 1 + (m_replayIndex > 0 ? m_replayIndex : 0);
+    if (from < m_replay.size()) {
+        m_replay.erase(m_replay.begin() + from, m_replay.end());
     }
     m_replay.push_back(action);
     m_replayIndex = m_replay.size() - 1;
