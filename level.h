@@ -17,7 +17,8 @@ enum class Mode {
     EDIT,
     EXIT,
     START,
-    FUEL
+    FUEL,
+    MOVING // objects which have motion
 };
 
 enum class SnapMode {
@@ -59,6 +60,15 @@ struct StartPosition {
     unsigned r;
 };
 
+struct MovingObject {
+    unsigned startX;
+    unsigned startY;
+    unsigned endX;
+    unsigned endY;
+    float rotationDelta;
+    std::vector<Line> lines;
+};
+
 class Level {
 public:
     Level(unsigned windowWidth, unsigned windowHeight);
@@ -98,6 +108,10 @@ private:
     std::optional<StartPosition> m_startPosition;
     std::optional<std::pair<unsigned, unsigned>> m_exitPosition;
     std::vector<std::pair<unsigned, unsigned>> m_fuelObjects;
+    // TODO: not yet implemented, but this will contain objects which can move
+    // It is envisaged that items can rotate, and/or oscillate from one position
+    // to another. To be determined how this is described in this designer...
+    std::vector<MovingObject> m_movingObjects;
 
     std::vector<Action> m_replay; // this is used for undo/redo
     long m_replayIndex { 0 };
@@ -112,6 +126,7 @@ private:
     std::optional<std::size_t> m_highlightedLineIdx;
     std::optional<std::tuple<unsigned, unsigned>> m_currentNearestGridVertex { std::nullopt };
     Line m_currentInsertionLine;
+    MovingObject m_currentMovingObject;
     Mode m_currentMode { Mode::LINE };
     SnapMode m_snapMode { SnapMode::AUTO };
     void changeMode(Mode mode);

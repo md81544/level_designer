@@ -159,6 +159,15 @@ void mgo::Level::save()
                            "P~"
                         << p.first << "~" << p.second << "\n";
             }
+            std::size_t counter = 0;
+            for (const auto& m : m_movingObjects) {
+                outfile << "N~MOVING~moving_" << counter << "\n";
+                for (const auto& l : m.lines) {
+                    outfile << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1
+                            << "~229~52~235~6\n";
+                }
+                ++counter;
+            }
             outfile.close();
             m_dirty = false;
         }
@@ -186,6 +195,14 @@ void mgo::Level::draw(sf::RenderWindow& window)
     }
     if (m_currentInsertionLine.inactive == false) {
         drawLine(window, m_currentInsertionLine, std::nullopt);
+    }
+    for (const auto& m : m_movingObjects) {
+        for (const auto& l : m.lines) {
+            drawLine(window, l, std::nullopt);
+        }
+    }
+    for (const auto& l : m_currentMovingObject.lines) {
+        drawLine(window, l, std::nullopt);
     }
 }
 
@@ -298,6 +315,9 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 case sf::Keyboard::S:
                     changeMode(Mode::START);
                     break;
+                case sf::Keyboard::M:
+                    changeMode(Mode::MOVING);
+                    break;
                 case sf::Keyboard::X:
                     changeMode(Mode::EXIT);
                     break;
@@ -380,7 +400,8 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 m_view.move(xDelta, yDelta);
             }
         } else {
-            if (m_currentMode == Mode::LINE || m_currentMode == Mode::BREAKABLE) {
+            if (m_currentMode == Mode::LINE || m_currentMode == Mode::BREAKABLE
+                || m_currentMode == Mode::MOVING) {
                 // Highlight nearest grid vertex
                 if (m_snapMode == SnapMode::AUTO || m_snapMode == SnapMode::GRID) {
                     highlightGridVertex(window, event.mouseMove.x, event.mouseMove.y);
@@ -413,6 +434,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
             switch (m_currentMode) {
                 case Mode::LINE:
                 case Mode::BREAKABLE:
+                case Mode::MOVING:
                     {
                         // Insert a new line
                         if (m_currentNearestGridVertex.has_value()
@@ -427,7 +449,15 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                                     } else {
                                         m_currentInsertionLine.breakable = true;
                                     }
-                                    m_lines.push_back(m_currentInsertionLine);
+                                    if (m_currentMode == Mode::MOVING) {
+                                        Line l = m_currentInsertionLine;
+                                        l.r = 255;
+                                        l.g = 172;
+                                        l.b = 163;
+                                        m_currentMovingObject.lines.push_back(l);
+                                    } else {
+                                        m_lines.push_back(m_currentInsertionLine);
+                                    }
                                     addReplayItem({ m_currentMode,
                                                     0,
                                                     m_currentInsertionLine.x0,
@@ -656,6 +686,9 @@ void mgo::Level::drawModes(sf::RenderWindow& window)
             break;
         case Mode::FUEL:
             txtMode.setString("FUEL");
+            break;
+        case Mode::MOVING:
+            txtMode.setString("MOVING");
             break;
         default:
             break;
@@ -887,6 +920,13 @@ void Level::addReplayItem(const Action& action)
 
 void Level::changeMode(Mode mode)
 {
+    if (m_currentMode == Mode::MOVING && mode != Mode::MOVING) {
+        // Write any existing  moving object and start a new one
+        if (!m_currentMovingObject.lines.empty()) {
+            m_movingObjects.push_back(m_currentMovingObject);
+        }
+        m_currentMovingObject = {};
+    }
     m_highlightedLineIdx = std::nullopt;
     m_currentInsertionLine.inactive = true;
     m_currentMode = mode;
