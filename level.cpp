@@ -49,7 +49,8 @@ void Level::load(const std::string& filename)
         OBSTRUCTION,
         EXIT,
         FUEL,
-        BREAKABLE
+        BREAKABLE,
+        MOVING
     };
     ObjectType currentObject = ObjectType::OBSTRUCTION;
     while (!in.eof()) {
@@ -76,8 +77,10 @@ void Level::load(const std::string& filename)
                     currentObject = ObjectType::FUEL;
                 } else if (vec[1] == "BREAKABLE") {
                     currentObject = ObjectType::BREAKABLE;
+                } else if (vec[1] == "MOVING") {
+                    currentObject = ObjectType::MOVING;
                 } else {
-                    std::cout << "Unrecognized object type '" << vec[1] << "' in file\n";
+                    std::cout << "Unrecognised object type '" << vec[1] << "' in file\n";
                 }
                 break;
             case 'L':
@@ -163,10 +166,20 @@ void mgo::Level::save()
             for (const auto& m : m_movingObjects) {
                 outfile << "N~MOVING~moving_" << counter << "\n";
                 for (const auto& l : m.lines) {
-                    outfile << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1
-                            << "~229~52~235~6\n";
+                    outfile << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1 << "~"
+                            << static_cast<int>(l.r) << "~" << static_cast<int>(l.g) << "~"
+                            << static_cast<int>(l.b) << "~6\n";
                 }
                 ++counter;
+            }
+            // Is there a moving object in progress?
+            if (m_currentMovingObject.lines.size() > 0) {
+                outfile << "N~MOVING~moving_" << counter << "\n";
+                for (const auto& l : m_currentMovingObject.lines) {
+                    outfile << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1 << "~"
+                            << static_cast<int>(l.r) << "~" << static_cast<int>(l.g) << "~"
+                            << static_cast<int>(l.b) << "~6\n";
+                }
             }
             outfile.close();
             m_dirty = false;
@@ -938,6 +951,10 @@ void Level::changeMode(Mode mode)
         m_currentInsertionLine.r = 255;
         m_currentInsertionLine.g = 150;
         m_currentInsertionLine.b = 50;
+    } else if (m_currentMode == Mode::MOVING) {
+        m_currentInsertionLine.r = 255;
+        m_currentInsertionLine.g = 172;
+        m_currentInsertionLine.b = 163;
     }
 }
 
