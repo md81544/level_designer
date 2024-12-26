@@ -61,11 +61,11 @@ struct StartPosition {
 };
 
 struct MovingObject {
-    unsigned startX;
-    unsigned startY;
-    unsigned endX;
-    unsigned endY;
-    float rotationDelta;
+    float xDelta;
+    float xMaxDifference;
+    float yDelta;
+    float yMaxDifference;
+    float rotationDelta; // rotation just continues around so no max
     std::vector<Line> lines;
 };
 

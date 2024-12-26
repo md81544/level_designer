@@ -83,6 +83,11 @@ void Level::load(const std::string& filename)
                         m_movingObjects.push_back(m_currentMovingObject);
                         m_currentMovingObject.lines.clear();
                     }
+                    m_currentMovingObject.xDelta = std::stof(vec[3]);
+                    m_currentMovingObject.xMaxDifference = std::stof(vec[4]);
+                    m_currentMovingObject.yDelta = std::stof(vec[5]);
+                    m_currentMovingObject.yMaxDifference = std::stof(vec[6]);
+                    m_currentMovingObject.rotationDelta = std::stof(vec[7]);
                 } else {
                     std::cout << "Unrecognised object type '" << vec[1] << "' in file\n";
                 }
@@ -175,7 +180,11 @@ void mgo::Level::save()
             }
             std::size_t counter = 0;
             for (const auto& m : m_movingObjects) {
-                outfile << "N~MOVING~moving_" << counter << "\n";
+                outfile << "# TODO: manually edit xDelta, xMaxDifference, yDelta, yMaxDifference, "
+                           "rotationDelta\n";
+                outfile << "N~MOVING~moving_" << counter;
+                outfile << "~" << m.xDelta << "~" << m.xMaxDifference << "~" << m.yDelta << "~"
+                        << m.yMaxDifference << "~" << m.rotationDelta << "\n";
                 for (const auto& l : m.lines) {
                     outfile << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1 << "~"
                             << static_cast<int>(l.r) << "~" << static_cast<int>(l.g) << "~"
