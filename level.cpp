@@ -79,6 +79,10 @@ void Level::load(const std::string& filename)
                     currentObject = ObjectType::BREAKABLE;
                 } else if (vec[1] == "MOVING") {
                     currentObject = ObjectType::MOVING;
+                    if (m_currentMovingObject.lines.size() > 0) {
+                        m_movingObjects.push_back(m_currentMovingObject);
+                        m_currentMovingObject.lines.clear();
+                    }
                 } else {
                     std::cout << "Unrecognised object type '" << vec[1] << "' in file\n";
                 }
@@ -94,8 +98,11 @@ void Level::load(const std::string& filename)
                     uint8_t b = std::stoi(vec[7]);
                     if (currentObject == ObjectType::OBSTRUCTION) {
                         m_lines.push_back({ x0, y0, x1, y1, r, g, b, 1, false, false });
-                    } else {
+                    } else if (currentObject == ObjectType::BREAKABLE) {
                         m_lines.push_back({ x0, y0, x1, y1, r, g, b, 1, false, true });
+                    } else if (currentObject == ObjectType::MOVING) {
+                        m_currentMovingObject.lines.push_back(
+                            { x0, y0, x1, y1, r, g, b, 1, false });
                     }
                     break;
                 }
@@ -113,6 +120,10 @@ void Level::load(const std::string& filename)
                 break;
         }
         currentLine.clear();
+    }
+    if (m_currentMovingObject.lines.size() > 0) {
+        m_movingObjects.push_back(m_currentMovingObject);
+        m_currentMovingObject.lines.clear();
     }
     in.close();
 }
