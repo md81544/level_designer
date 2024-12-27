@@ -82,6 +82,8 @@ public:
     // the cursor or no value if no lines are nearby.
     std::optional<std::size_t>
     lineUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsigned mouseY);
+    std::optional<std::size_t>
+    movingObjectUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsigned mouseY);
     void processEvent(sf::RenderWindow& window, const sf::Event& event);
     void quit(sf::RenderWindow& window);
     void zoomOut();
@@ -121,6 +123,7 @@ private:
     sf::Font m_font;
     sf::Text m_editModeText;
     std::optional<std::size_t> m_highlightedLineIdx;
+    std::optional<std::size_t> m_highlightedMovingObjectIdx;
     std::optional<std::tuple<unsigned, unsigned>> m_currentNearestGridVertex { std::nullopt };
     Line m_currentInsertionLine;
     MovingObject m_currentMovingObject;

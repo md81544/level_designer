@@ -228,10 +228,18 @@ void mgo::Level::draw(sf::RenderWindow& window)
     if (m_currentInsertionLine.inactive == false) {
         drawLine(window, m_currentInsertionLine, std::nullopt);
     }
+    idx = 0;
     for (const auto& m : m_movingObjects) {
-        for (const auto& l : m.lines) {
+        for (auto l : m.lines) {
+            if (m_highlightedMovingObjectIdx.has_value()
+                && m_highlightedMovingObjectIdx.value() == idx) {
+                l.r = 255;
+                l.g = 255;
+                l.b = 255;
+            }
             drawLine(window, l, std::nullopt);
         }
+        ++idx;
     }
     for (const auto& l : m_currentMovingObject.lines) {
         drawLine(window, l, std::nullopt);
@@ -270,6 +278,7 @@ void mgo::Level::drawGridLines(sf::RenderWindow& window)
         drawLine(window, { 0, n, 2000, n, 0, 100, 0, 1 }, std::nullopt);
     }
 }
+
 std::optional<std::size_t>
 Level::lineUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsigned mouseY)
 {
@@ -298,6 +307,38 @@ Level::lineUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsigned mouse
             if (helperfunctions::doLinesIntersect(
                     w.x, w.y + 10, w.x - 10, w.y, l.x0, l.y0, l.x1, l.y1)) {
                 return idx;
+            }
+        }
+        ++idx;
+    }
+    return std::nullopt;
+}
+
+std::optional<std::size_t>
+Level::movingObjectUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsigned mouseY)
+{
+    // Note, this returns the index of the entire moving object, not the individual line
+    auto w = window.mapPixelToCoords({ static_cast<int>(mouseX), static_cast<int>(mouseY) });
+    std::size_t idx = 0;
+    for (const auto& m : m_movingObjects) {
+        for (const auto& l : m.lines) {
+            if (!l.inactive) {
+                if (helperfunctions::doLinesIntersect(
+                        w.x - 10, w.y, w.x, w.y - 10, l.x0, l.y0, l.x1, l.y1)) {
+                    return idx;
+                }
+                if (helperfunctions::doLinesIntersect(
+                        w.x, w.y - 10, w.x + 10, w.y, l.x0, l.y0, l.x1, l.y1)) {
+                    return idx;
+                }
+                if (helperfunctions::doLinesIntersect(
+                        w.x + 10, w.y, w.x, w.y + 10, l.x0, l.y0, l.x1, l.y1)) {
+                    return idx;
+                }
+                if (helperfunctions::doLinesIntersect(
+                        w.x, w.y + 10, w.x - 10, w.y, l.x0, l.y0, l.x1, l.y1)) {
+                    return idx;
+                }
             }
         }
         ++idx;
@@ -532,8 +573,15 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                             = lineUnderCursor(window, event.mouseButton.x, event.mouseButton.y);
                         if (line.has_value()) {
                             m_highlightedLineIdx = line.value();
+                            m_highlightedMovingObjectIdx = std::nullopt;
+                        } else {
+                            auto movingObject = movingObjectUnderCursor(
+                                window, event.mouseButton.x, event.mouseButton.y);
+                            if (movingObject.has_value()) {
+                                m_highlightedMovingObjectIdx = movingObject.value();
+                                m_highlightedLineIdx = std::nullopt;
+                            }
                         }
-                        // TODO - need to also check for movable objects' lines
                         break;
                     }
                 case Mode::START:
