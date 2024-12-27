@@ -108,9 +108,6 @@ private:
     std::optional<StartPosition> m_startPosition;
     std::optional<std::pair<unsigned, unsigned>> m_exitPosition;
     std::vector<std::pair<unsigned, unsigned>> m_fuelObjects;
-    // TODO: not yet implemented, but this will contain objects which can move
-    // It is envisaged that items can rotate, and/or oscillate from one position
-    // to another. To be determined how this is described in this designer...
     std::vector<MovingObject> m_movingObjects;
 
     std::vector<Action> m_replay; // this is used for undo/redo

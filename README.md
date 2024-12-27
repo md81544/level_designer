@@ -21,7 +21,7 @@ by the "S" key - "AUTO" will snap to grid vertices or existing lines, "GRID" is 
 
 Press Cmd-S to 'save' (it currently just outputs to stdout, which is fine for either copy/pasting or piping from the terminal).
 
-Press "Q" to quit (or just close the window). Currently "Q" has a confirmation dialog, but closing the window does not. That's a TODO.
+Press "Q" to quit (or just close the window). Currently "Q" has a confirmation dialog, but closing the window does not.
 
 * Confirmation dialog on window close
 

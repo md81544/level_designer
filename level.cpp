@@ -135,7 +135,6 @@ void Level::load(const std::string& filename)
 
 void mgo::Level::save()
 {
-    // TODO, currently just outputs to stdout - may actually be OK like that?
     msgbox("Save File", "Saving to: " + m_fileName, [&](bool okPressed, const std::string&) {
         if (okPressed) {
             std::ofstream outfile(m_fileName, std::ios::trunc);
@@ -534,6 +533,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                         if (line.has_value()) {
                             m_highlightedLineIdx = line.value();
                         }
+                        // TODO - need to also check for movable objects' lines
                         break;
                     }
                 case Mode::START:
