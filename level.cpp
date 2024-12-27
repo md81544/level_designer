@@ -441,6 +441,13 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                         addReplayItem({ Mode::EDIT, m_highlightedLineIdx.value() });
                         m_highlightedLineIdx = std::nullopt;
                         m_dirty = true;
+                    } else if (m_highlightedMovingObjectIdx.has_value()) {
+                        m_movingObjects.erase(
+                            m_movingObjects.begin() + m_highlightedMovingObjectIdx.value());
+                        // TODO: not sure if this will work yet:
+                        addReplayItem({ Mode::EDIT, m_highlightedMovingObjectIdx.value() });
+                        m_highlightedMovingObjectIdx = std::nullopt;
+                        m_dirty = true;
                     }
                     break;
                 case sf::Keyboard::Escape:
