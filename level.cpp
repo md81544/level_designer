@@ -215,13 +215,13 @@ void mgo::Level::draw(sf::RenderWindow& window)
         }
         ++idx;
     }
-    if (m_currentNearestGridVertex.has_value()) {
+    if (m_currentNearestSnapPoint.has_value()) {
         sf::CircleShape c;
         c.setFillColor(sf::Color::Magenta);
         c.setRadius(3.f);
         c.setOrigin({ 3.f, 3.f });
-        float x = std::get<0>(m_currentNearestGridVertex.value());
-        float y = std::get<1>(m_currentNearestGridVertex.value());
+        float x = std::get<0>(m_currentNearestSnapPoint.value());
+        float y = std::get<1>(m_currentNearestSnapPoint.value());
         c.setPosition(x, y);
         window.draw(c);
     }
@@ -482,7 +482,6 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
         } else {
             if (m_currentMode == Mode::LINE || m_currentMode == Mode::BREAKABLE
                 || m_currentMode == Mode::MOVING) {
-                // Highlight nearest grid vertex
                 if (m_snapMode == SnapMode::AUTO || m_snapMode == SnapMode::GRID) {
                     highlightGridVertex(window, event.mouseMove.x, event.mouseMove.y);
                 }
@@ -490,9 +489,9 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     highlightNearestLinePoint(window, event.mouseMove.x, event.mouseMove.y);
                 }
                 if (m_currentInsertionLine.inactive == false) {
-                    if (m_currentNearestGridVertex.has_value()) {
-                        m_currentInsertionLine.x1 = std::get<0>(m_currentNearestGridVertex.value());
-                        m_currentInsertionLine.y1 = std::get<1>(m_currentNearestGridVertex.value());
+                    if (m_currentNearestSnapPoint.has_value()) {
+                        m_currentInsertionLine.x1 = std::get<0>(m_currentNearestSnapPoint.value());
+                        m_currentInsertionLine.y1 = std::get<1>(m_currentNearestSnapPoint.value());
                     } else {
                         auto w = window.mapPixelToCoords({ static_cast<int>(event.mouseMove.x),
                                                            static_cast<int>(event.mouseMove.y) });
@@ -501,7 +500,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     }
                 }
             } else {
-                m_currentNearestGridVertex = std::nullopt;
+                m_currentNearestSnapPoint = std::nullopt;
             }
         }
         m_oldMouseX = event.mouseMove.x;
@@ -517,7 +516,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 case Mode::MOVING:
                     {
                         // Insert a new line
-                        if (m_currentNearestGridVertex.has_value()
+                        if (m_currentNearestSnapPoint.has_value()
                             || m_snapMode == SnapMode::NONE) {
                             // Are we in the middle of drawing a line? If so, add the current
                             // insertion line into the vector
@@ -554,15 +553,15 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                                 // else this is a new line
                                 unsigned x;
                                 unsigned y;
-                                if (!m_currentNearestGridVertex.has_value()) {
+                                if (!m_currentNearestSnapPoint.has_value()) {
                                     auto w = window.mapPixelToCoords(
                                         { static_cast<int>(event.mouseButton.x),
                                           static_cast<int>(event.mouseButton.y) });
                                     x = w.x;
                                     y = w.y;
                                 } else {
-                                    x = std::get<0>(m_currentNearestGridVertex.value());
-                                    y = std::get<1>(m_currentNearestGridVertex.value());
+                                    x = std::get<0>(m_currentNearestSnapPoint.value());
+                                    y = std::get<1>(m_currentNearestSnapPoint.value());
                                 }
                                 m_currentInsertionLine.x0 = x;
                                 m_currentInsertionLine.y0 = y;
@@ -815,9 +814,9 @@ void mgo::Level::highlightGridVertex(sf::RenderWindow& window, unsigned mouseX, 
     unsigned x = static_cast<unsigned>(static_cast<double>(w.x) / 50.0 + 0.5) * 50.0;
     unsigned y = static_cast<unsigned>(static_cast<double>(w.y) / 50.0 + 0.5) * 50.0;
     if (x > 2000 || y > 2000) {
-        m_currentNearestGridVertex = std::nullopt;
+        m_currentNearestSnapPoint = std::nullopt;
     } else {
-        m_currentNearestGridVertex = std::tie(x, y);
+        m_currentNearestSnapPoint = std::tie(x, y);
     }
 }
 
@@ -830,7 +829,31 @@ void Level::highlightNearestLinePoint(sf::RenderWindow& window, unsigned mouseX,
         }
         auto nearest = helperfunctions::closestPointOnLine(l.x0, l.y0, l.x1, l.y1, w.x, w.y, 5);
         if (nearest.has_value()) {
-            m_currentNearestGridVertex = std::tie(nearest.value().first, nearest.value().second);
+            m_currentNearestSnapPoint = std::tie(nearest.value().first, nearest.value().second);
+            return;
+        }
+    }
+    for (const auto& m : m_movingObjects) {
+        for (const auto& l : m.lines) {
+            if (l.inactive) {
+                continue;
+            }
+            auto nearest = helperfunctions::closestPointOnLine(l.x0, l.y0, l.x1, l.y1, w.x, w.y, 5);
+            if (nearest.has_value()) {
+                m_currentNearestSnapPoint
+                    = std::tie(nearest.value().first, nearest.value().second);
+                return;
+            }
+        }
+    }
+    // Also check moving object in progress
+    for( const auto & l : m_currentMovingObject.lines ) {
+        if( l.inactive ) {
+            continue;
+        }
+        auto nearest = helperfunctions::closestPointOnLine( l.x0, l.y0, l.x1, l.y1, w.x, w.y, 5 );
+        if( nearest.has_value() ) {
+            m_currentNearestSnapPoint = std::tie( nearest.value().first, nearest.value().second );
             return;
         }
     }
@@ -1102,7 +1125,7 @@ void Level::changeSnapMode()
             assert(false);
             break;
     }
-    m_currentNearestGridVertex = std::nullopt;
+    m_currentNearestSnapPoint = std::nullopt;
 }
 
 } // namespace

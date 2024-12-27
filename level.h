@@ -124,7 +124,7 @@ private:
     sf::Text m_editModeText;
     std::optional<std::size_t> m_highlightedLineIdx;
     std::optional<std::size_t> m_highlightedMovingObjectIdx;
-    std::optional<std::tuple<unsigned, unsigned>> m_currentNearestGridVertex { std::nullopt };
+    std::optional<std::tuple<unsigned, unsigned>> m_currentNearestSnapPoint { std::nullopt };
     Line m_currentInsertionLine;
     MovingObject m_currentMovingObject;
     Mode m_currentMode { Mode::LINE };
