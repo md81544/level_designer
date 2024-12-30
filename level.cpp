@@ -193,7 +193,14 @@ void mgo::Level::save()
             }
             // Is there a moving object in progress?
             if (m_currentMovingObject.lines.size() > 0) {
-                outfile << "N~MOVING~moving_" << counter << "\n";
+                outfile << "# TODO: manually edit xDelta, xMaxDifference, yDelta, yMaxDifference, "
+                           "rotationDelta\n";
+                outfile << "N~MOVING~moving_" << counter;
+                outfile << "~" << m_currentMovingObject.xDelta << "~"
+                        << m_currentMovingObject.xMaxDifference << "~"
+                        << m_currentMovingObject.yDelta << "~"
+                        << m_currentMovingObject.yMaxDifference << "~"
+                        << m_currentMovingObject.rotationDelta << "\n";
                 for (const auto& l : m_currentMovingObject.lines) {
                     outfile << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1 << "~"
                             << static_cast<int>(l.r) << "~" << static_cast<int>(l.g) << "~"
@@ -516,8 +523,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 case Mode::MOVING:
                     {
                         // Insert a new line
-                        if (m_currentNearestSnapPoint.has_value()
-                            || m_snapMode == SnapMode::NONE) {
+                        if (m_currentNearestSnapPoint.has_value() || m_snapMode == SnapMode::NONE) {
                             // Are we in the middle of drawing a line? If so, add the current
                             // insertion line into the vector
                             if (!m_currentInsertionLine.inactive) {
@@ -840,20 +846,19 @@ void Level::highlightNearestLinePoint(sf::RenderWindow& window, unsigned mouseX,
             }
             auto nearest = helperfunctions::closestPointOnLine(l.x0, l.y0, l.x1, l.y1, w.x, w.y, 5);
             if (nearest.has_value()) {
-                m_currentNearestSnapPoint
-                    = std::tie(nearest.value().first, nearest.value().second);
+                m_currentNearestSnapPoint = std::tie(nearest.value().first, nearest.value().second);
                 return;
             }
         }
     }
     // Also check moving object in progress
-    for( const auto & l : m_currentMovingObject.lines ) {
-        if( l.inactive ) {
+    for (const auto& l : m_currentMovingObject.lines) {
+        if (l.inactive) {
             continue;
         }
-        auto nearest = helperfunctions::closestPointOnLine( l.x0, l.y0, l.x1, l.y1, w.x, w.y, 5 );
-        if( nearest.has_value() ) {
-            m_currentNearestSnapPoint = std::tie( nearest.value().first, nearest.value().second );
+        auto nearest = helperfunctions::closestPointOnLine(l.x0, l.y0, l.x1, l.y1, w.x, w.y, 5);
+        if (nearest.has_value()) {
+            m_currentNearestSnapPoint = std::tie(nearest.value().first, nearest.value().second);
             return;
         }
     }
@@ -940,6 +945,7 @@ void Level::revert()
     m_startPosition = std::nullopt;
     m_exitPosition = std::nullopt;
     m_fuelObjects.clear();
+    m_movingObjects.clear();
     // reload
     load(m_fileName);
     m_dirty = false;
@@ -1004,7 +1010,22 @@ void Level::replay()
                     m_fuelObjects.push_back(std::make_pair(a.x0, a.y0));
                 }
                 break;
+            case Mode::MOVING:
+                {
+                    Line l;
+                    l.x0 = a.x0;
+                    l.y0 = a.y0;
+                    l.x1 = a.x1;
+                    l.y1 = a.y1;
+                    l.r = 255;
+                    l.g = 172;
+                    l.b = 163;
+                    m_currentMovingObject.lines.push_back(l);
+                }
+                break;
             default:
+                std::cout << "Unknown action type in replay: " << static_cast<int>(a.actionType)
+                          << std::endl;
                 assert(false);
         }
     }
