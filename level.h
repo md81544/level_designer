@@ -106,6 +106,7 @@ public:
     void addReplayItem(const Action& action);
 
 private:
+    sf::Font m_font;
     std::vector<Line> m_lines;
     std::optional<StartPosition> m_startPosition;
     std::optional<std::pair<unsigned, unsigned>> m_exitPosition;
@@ -120,7 +121,6 @@ private:
     sf::Text m_dialogTitle;
     sf::Text m_dialogText;
     std::function<void(bool, std::string)> m_dialogCallback { [](bool, const std::string&) { } };
-    sf::Font m_font;
     sf::Text m_editModeText;
     std::optional<std::size_t> m_highlightedLineIdx;
     std::optional<std::size_t> m_highlightedMovingObjectIdx;

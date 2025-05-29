@@ -1,5 +1,7 @@
 #include "level.h"
+#include "dialog.h"
 #include "helperfunctions.h"
+
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -15,18 +17,25 @@
 
 namespace mgo {
 mgo::Level::Level(unsigned windowWidth, unsigned windowHeight)
+    : m_dialogTitle(m_font)
+    , m_dialogText(m_font)
+    , m_editModeText(m_font)
 {
-    if (!m_font.loadFromFile("DroidSansMono.ttf")) {
+    if (!m_font.openFromFile("DroidSansMono.ttf")) {
         throw std::runtime_error("Could not load font file");
     }
     m_currentInsertionLine.inactive = true;
     m_currentInsertionLine.r = 255;
     m_currentInsertionLine.g = 0;
     m_currentInsertionLine.b = 0;
-    m_view.reset(sf::FloatRect(0, 0, windowWidth, windowHeight));
-    m_view.setViewport(sf::FloatRect(0, 0, 1, 1));
-    m_fixedView.reset(sf::FloatRect(0, 0, windowWidth, windowHeight));
-    m_fixedView.setViewport(sf::FloatRect(0, 0, 1, 1));
+    m_view = sf::View(
+        sf::FloatRect(
+            { 0.f, 0.f }, { static_cast<float>(windowWidth), static_cast<float>(windowHeight) }));
+    m_view.setViewport(sf::FloatRect({ 0.f, 0.f }, { 1.f, 1.f }));
+    m_fixedView = sf::View(
+        sf::FloatRect(
+            { 0.f, 0.f }, { static_cast<float>(windowWidth), static_cast<float>(windowHeight) }));
+    m_fixedView.setViewport(sf::FloatRect({ 0.f, 0.f }, { 1.f, 1.f }));
 }
 
 void Level::load(const std::string& filename)
@@ -229,7 +238,7 @@ void mgo::Level::draw(sf::RenderWindow& window)
         c.setOrigin({ 3.f, 3.f });
         float x = std::get<0>(m_currentNearestSnapPoint.value());
         float y = std::get<1>(m_currentNearestSnapPoint.value());
-        c.setPosition(x, y);
+        c.setPosition({ x, y });
         window.draw(c);
     }
     if (m_currentInsertionLine.inactive == false) {
@@ -275,7 +284,7 @@ void mgo::Level::drawLine(sf::RenderWindow& window, const Line& l, std::optional
         line[0].color = sf::Color(l.r, l.g, l.b);
         line[1].color = sf::Color(l.r, l.g, l.b);
     }
-    window.draw(line, 2, sf::Lines);
+    window.draw(line, 2, sf::PrimitiveType::Lines);
 }
 
 void mgo::Level::drawGridLines(sf::RenderWindow& window)
@@ -355,18 +364,19 @@ Level::movingObjectUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsign
 
 void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
 {
-    if (event.type == sf::Event::Closed) {
+    if (event.is<sf::Event::Closed>()) {
         quit(window);
     }
     if (m_isDialogActive) {
         // if a dialog is active then we respond differently to events:
-        if (event.type == sf::Event::KeyPressed) {
-            switch (event.key.code) {
-                case sf::Keyboard::Escape:
+        if (event.is<sf::Event::KeyPressed>()) {
+            auto scancode = event.getIf<sf::Event::KeyPressed>()->scancode;
+            switch (scancode) {
+                case sf::Keyboard::Scancode::Escape:
                     m_isDialogActive = false;
                     m_dialogCallback(false, "");
                     break;
-                case sf::Keyboard::Enter:
+                case sf::Keyboard::Scancode::Enter:
                     m_isDialogActive = false;
                     m_dialogCallback(true, "");
                     break;
@@ -376,73 +386,80 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
         }
         return;
     }
-    if (event.type == sf::Event::KeyPressed) {
+    if (event.is<sf::Event::KeyPressed>()) {
         // Mode switchers - require shift key, e.g. Shift-L for line etc
-        if (event.key.shift) {
-            switch (event.key.code) {
-                case sf::Keyboard::B:
+        auto scancode = event.getIf<sf::Event::KeyPressed>()->scancode;
+        if (event.getIf<sf::Event::KeyPressed>()->shift) {
+            switch (scancode) {
+                case sf::Keyboard::Scancode::B:
                     changeMode(Mode::BREAKABLE);
                     break;
-                case sf::Keyboard::E:
+                case sf::Keyboard::Scancode::E:
                     changeMode(Mode::EDIT);
                     break;
-                case sf::Keyboard::L:
+                case sf::Keyboard::Scancode::L:
                     changeMode(Mode::LINE);
                     break;
-                case sf::Keyboard::F:
+                case sf::Keyboard::Scancode::F:
                     changeMode(Mode::FUEL);
                     break;
-                case sf::Keyboard::S:
+                case sf::Keyboard::Scancode::S:
                     changeMode(Mode::START);
                     break;
-                case sf::Keyboard::M:
+                case sf::Keyboard::Scancode::M:
                     changeMode(Mode::MOVING);
                     break;
-                case sf::Keyboard::X:
+                case sf::Keyboard::Scancode::X:
                     changeMode(Mode::EXIT);
                     break;
                 default:
                     break;
             }
         } else {
-            switch (event.key.code) {
-                case sf::Keyboard::Equal:
+            switch (scancode) {
+                case sf::Keyboard::Scancode::Period:
+                    {
+                        std::string foo = getInputFromDialog(window, "Enter stuff", m_font);
+                        std::cout << foo << std::endl;
+                        break;
+                    }
+                case sf::Keyboard::Scancode::Equal:
                     {
                         zoomIn();
                         break;
                     }
-                case sf::Keyboard::Hyphen:
+                case sf::Keyboard::Scancode::Hyphen:
                     {
                         zoomOut();
                         break;
                     }
-                case sf::Keyboard::Q:
+                case sf::Keyboard::Scancode::Q:
                     quit(window);
                     break;
-                case sf::Keyboard::S:
-                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::LSystem)
-                        || sf::Keyboard::isKeyPressed(sf::Keyboard::RSystem)) {
+                case sf::Keyboard::Scancode::S:
+                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LSystem)
+                        || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RSystem)) {
                         save();
                     } else {
                         changeSnapMode();
                     }
                     break;
-                case sf::Keyboard::M:
-                    cycleMode(event.key.shift);
+                case sf::Keyboard::Scancode::M:
+                    cycleMode(event.getIf<sf::Event::KeyPressed>()->shift);
                     break;
-                case sf::Keyboard::Y: // redo
-                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::LSystem)
-                        || sf::Keyboard::isKeyPressed(sf::Keyboard::RSystem)) {
+                case sf::Keyboard::Scancode::Y: // redo
+                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LSystem)
+                        || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RSystem)) {
                         redo();
                     }
-                case sf::Keyboard::Z: // undo
-                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::LSystem)
-                        || sf::Keyboard::isKeyPressed(sf::Keyboard::RSystem)) {
+                case sf::Keyboard::Scancode::Z: // undo
+                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LSystem)
+                        || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RSystem)) {
                         undo();
                     }
-                case sf::Keyboard::BackSpace:
-                case sf::Keyboard::Delete:
-                case sf::Keyboard::X:
+                case sf::Keyboard::Scancode::Backspace:
+                case sf::Keyboard::Scancode::Delete:
+                case sf::Keyboard::Scancode::X:
                     if (m_highlightedLineIdx.has_value()) {
                         m_lines[m_highlightedLineIdx.value()].inactive = true;
                         addReplayItem({ Mode::EDIT, m_highlightedLineIdx.value() });
@@ -457,51 +474,52 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                         m_dirty = true;
                     }
                     break;
-                case sf::Keyboard::Escape:
+                case sf::Keyboard::Scancode::Escape:
                     m_currentInsertionLine.inactive = true;
                     break;
-                case sf::Keyboard::Left:
-                    m_view.move(-25, 0);
+                case sf::Keyboard::Scancode::Left:
+                    m_view.move({ -25, 0 });
                     break;
-                case sf::Keyboard::Right:
-                    m_view.move(25, 0);
+                case sf::Keyboard::Scancode::Right:
+                    m_view.move({ 25, 0 });
                     break;
-                case sf::Keyboard::Up:
-                    m_view.move(0, -25);
+                case sf::Keyboard::Scancode::Up:
+                    m_view.move({ 0, -25 });
                     break;
-                case sf::Keyboard::Down:
-                    m_view.move(0, 25);
+                case sf::Keyboard::Scancode::Down:
+                    m_view.move({ 0, 25 });
                     break;
                 default:
                     break;
             }
         }
     }
-    if (event.type == sf::Event::MouseMoved) {
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift)) {
+    if (event.getIf<sf::Event::MouseMoved>()) {
+        auto mouseMove = event.getIf<sf::Event::MouseMoved>()->position;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)) {
             if (m_oldMouseX.has_value()) {
-                int xDelta = m_oldMouseX.value() - event.mouseMove.x;
-                int yDelta = m_oldMouseY.value() - event.mouseMove.y;
+                int xDelta = m_oldMouseX.value() - mouseMove.x;
+                int yDelta = m_oldMouseY.value() - mouseMove.y;
                 xDelta *= m_viewZoomLevel;
                 yDelta *= m_viewZoomLevel;
-                m_view.move(xDelta, yDelta);
+                m_view.move({ static_cast<float>(xDelta), static_cast<float>(yDelta) });
             }
         } else {
             if (m_currentMode == Mode::LINE || m_currentMode == Mode::BREAKABLE
                 || m_currentMode == Mode::MOVING) {
                 if (m_snapMode == SnapMode::AUTO || m_snapMode == SnapMode::GRID) {
-                    highlightGridVertex(window, event.mouseMove.x, event.mouseMove.y);
+                    highlightGridVertex(window, mouseMove.x, mouseMove.y);
                 }
                 if (m_snapMode == SnapMode::AUTO || m_snapMode == SnapMode::LINE) {
-                    highlightNearestLinePoint(window, event.mouseMove.x, event.mouseMove.y);
+                    highlightNearestLinePoint(window, mouseMove.x, mouseMove.y);
                 }
                 if (m_currentInsertionLine.inactive == false) {
                     if (m_currentNearestSnapPoint.has_value()) {
                         m_currentInsertionLine.x1 = std::get<0>(m_currentNearestSnapPoint.value());
                         m_currentInsertionLine.y1 = std::get<1>(m_currentNearestSnapPoint.value());
                     } else {
-                        auto w = window.mapPixelToCoords({ static_cast<int>(event.mouseMove.x),
-                                                           static_cast<int>(event.mouseMove.y) });
+                        auto w = window.mapPixelToCoords(
+                            { static_cast<int>(mouseMove.x), static_cast<int>(mouseMove.y) });
                         m_currentInsertionLine.x1 = w.x;
                         m_currentInsertionLine.y1 = w.y;
                     }
@@ -510,13 +528,15 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 m_currentNearestSnapPoint = std::nullopt;
             }
         }
-        m_oldMouseX = event.mouseMove.x;
-        m_oldMouseY = event.mouseMove.y;
+        m_oldMouseX = mouseMove.x;
+        m_oldMouseY = mouseMove.y;
     }
-    if (event.type == sf::Event::MouseButtonPressed) {
-        if (event.mouseButton.button == sf::Mouse::Right) {
+    if (event.getIf<sf::Event::MouseButtonPressed>()) {
+        auto mouseButton = event.getIf<sf::Event::MouseButtonPressed>()->button;
+        auto mousePos = event.getIf<sf::Event::MouseButtonPressed>()->position;
+        if (mouseButton == sf::Mouse::Button::Right) {
             m_currentInsertionLine.inactive = true;
-        } else if (event.mouseButton.button == sf::Mouse::Left) {
+        } else if (mouseButton == sf::Mouse::Button::Left) {
             switch (m_currentMode) {
                 case Mode::LINE:
                 case Mode::BREAKABLE:
@@ -543,13 +563,14 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                                     } else {
                                         m_lines.push_back(m_currentInsertionLine);
                                     }
-                                    addReplayItem({ m_currentMode,
-                                                    0,
-                                                    m_currentInsertionLine.x0,
-                                                    m_currentInsertionLine.y0,
-                                                    m_currentInsertionLine.x1,
-                                                    m_currentInsertionLine.y1,
-                                                    0 });
+                                    addReplayItem(
+                                        { m_currentMode,
+                                          0,
+                                          m_currentInsertionLine.x0,
+                                          m_currentInsertionLine.y0,
+                                          m_currentInsertionLine.x1,
+                                          m_currentInsertionLine.y1,
+                                          0 });
                                     m_dirty = true;
                                     // next line starts at the current line's end:
                                     m_currentInsertionLine.x0 = m_currentInsertionLine.x1;
@@ -561,8 +582,8 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                                 unsigned y;
                                 if (!m_currentNearestSnapPoint.has_value()) {
                                     auto w = window.mapPixelToCoords(
-                                        { static_cast<int>(event.mouseButton.x),
-                                          static_cast<int>(event.mouseButton.y) });
+                                        { static_cast<int>(mousePos.x),
+                                          static_cast<int>(mousePos.y) });
                                     x = w.x;
                                     y = w.y;
                                 } else {
@@ -581,14 +602,13 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 case Mode::EDIT:
                     {
                         // Check to see if there is a line under the cursor
-                        auto line
-                            = lineUnderCursor(window, event.mouseButton.x, event.mouseButton.y);
+                        auto line = lineUnderCursor(window, mousePos.x, mousePos.y);
                         if (line.has_value()) {
                             m_highlightedLineIdx = line.value();
                             m_highlightedMovingObjectIdx = std::nullopt;
                         } else {
-                            auto movingObject = movingObjectUnderCursor(
-                                window, event.mouseButton.x, event.mouseButton.y);
+                            auto movingObject
+                                = movingObjectUnderCursor(window, mousePos.x, mousePos.y);
                             if (movingObject.has_value()) {
                                 m_highlightedMovingObjectIdx = movingObject.value();
                                 m_highlightedLineIdx = std::nullopt;
@@ -598,8 +618,8 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     }
                 case Mode::START:
                     {
-                        auto w = window.mapPixelToCoords({ static_cast<int>(event.mouseButton.x),
-                                                           static_cast<int>(event.mouseButton.y) });
+                        auto w = window.mapPixelToCoords(
+                            { static_cast<int>(mousePos.x), static_cast<int>(mousePos.y) });
                         // if we're within r workspace units of an existing start object,
                         // we treat additional clicks as a way to modify the object's rotation
                         unsigned r = 20;
@@ -612,45 +632,48 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                             if (m_startPosition.value().r >= 360) {
                                 m_startPosition.value().r = 0;
                             }
-                            addReplayItem({ Mode::START,
-                                            0,
-                                            m_startPosition.value().x,
-                                            m_startPosition.value().y,
-                                            0,
-                                            0,
-                                            m_startPosition.value().r });
+                            addReplayItem(
+                                { Mode::START,
+                                  0,
+                                  m_startPosition.value().x,
+                                  m_startPosition.value().y,
+                                  0,
+                                  0,
+                                  m_startPosition.value().r });
                             m_dirty = true;
                         } else {
                             m_startPosition
                                 = { static_cast<unsigned>(w.x), static_cast<unsigned>(w.y), 0 };
-                            addReplayItem({ Mode::START,
-                                            0,
-                                            static_cast<unsigned>(w.x),
-                                            static_cast<unsigned>(w.y) });
+                            addReplayItem(
+                                { Mode::START,
+                                  0,
+                                  static_cast<unsigned>(w.x),
+                                  static_cast<unsigned>(w.y) });
                             m_dirty = true;
                         }
                         break;
                     }
                 case Mode::EXIT:
                     {
-                        auto w = window.mapPixelToCoords({ static_cast<int>(event.mouseButton.x),
-                                                           static_cast<int>(event.mouseButton.y) });
+                        auto w = window.mapPixelToCoords(
+                            { static_cast<int>(mousePos.x), static_cast<int>(mousePos.y) });
                         m_exitPosition = std::make_pair(w.x, w.y);
-                        addReplayItem({ Mode::EXIT,
-                                        0,
-                                        static_cast<unsigned>(w.x),
-                                        static_cast<unsigned>(w.y),
-                                        0,
-                                        0 });
+                        addReplayItem(
+                            { Mode::EXIT,
+                              0,
+                              static_cast<unsigned>(w.x),
+                              static_cast<unsigned>(w.y),
+                              0,
+                              0 });
                         m_dirty = true;
                         break;
                     }
                 case Mode::FUEL:
                     {
-                        auto w = window.mapPixelToCoords({ static_cast<int>(event.mouseButton.x),
-                                                           static_cast<int>(event.mouseButton.y) });
-                        // if we are within r workspace units of an existing fuel object, we treat
-                        // this as a request to delete it instead of placing a new one
+                        auto w = window.mapPixelToCoords(
+                            { static_cast<int>(mousePos.x), static_cast<int>(mousePos.y) });
+                        // if we are within r workspace units of an existing fuel object, we
+                        // treat this as a request to delete it instead of placing a new one
                         unsigned r = 20;
                         std::size_t idx = 0;
                         bool erased { false };
@@ -667,10 +690,11 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                         }
                         if (!erased) {
                             m_fuelObjects.push_back(std::make_pair(w.x, w.y));
-                            addReplayItem({ Mode::FUEL,
-                                            idx,
-                                            static_cast<unsigned>(w.x),
-                                            static_cast<unsigned>(w.y) });
+                            addReplayItem(
+                                { Mode::FUEL,
+                                  idx,
+                                  static_cast<unsigned>(w.x),
+                                  static_cast<unsigned>(w.y) });
                             m_dirty = true;
                         }
                         break;
@@ -680,17 +704,17 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
             }
         }
     }
-    if (event.type == sf::Event::MouseWheelScrolled) {
-        if (event.mouseWheelScroll.wheel == sf::Mouse::VerticalWheel) {
-            float amt = event.mouseWheelScroll.delta;
+    if (event.getIf<sf::Event::MouseWheelScrolled>()) {
+        auto evt = event.getIf<sf::Event::MouseWheelScrolled>();
+        if (evt->wheel == sf::Mouse::Wheel::Vertical) {
+            float amt = evt->delta;
             if (std::abs(amt) > 0.1 && std::abs(amt) < 10.f) {
                 if (amt > 0.f) {
                     auto c = m_view.getCenter();
-                    auto m = window.mapPixelToCoords(
-                        { event.mouseWheelScroll.x, event.mouseWheelScroll.y });
+                    auto m = window.mapPixelToCoords({ evt->position.x, evt->position.y });
                     float dx = (m.x - c.x) * 0.05f;
                     float dy = (m.y - c.y) * 0.05f;
-                    m_view.move(dx, dy);
+                    m_view.move({ dx, dy });
                     zoomIn();
                 } else if (amt < 0.f) {
                     zoomOut();
@@ -756,8 +780,7 @@ bool mgo::Level::msgbox(
 void mgo::Level::drawModes(sf::RenderWindow& window)
 {
     // Main insertion mode:
-    sf::Text txtMode;
-    txtMode.setFont(m_font);
+    sf::Text txtMode(m_font);
     txtMode.setFillColor(sf::Color::Cyan);
     txtMode.setCharacterSize(14);
     txtMode.setPosition({ 5.f, 5.f });
@@ -789,8 +812,7 @@ void mgo::Level::drawModes(sf::RenderWindow& window)
     window.draw(txtMode);
 
     // Snapping mode:
-    sf::Text txtSnap;
-    txtSnap.setFont(m_font);
+    sf::Text txtSnap(m_font);
     txtSnap.setFillColor(sf::Color::Green);
     txtSnap.setCharacterSize(14);
     txtSnap.setPosition({ 95.f, 5.f });
@@ -874,9 +896,10 @@ void Level::drawObjects(sf::RenderWindow& window)
         ship.setPoint(1, sf::Vector2f(10, 20));
         ship.setPoint(2, sf::Vector2f(-10, 20));
         ship.setFillColor(sf::Color::Green);
-        ship.setPosition({ static_cast<float>(m_startPosition.value().x),
-                           static_cast<float>(m_startPosition.value().y) });
-        ship.setRotation(360 - m_startPosition.value().r);
+        ship.setPosition(
+            { static_cast<float>(m_startPosition.value().x),
+              static_cast<float>(m_startPosition.value().y) });
+        ship.setRotation(sf::degrees(360.f - m_startPosition.value().r));
         window.draw(ship);
     }
     if (m_exitPosition.has_value()) {
@@ -885,8 +908,9 @@ void Level::drawObjects(sf::RenderWindow& window)
         float r = 20.f;
         c.setRadius(r);
         c.setOrigin({ r, r });
-        c.setPosition({ static_cast<float>(m_exitPosition.value().first),
-                        static_cast<float>(m_exitPosition.value().second) });
+        c.setPosition(
+            { static_cast<float>(m_exitPosition.value().first),
+              static_cast<float>(m_exitPosition.value().second) });
         window.draw(c);
     }
     if (!m_fuelObjects.empty()) {
@@ -896,7 +920,7 @@ void Level::drawObjects(sf::RenderWindow& window)
             float r = 10.f;
             c.setRadius(r);
             c.setOrigin({ r, r });
-            c.setPosition(static_cast<float>(p.first), static_cast<float>(p.second));
+            c.setPosition({ static_cast<float>(p.first), static_cast<float>(p.second) });
             window.draw(c);
         }
     }
@@ -924,16 +948,16 @@ void Level::processViewport()
     float bottomBound = 2000 - viewSize.y / 3;
 
     if (viewCenter.x < leftBound) {
-        m_view.setCenter(leftBound, viewCenter.y);
+        m_view.setCenter({ leftBound, viewCenter.y });
     }
     if (viewCenter.x > rightBound) {
-        m_view.setCenter(rightBound, viewCenter.y);
+        m_view.setCenter({ rightBound, viewCenter.y });
     }
     if (viewCenter.y < topBound) {
-        m_view.setCenter(viewCenter.x, topBound);
+        m_view.setCenter({ viewCenter.x, topBound });
     }
     if (viewCenter.y > bottomBound) {
-        m_view.setCenter(viewCenter.x, bottomBound);
+        m_view.setCenter({ viewCenter.x, bottomBound });
     }
 }
 
@@ -953,8 +977,8 @@ void Level::revert()
 
 void Level::undo()
 {
-    // The way undo works is to revert to the last save, then reapply all steps held in m_replay.
-    // This will allow for redo as well.
+    // The way undo works is to revert to the last save, then reapply all steps held in
+    // m_replay. This will allow for redo as well.
     m_currentInsertionLine.inactive = true;
     revert();
     replay();

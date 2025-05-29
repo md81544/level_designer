@@ -4,6 +4,7 @@ project (level_designer)
 
 add_executable(level_designer
     configreader.cpp
+    dialog.cpp
     helperfunctions.cpp
     level.cpp
     main.cpp

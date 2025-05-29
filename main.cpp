@@ -12,7 +12,7 @@ int main(int argc, char* argv[])
     std::string loadFileName;
     try {
 
-        if(argc != 2) {
+        if (argc != 2) {
             std::cout << "Usage: level_designer <filename>\n\n";
             std::cout << "If the file doesn't exist it will be created on save\n\n";
             return 1;
@@ -26,7 +26,7 @@ int main(int argc, char* argv[])
         unsigned screenWidth = static_cast<unsigned>(config.readLong("WindowWidth", 800));
         unsigned screenHeight = static_cast<unsigned>(config.readLong("WindowHeight", 800));
         sf::RenderWindow window(
-            sf::VideoMode(screenWidth, screenHeight),
+            sf::VideoMode({ screenWidth, screenHeight }),
             "Amaze Level Designer",
             sf::Style::Titlebar | sf::Style::Close);
         window.setFramerateLimit(24);
@@ -36,30 +36,35 @@ int main(int argc, char* argv[])
         level.load(argv[1]);
 
         while (window.isOpen()) {
-            sf::Event event;
-            while (window.pollEvent(event)) {
-                level.processEvent(window, event);
+            for (;;) {
+                auto event = window.pollEvent();
+                if (!event.has_value()) {
+                    break;
+                }
+                    level.processEvent(window, *event);
+                }
+
+                level.processViewport();
+
+                window.setView(level.getView());
+                window.clear();
+                level.drawGridLines(window);
+                level.draw(window);
+                level.drawObjects(window);
+                window.setView(level.getFixedView());
+                level.drawModes(window);
+                level.drawDialog(window);
+                // Set view back otherwise mouse coords appear to be
+                // reported in the wrong position
+                window.setView(level.getView());
+                window.display();
             }
-
-            level.processViewport();
-
-            window.setView(level.getView());
-            window.clear();
-            level.drawGridLines(window);
-            level.draw(window);
-            level.drawObjects(window);
-            window.setView(level.getFixedView());
-            level.drawModes(window);
-            level.drawDialog(window);
-            // Set view back otherwise mouse coords appear to be
-            // reported in the wrong position
-            window.setView(level.getView());
-            window.display();
+            return 0;
         }
-        return 0;
-    } catch (const std::exception& e) {
-        // anything caught here is a terminal event
-        std::cout << e.what() << std::endl;
+        catch (const std::exception& e)
+        {
+            // anything caught here is a terminal event
+            std::cout << e.what() << std::endl;
+        }
+        return 1;
     }
-    return 1;
-}
