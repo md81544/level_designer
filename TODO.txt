@@ -1,3 +1,5 @@
+If a loaded level has a title, it isn't saved after an edit
+
 Need to make some kind of input dialog
 
 If a moving object is selected:
