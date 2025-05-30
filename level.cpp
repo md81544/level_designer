@@ -393,7 +393,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
     }
     if (event.is<sf::Event::KeyPressed>()) {
         // Mode switchers - require shift key, e.g. Shift-L for line etc
-        auto scancode = event.getIf<sf::Event::KeyPressed>()->scancode;
+        const auto scancode = event.getIf<sf::Event::KeyPressed>()->scancode;
         if (event.getIf<sf::Event::KeyPressed>()->shift) {
             switch (scancode) {
                 case sf::Keyboard::Scancode::B:
@@ -501,7 +501,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
         }
     }
     if (event.getIf<sf::Event::MouseMoved>()) {
-        auto mouseMove = event.getIf<sf::Event::MouseMoved>()->position;
+        const auto mouseMove = event.getIf<sf::Event::MouseMoved>()->position;
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)) {
             if (m_oldMouseX.has_value()) {
                 int xDelta = m_oldMouseX.value() - mouseMove.x;
@@ -538,8 +538,8 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
         m_oldMouseY = mouseMove.y;
     }
     if (event.getIf<sf::Event::MouseButtonPressed>()) {
-        auto mouseButton = event.getIf<sf::Event::MouseButtonPressed>()->button;
-        auto mousePos = event.getIf<sf::Event::MouseButtonPressed>()->position;
+        const auto mouseButton = event.getIf<sf::Event::MouseButtonPressed>()->button;
+        const auto mousePos = event.getIf<sf::Event::MouseButtonPressed>()->position;
         if (mouseButton == sf::Mouse::Button::Right) {
             m_currentInsertionLine.inactive = true;
         } else if (mouseButton == sf::Mouse::Button::Left) {
@@ -711,7 +711,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
         }
     }
     if (event.getIf<sf::Event::MouseWheelScrolled>()) {
-        auto evt = event.getIf<sf::Event::MouseWheelScrolled>();
+        const auto evt = event.getIf<sf::Event::MouseWheelScrolled>();
         if (evt->wheel == sf::Mouse::Wheel::Vertical) {
             float amt = evt->delta;
             if (std::abs(amt) > 0.1 && std::abs(amt) < 10.f) {
@@ -843,7 +843,7 @@ void mgo::Level::drawModes(sf::RenderWindow& window)
 
 void mgo::Level::highlightGridVertex(sf::RenderWindow& window, unsigned mouseX, unsigned mouseY)
 {
-    auto w = window.mapPixelToCoords({ static_cast<int>(mouseX), static_cast<int>(mouseY) });
+    const auto w = window.mapPixelToCoords({ static_cast<int>(mouseX), static_cast<int>(mouseY) });
 
     unsigned x = static_cast<unsigned>(static_cast<double>(w.x) / 50.0 + 0.5) * 50.0;
     unsigned y = static_cast<unsigned>(static_cast<double>(w.y) / 50.0 + 0.5) * 50.0;
@@ -856,7 +856,7 @@ void mgo::Level::highlightGridVertex(sf::RenderWindow& window, unsigned mouseX, 
 
 void Level::highlightNearestLinePoint(sf::RenderWindow& window, unsigned mouseX, unsigned mouseY)
 {
-    auto w = window.mapPixelToCoords({ static_cast<int>(mouseX), static_cast<int>(mouseY) });
+    const auto w = window.mapPixelToCoords({ static_cast<int>(mouseX), static_cast<int>(mouseY) });
     for (const auto& l : m_lines) {
         if (l.inactive) {
             continue;
@@ -948,10 +948,10 @@ void Level::processViewport()
     sf::Vector2f viewSize = m_view.getSize();
     sf::Vector2f viewCenter = m_view.getCenter();
 
-    float leftBound = viewSize.x / 3;
-    float rightBound = 2000 - viewSize.x / 3;
-    float topBound = viewSize.y / 3;
-    float bottomBound = 2000 - viewSize.y / 3;
+    const float leftBound = viewSize.x / 3;
+    const float rightBound = 2000 - viewSize.x / 3;
+    const float topBound = viewSize.y / 3;
+    const float bottomBound = 2000 - viewSize.y / 3;
 
     if (viewCenter.x < leftBound) {
         m_view.setCenter({ leftBound, viewCenter.y });
