@@ -1,4 +1,4 @@
-If a loaded level has a title, it isn't saved after an edit
+Maybe the level description/title needs displaying somewhere?
 
 Need to make some kind of input dialog
 

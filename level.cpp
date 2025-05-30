@@ -70,12 +70,16 @@ void Level::load(const std::string& filename)
             continue;
         }
         // When we get here, vec is a vector of all the items on the current line.
-        char c = vec[0][0];
+        const char c = vec[0][0];
         switch (c) {
-            case '!': // timelimit, fuel, ship x, ship y, angle, description
+            case '!': // timelimit (unused), fuel (unused) , ship x, ship y, angle, description
+                if (vec.size() < 7) {
+                    throw std::runtime_error("Invalid first line of level file");
+                }
                 m_startPosition = { static_cast<unsigned>(stoi(vec[3])),
                                     static_cast<unsigned>(stoi(vec[4])),
                                     static_cast<unsigned>(stoi(vec[5])) };
+                m_levelDescription = vec[6];
                 break;
             case 'N': // New object, parameter 1 is type, parameter 2 appears unused
                 if (vec[1] == "OBSTRUCTION") {
@@ -157,7 +161,8 @@ void mgo::Level::save()
                 startY = m_startPosition.value().y;
                 rotation = m_startPosition.value().r;
             }
-            outfile << "!~0~0~" << startX << "~" << startY << "~" << rotation << "~Title\n";
+            outfile << "!~0~0~" << startX << "~" << startY << "~" << rotation << "~"
+                    << m_levelDescription << "\n";
             outfile << "N~OBSTRUCTION~obstruction\n";
             for (const auto& l : m_lines) {
                 if (!l.inactive && !l.breakable) {
@@ -406,7 +411,8 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 case sf::Keyboard::Scancode::S:
                     changeMode(Mode::START);
                     break;
-                case sf::Keyboard::Scancode::M:
+                case sf::Keyboard::Scancode::M: // TODO this overrides shift-M which was backwards
+                                                // cycle mode
                     changeMode(Mode::MOVING);
                     break;
                 case sf::Keyboard::Scancode::X:

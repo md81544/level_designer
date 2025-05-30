@@ -106,6 +106,7 @@ public:
     void addReplayItem(const Action& action);
 
 private:
+    std::string m_levelDescription;
     sf::Font m_font;
     std::vector<Line> m_lines;
     std::optional<StartPosition> m_startPosition;
