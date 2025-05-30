@@ -309,7 +309,7 @@ Level::lineUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsigned mouse
     // of these to see if they intersect any line on the workspace.
     // A positive origin e.g. 10,10 means the top left of the window is at, say, 10,10 on
     // the workspace, i.e. the workspace is slightly off screen to the left.
-    auto w = window.mapPixelToCoords({ static_cast<int>(mouseX), static_cast<int>(mouseY) });
+    const auto w = window.mapPixelToCoords({ static_cast<int>(mouseX), static_cast<int>(mouseY) });
     std::size_t idx = 0;
     for (const auto& l : m_lines) {
         if (!l.inactive) {
