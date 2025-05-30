@@ -16,17 +16,6 @@ unsigned squaredDistance(unsigned x1, unsigned y1, unsigned x2, unsigned y2)
 namespace mgo {
 namespace helperfunctions {
 
-int sgn(int x)
-{
-    if (x > 0) {
-        return 1;
-    }
-    if (x < 0) {
-        return -1;
-    }
-    return 0;
-}
-
 bool doLinesIntersect(long x1, long y1, long x2, long y2, long x3, long y3, long x4, long y4)
 {
 
