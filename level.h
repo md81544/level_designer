@@ -71,7 +71,7 @@ struct MovingObject {
 
 class Level {
 public:
-    Level(unsigned windowWidth, unsigned windowHeight);
+    Level(sf::Window& window, unsigned windowWidth, unsigned windowHeight);
     void load(const std::string& filename);
     void save();
     void draw(sf::RenderWindow& window);
@@ -106,6 +106,7 @@ public:
     void addReplayItem(const Action& action);
 
 private:
+    sf::Window& m_window;
     std::string m_levelDescription;
     sf::Font m_font;
     std::vector<Line> m_lines;

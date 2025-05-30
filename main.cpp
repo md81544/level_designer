@@ -31,7 +31,7 @@ int main(int argc, char* argv[])
             sf::Style::Titlebar | sf::Style::Close);
         window.setFramerateLimit(24);
 
-        mgo::Level level(screenWidth, screenHeight);
+        mgo::Level level(window, screenWidth, screenHeight);
 
         level.load(argv[1]);
 

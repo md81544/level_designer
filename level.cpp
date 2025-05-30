@@ -16,8 +16,9 @@
 #include <boost/algorithm/string/split.hpp>
 
 namespace mgo {
-mgo::Level::Level(unsigned windowWidth, unsigned windowHeight)
-    : m_dialogTitle(m_font)
+mgo::Level::Level(sf::Window& window, unsigned windowWidth, unsigned windowHeight)
+    : m_window(window)
+    , m_dialogTitle(m_font)
     , m_dialogText(m_font)
     , m_editModeText(m_font)
 {
@@ -80,6 +81,7 @@ void Level::load(const std::string& filename)
                                     static_cast<unsigned>(stoi(vec[4])),
                                     static_cast<unsigned>(stoi(vec[5])) };
                 m_levelDescription = vec[6];
+                m_window.setTitle(filename + " - " + m_levelDescription);
                 break;
             case 'N': // New object, parameter 1 is type, parameter 2 appears unused
                 if (vec[1] == "OBSTRUCTION") {

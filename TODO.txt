@@ -1,5 +1,3 @@
-Maybe the level description/title needs displaying somewhere?
-
 Need to make some kind of input dialog
 
 If a moving object is selected:
