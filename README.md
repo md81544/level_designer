@@ -9,8 +9,6 @@ I experimented with other SVG programs, both local and web-based, and none fitte
 
 This is the result. Three days' worth of effort and I have an graphical editor I can use. It's a bit quick-and-dirty, but functional.
 
-The repository for the actual game 'Amaze' is set to private currently but I will make it public once I've knocked it into what I'd deem a suitable first draft.
-
 ### Usage
 Existing level files can be loaded by specifying the file name on the command line. There is an example.lvl file included.
 
@@ -27,7 +25,7 @@ Press "Q" to quit (or just close the window). Currently "Q" has a confirmation d
 
 ### Requirements
 
-Assuming you have a working clang++, just sfml. For mac, `brew install sfml`
+Assuming you have a working clang++, just sfml 3.x. For mac, `brew install sfml`
 
 ### Platforms Supported
 Currently as this is for my own use I've only bothered testing on **MacOS**. I will probably test on Linux and Windows eventually.
