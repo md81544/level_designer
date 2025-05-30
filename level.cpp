@@ -107,13 +107,13 @@ void Level::load(const std::string& filename)
                 break;
             case 'L':
                 {
-                    unsigned x0 = std::stoi(vec[1]);
-                    unsigned y0 = std::stoi(vec[2]);
-                    unsigned x1 = std::stoi(vec[3]);
-                    unsigned y1 = std::stoi(vec[4]);
-                    uint8_t r = std::stoi(vec[5]);
-                    uint8_t g = std::stoi(vec[6]);
-                    uint8_t b = std::stoi(vec[7]);
+                    const unsigned x0 = std::stoi(vec[1]);
+                    const unsigned y0 = std::stoi(vec[2]);
+                    const unsigned x1 = std::stoi(vec[3]);
+                    const unsigned y1 = std::stoi(vec[4]);
+                    const uint8_t r = std::stoi(vec[5]);
+                    const uint8_t g = std::stoi(vec[6]);
+                    const uint8_t b = std::stoi(vec[7]);
                     if (currentObject == ObjectType::OBSTRUCTION) {
                         m_lines.push_back({ x0, y0, x1, y1, r, g, b, 1, false, false });
                     } else if (currentObject == ObjectType::BREAKABLE) {
@@ -339,7 +339,7 @@ std::optional<std::size_t>
 Level::movingObjectUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsigned mouseY)
 {
     // Note, this returns the index of the entire moving object, not the individual line
-    auto w = window.mapPixelToCoords({ static_cast<int>(mouseX), static_cast<int>(mouseY) });
+    const auto w = window.mapPixelToCoords({ static_cast<int>(mouseX), static_cast<int>(mouseY) });
     std::size_t idx = 0;
     for (const auto& m : m_movingObjects) {
         for (const auto& l : m.lines) {
@@ -375,7 +375,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
     if (m_isDialogActive) {
         // if a dialog is active then we respond differently to events:
         if (event.is<sf::Event::KeyPressed>()) {
-            auto scancode = event.getIf<sf::Event::KeyPressed>()->scancode;
+            const auto scancode = event.getIf<sf::Event::KeyPressed>()->scancode;
             switch (scancode) {
                 case sf::Keyboard::Scancode::Escape:
                     m_isDialogActive = false;
@@ -845,8 +845,8 @@ void mgo::Level::highlightGridVertex(sf::RenderWindow& window, unsigned mouseX, 
 {
     const auto w = window.mapPixelToCoords({ static_cast<int>(mouseX), static_cast<int>(mouseY) });
 
-    unsigned x = static_cast<unsigned>(static_cast<double>(w.x) / 50.0 + 0.5) * 50.0;
-    unsigned y = static_cast<unsigned>(static_cast<double>(w.y) / 50.0 + 0.5) * 50.0;
+    const unsigned x = static_cast<unsigned>(static_cast<double>(w.x) / 50.0 + 0.5) * 50.0;
+    const unsigned y = static_cast<unsigned>(static_cast<double>(w.y) / 50.0 + 0.5) * 50.0;
     if (x > 2000 || y > 2000) {
         m_currentNearestSnapPoint = std::nullopt;
     } else {

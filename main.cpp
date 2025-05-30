@@ -23,8 +23,8 @@ int main(int argc, char* argv[])
         // To get around SFML's inability to cope with high-DPI screens (e.g. Apple's "Retina"
         // displays) we just set the window size to whatever the user has in the config file - the
         // user (I) can adjust to whatever is best for the machine being used
-        unsigned screenWidth = static_cast<unsigned>(config.readLong("WindowWidth", 800));
-        unsigned screenHeight = static_cast<unsigned>(config.readLong("WindowHeight", 800));
+        const unsigned screenWidth = static_cast<unsigned>(config.readLong("WindowWidth", 800));
+        const unsigned screenHeight = static_cast<unsigned>(config.readLong("WindowHeight", 800));
         sf::RenderWindow window(
             sf::VideoMode({ screenWidth, screenHeight }),
             "Amaze Level Designer",
@@ -37,7 +37,7 @@ int main(int argc, char* argv[])
 
         while (window.isOpen()) {
             for (;;) {
-                auto event = window.pollEvent();
+                const auto event = window.pollEvent();
                 if (!event.has_value()) {
                     break;
                 }
