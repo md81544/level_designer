@@ -102,8 +102,8 @@ std::optional<std::pair<unsigned, unsigned>> closestPointOnLine(
     unsigned y,
     unsigned d)
 {
-    int dx = x1 - x0;
-    int dy = y1 - y0;
+    const int dx = x1 - x0;
+    const int dy = y1 - y0;
 
     if (dx == 0 && dy == 0) {
         if (squaredDistance(x, y, x0, y0) <= d * d) {
@@ -119,8 +119,8 @@ std::optional<std::pair<unsigned, unsigned>> closestPointOnLine(
     double t = (px * dx + py * dy) / (double)(dx * dx + dy * dy);
     t = std::max(0.0, std::min(1.0, t)); // Clamping t to the range [0, 1]
 
-    unsigned nearestX = x0 + t * dx;
-    unsigned nearestY = y0 + t * dy;
+    const unsigned nearestX = x0 + t * dx;
+    const unsigned nearestY = y0 + t * dy;
 
     // Check if this nearest point is within the allowed distance `d`
     if (squaredDistance(x, y, nearestX, nearestY) <= d * d) {
