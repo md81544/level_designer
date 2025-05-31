@@ -5,11 +5,14 @@
 
 std::string getInputFromDialog(
     sf::RenderWindow& window,
+    sf::View& view,
     sf::Font& font,
     const std::string& prompt,
     const std::string& defaultEntry, /* ="" */
     InputType inputType /* = InputType::string */)
 {
+    auto oldView = window.getView();
+    window.setView(view);
     // Text and input box elements
     sf::Text promptText(font, prompt, 20);
     promptText.setFillColor(sf::Color::Green);
@@ -73,6 +76,6 @@ std::string getInputFromDialog(
         window.draw(inputText);
         window.display();
     }
-
+    window.setView(oldView);
     return input;
 }

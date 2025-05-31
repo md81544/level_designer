@@ -1,1 +1,0 @@
-The input dialog is not visible if the grid is zoomed in

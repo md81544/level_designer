@@ -45,12 +45,13 @@ int main(int argc, char* argv[])
                 }
 
                 level.processViewport();
-
+                // Draw the floating view items:
                 window.setView(level.getView());
                 window.clear();
                 level.drawGridLines(window);
                 level.draw(window);
                 level.drawObjects(window);
+                // Draw items to the FIXED view:
                 window.setView(level.getFixedView());
                 level.drawModes(window);
                 level.drawDialog(window);

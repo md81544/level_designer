@@ -425,7 +425,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
             case sf::Keyboard::Scancode::T:
                 {
                     m_levelDescription = getInputFromDialog(
-                        window, m_font, "Enter Level Title", m_levelDescription);
+                        window, m_fixedView, m_font, "Enter Level Title", m_levelDescription);
                     m_window.setTitle(m_fileName + " - " + m_levelDescription);
                     break;
                 }
@@ -463,6 +463,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                         // Edit moving object's Y delta and max
                         std::string s = getInputFromDialog(
                             window,
+                            m_fixedView,
                             m_font,
                             "Enter Y Delta",
                             helperfunctions::to_string_with_precision(obj.yDelta, 1),
@@ -473,6 +474,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                         }
                         s = getInputFromDialog(
                             window,
+                            m_fixedView,
                             m_font,
                             "Enter Y +/- Max Motion (Squares = 50)",
                             helperfunctions::to_string_with_precision(obj.yMaxDifference, 1),
@@ -527,6 +529,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     auto& obj = m_movingObjects[m_highlightedMovingObjectIdx.value()];
                     std::string s = getInputFromDialog(
                         window,
+                        m_fixedView,
                         m_font,
                         "Enter X Delta",
                         helperfunctions::to_string_with_precision(obj.xDelta, 1),
@@ -537,6 +540,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     }
                     s = getInputFromDialog(
                         window,
+                        m_fixedView,
                         m_font,
                         "Enter X Max +/- Motion (Squares = 50)",
                         helperfunctions::to_string_with_precision(obj.xMaxDifference, 1),
@@ -554,6 +558,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     auto& obj = m_movingObjects[m_highlightedMovingObjectIdx.value()];
                     std::string s = getInputFromDialog(
                         window,
+                        m_fixedView,
                         m_font,
                         "Enter Rotation delta",
                         helperfunctions::to_string_with_precision(obj.rotationDelta, 1),
