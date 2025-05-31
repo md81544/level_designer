@@ -394,183 +394,193 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
     if (event.is<sf::Event::KeyPressed>()) {
         // Mode switchers - require shift key, e.g. Shift-L for line etc
         const auto scancode = event.getIf<sf::Event::KeyPressed>()->scancode;
+        bool handled = false;
         if (event.getIf<sf::Event::KeyPressed>()->shift) {
             switch (scancode) {
                 case sf::Keyboard::Scancode::B:
                     changeMode(Mode::BREAKABLE);
+                    handled = true;
                     break;
                 case sf::Keyboard::Scancode::E:
                     changeMode(Mode::EDIT);
+                    handled = true;
                     break;
                 case sf::Keyboard::Scancode::L:
                     changeMode(Mode::LINE);
+                    handled = true;
                     break;
                 case sf::Keyboard::Scancode::F:
                     changeMode(Mode::FUEL);
+                    handled = true;
                     break;
                 case sf::Keyboard::Scancode::S:
                     changeMode(Mode::START);
+                    handled = true;
                     break;
                 case sf::Keyboard::Scancode::V:
                     changeMode(Mode::MOVING);
+                    handled = true;
                     break;
                 case sf::Keyboard::Scancode::X:
                     changeMode(Mode::EXIT);
+                    handled = true;
                     break;
                 default:
                     break;
             }
         }
-        switch (scancode) {
-            case sf::Keyboard::Scancode::T:
-                {
-                    m_levelDescription = getInputFromDialog(
-                        window, m_fixedView, m_font, "Enter Level Title", m_levelDescription);
-                    m_window.setTitle(m_fileName + " - " + m_levelDescription);
+        if (!handled) {
+            switch (scancode) {
+                case sf::Keyboard::Scancode::T:
+                    {
+                        m_levelDescription = getInputFromDialog(
+                            window, m_fixedView, m_font, "Enter Level Title", m_levelDescription);
+                        m_window.setTitle(m_fileName + " - " + m_levelDescription);
+                        break;
+                    }
+                case sf::Keyboard::Scancode::Equal:
+                    {
+                        zoomIn();
+                        break;
+                    }
+                case sf::Keyboard::Scancode::Hyphen:
+                    {
+                        zoomOut();
+                        break;
+                    }
+                case sf::Keyboard::Scancode::Q:
+                    quit(window);
                     break;
-                }
-            case sf::Keyboard::Scancode::Equal:
-                {
-                    zoomIn();
+                case sf::Keyboard::Scancode::S:
+                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LSystem)
+                        || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RSystem)) {
+                        save();
+                    } else {
+                        changeSnapMode();
+                    }
                     break;
-                }
-            case sf::Keyboard::Scancode::Hyphen:
-                {
-                    zoomOut();
+                case sf::Keyboard::Scancode::M:
+                    cycleMode(event.getIf<sf::Event::KeyPressed>()->shift);
                     break;
-                }
-            case sf::Keyboard::Scancode::Q:
-                quit(window);
-                break;
-            case sf::Keyboard::Scancode::S:
-                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LSystem)
-                    || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RSystem)) {
-                    save();
-                } else {
-                    changeSnapMode();
-                }
-                break;
-            case sf::Keyboard::Scancode::M:
-                cycleMode(event.getIf<sf::Event::KeyPressed>()->shift);
-                break;
-            case sf::Keyboard::Scancode::Y: // redo
-                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LSystem)
-                    || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RSystem)) {
-                    redo();
-                } else {
+                case sf::Keyboard::Scancode::Y: // redo
+                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LSystem)
+                        || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RSystem)) {
+                        redo();
+                    } else {
+                        if (m_highlightedMovingObjectIdx.has_value()) {
+                            auto& obj = m_movingObjects[m_highlightedMovingObjectIdx.value()];
+                            // Edit moving object's Y delta and max
+                            std::string s = getInputFromDialog(
+                                window,
+                                m_fixedView,
+                                m_font,
+                                "Enter Y Delta",
+                                helperfunctions::to_string_with_precision(obj.yDelta, 1),
+                                InputType::numeric);
+                            if (!s.empty()) {
+                                float delta = std::stof(s);
+                                obj.yDelta = delta;
+                            }
+                            s = getInputFromDialog(
+                                window,
+                                m_fixedView,
+                                m_font,
+                                "Enter Y +/- Max Motion (Squares = 50)",
+                                helperfunctions::to_string_with_precision(obj.yMaxDifference, 1),
+                                InputType::numeric);
+                            if (!s.empty()) {
+                                float diff = std::stof(s);
+                                obj.yMaxDifference = diff;
+                            }
+                        }
+                    }
+                    break;
+                case sf::Keyboard::Scancode::Z: // undo
+                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LSystem)
+                        || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RSystem)) {
+                        undo();
+                    }
+                    break;
+                case sf::Keyboard::Scancode::Backspace:
+                case sf::Keyboard::Scancode::Delete:
+                    if (m_highlightedLineIdx.has_value()) {
+                        m_lines[m_highlightedLineIdx.value()].inactive = true;
+                        addReplayItem({ Mode::EDIT, m_highlightedLineIdx.value() });
+                        m_highlightedLineIdx = std::nullopt;
+                        m_dirty = true;
+                    } else if (m_highlightedMovingObjectIdx.has_value()) {
+                        m_movingObjects.erase(
+                            m_movingObjects.begin() + m_highlightedMovingObjectIdx.value());
+                        // TODO: not sure if this will work yet:
+                        addReplayItem({ Mode::EDIT, m_highlightedMovingObjectIdx.value() });
+                        m_highlightedMovingObjectIdx = std::nullopt;
+                        m_dirty = true;
+                    }
+                    break;
+                case sf::Keyboard::Scancode::Escape:
+                    m_currentInsertionLine.inactive = true;
+                    break;
+                case sf::Keyboard::Scancode::Left:
+                    m_view.move({ -25, 0 });
+                    break;
+                case sf::Keyboard::Scancode::Right:
+                    m_view.move({ 25, 0 });
+                    break;
+                case sf::Keyboard::Scancode::Up:
+                    m_view.move({ 0, -25 });
+                    break;
+                case sf::Keyboard::Scancode::Down:
+                    m_view.move({ 0, 25 });
+                    break;
+                case sf::Keyboard::Scancode::X:
+                    // Edit moving object's X delta and max difference
                     if (m_highlightedMovingObjectIdx.has_value()) {
                         auto& obj = m_movingObjects[m_highlightedMovingObjectIdx.value()];
-                        // Edit moving object's Y delta and max
                         std::string s = getInputFromDialog(
                             window,
                             m_fixedView,
                             m_font,
-                            "Enter Y Delta",
-                            helperfunctions::to_string_with_precision(obj.yDelta, 1),
+                            "Enter X Delta",
+                            helperfunctions::to_string_with_precision(obj.xDelta, 1),
                             InputType::numeric);
                         if (!s.empty()) {
                             float delta = std::stof(s);
-                            obj.yDelta = delta;
+                            obj.xDelta = delta;
                         }
                         s = getInputFromDialog(
                             window,
                             m_fixedView,
                             m_font,
-                            "Enter Y +/- Max Motion (Squares = 50)",
-                            helperfunctions::to_string_with_precision(obj.yMaxDifference, 1),
+                            "Enter X Max +/- Motion (Squares = 50)",
+                            helperfunctions::to_string_with_precision(obj.xMaxDifference, 1),
                             InputType::numeric);
                         if (!s.empty()) {
                             float diff = std::stof(s);
-                            obj.yMaxDifference = diff;
+                            obj.xMaxDifference = diff;
                         }
                     }
-                }
-                break;
-            case sf::Keyboard::Scancode::Z: // undo
-                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LSystem)
-                    || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RSystem)) {
-                    undo();
-                }
-                break;
-            case sf::Keyboard::Scancode::Backspace:
-            case sf::Keyboard::Scancode::Delete:
-                if (m_highlightedLineIdx.has_value()) {
-                    m_lines[m_highlightedLineIdx.value()].inactive = true;
-                    addReplayItem({ Mode::EDIT, m_highlightedLineIdx.value() });
-                    m_highlightedLineIdx = std::nullopt;
-                    m_dirty = true;
-                } else if (m_highlightedMovingObjectIdx.has_value()) {
-                    m_movingObjects.erase(
-                        m_movingObjects.begin() + m_highlightedMovingObjectIdx.value());
-                    // TODO: not sure if this will work yet:
-                    addReplayItem({ Mode::EDIT, m_highlightedMovingObjectIdx.value() });
-                    m_highlightedMovingObjectIdx = std::nullopt;
-                    m_dirty = true;
-                }
-                break;
-            case sf::Keyboard::Scancode::Escape:
-                m_currentInsertionLine.inactive = true;
-                break;
-            case sf::Keyboard::Scancode::Left:
-                m_view.move({ -25, 0 });
-                break;
-            case sf::Keyboard::Scancode::Right:
-                m_view.move({ 25, 0 });
-                break;
-            case sf::Keyboard::Scancode::Up:
-                m_view.move({ 0, -25 });
-                break;
-            case sf::Keyboard::Scancode::Down:
-                m_view.move({ 0, 25 });
-                break;
-            case sf::Keyboard::Scancode::X:
-                // Edit moving object's X delta and max difference
-                if (m_highlightedMovingObjectIdx.has_value()) {
-                    auto& obj = m_movingObjects[m_highlightedMovingObjectIdx.value()];
-                    std::string s = getInputFromDialog(
-                        window,
-                        m_fixedView,
-                        m_font,
-                        "Enter X Delta",
-                        helperfunctions::to_string_with_precision(obj.xDelta, 1),
-                        InputType::numeric);
-                    if (!s.empty()) {
-                        float delta = std::stof(s);
-                        obj.xDelta = delta;
+                    break;
+                // Note Y is handled above as it's also used with Cmd for Redo
+                case sf::Keyboard::Scancode::R:
+                    // Edit moving object's rotation delta
+                    if (m_highlightedMovingObjectIdx.has_value()) {
+                        auto& obj = m_movingObjects[m_highlightedMovingObjectIdx.value()];
+                        std::string s = getInputFromDialog(
+                            window,
+                            m_fixedView,
+                            m_font,
+                            "Enter Rotation delta",
+                            helperfunctions::to_string_with_precision(obj.rotationDelta, 1),
+                            InputType::numeric);
+                        if (!s.empty()) {
+                            float delta = std::stof(s);
+                            obj.rotationDelta = delta;
+                        }
                     }
-                    s = getInputFromDialog(
-                        window,
-                        m_fixedView,
-                        m_font,
-                        "Enter X Max +/- Motion (Squares = 50)",
-                        helperfunctions::to_string_with_precision(obj.xMaxDifference, 1),
-                        InputType::numeric);
-                    if (!s.empty()) {
-                        float diff = std::stof(s);
-                        obj.xMaxDifference = diff;
-                    }
-                }
-                break;
-            // Note Y is handled above as it's also used with Cmd for Redo
-            case sf::Keyboard::Scancode::R:
-                // Edit moving object's rotation delta
-                if (m_highlightedMovingObjectIdx.has_value()) {
-                    auto& obj = m_movingObjects[m_highlightedMovingObjectIdx.value()];
-                    std::string s = getInputFromDialog(
-                        window,
-                        m_fixedView,
-                        m_font,
-                        "Enter Rotation delta",
-                        helperfunctions::to_string_with_precision(obj.rotationDelta, 1),
-                        InputType::numeric);
-                    if (!s.empty()) {
-                        float delta = std::stof(s);
-                        obj.rotationDelta = delta;
-                    }
-                }
-                break;
-            default:
-                break;
+                    break;
+                default:
+                    break;
+            }
         }
     }
     if (event.getIf<sf::Event::MouseMoved>()) {
