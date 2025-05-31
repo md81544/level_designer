@@ -7,7 +7,8 @@ std::string getInputFromDialog(
     sf::RenderWindow& window,
     sf::Font& font,
     const std::string& prompt,
-    const std::string& defaultEntry /* ="" */)
+    const std::string& defaultEntry, /* ="" */
+    InputType inputType /* = InputType::string */)
 {
     // Text and input box elements
     sf::Text promptText(font, prompt, 20);
@@ -47,7 +48,14 @@ std::string getInputFromDialog(
                 } else if (unicode == '\r' || unicode == '\n') {
                     enterPressed = true;
                 } else if (unicode < 128) { // ASCII characters
-                    input += static_cast<char>(unicode);
+                    auto c = static_cast<char>(unicode);
+                    if (inputType == InputType::numeric) {
+                        if (std::isdigit(c) || c == '.' || (input.length() == 0 && c == '-')) {
+                            input += c;
+                        }
+                    } else {
+                        input += c;
+                    }
                 }
                 inputText.setString(input + "_");
             } else if (event->is<sf::Event::KeyPressed>()) {

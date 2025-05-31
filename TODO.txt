@@ -1,6 +1,1 @@
-If a moving object is selected:
-    pressing X allows entry of x limits
-    then x speed
-    y does the same
-    r for rotation
-
+The input dialog is not visible if the grid is zoomed in
