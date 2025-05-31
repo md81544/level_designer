@@ -3,7 +3,11 @@
 // This is not very pretty... it just takes over the main window, which means
 // that there's just a black screen behind the "dialog".
 
-std::string getInputFromDialog(sf::RenderWindow& window, const std::string& prompt, sf::Font& font)
+std::string getInputFromDialog(
+    sf::RenderWindow& window,
+    sf::Font& font,
+    const std::string& prompt,
+    const std::string& defaultEntry /* ="" */)
 {
     // Text and input box elements
     sf::Text promptText(font, prompt, 20);
@@ -19,9 +23,9 @@ std::string getInputFromDialog(sf::RenderWindow& window, const std::string& prom
     sf::Text inputText(font, "", 20);
     inputText.setFillColor(sf::Color::Black);
     inputText.setPosition({ 25, 85 });
-    inputText.setString("_");
+    inputText.setString(defaultEntry + "_");
 
-    std::string input;
+    std::string input = defaultEntry;
     bool enterPressed = false;
 
     // Dialog loop

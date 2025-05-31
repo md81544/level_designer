@@ -1,9 +1,6 @@
-Need to make some kind of input dialog
-
 If a moving object is selected:
     pressing X allows entry of x limits
     then x speed
     y does the same
     r for rotation
 
-T to set title?

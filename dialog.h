@@ -3,4 +3,8 @@
 #include <SFML/Graphics.hpp>
 #include <string>
 
-std::string getInputFromDialog(sf::RenderWindow& window, const std::string& prompt, sf::Font& font);
+std::string getInputFromDialog(
+    sf::RenderWindow& window,
+    sf::Font& font,
+    const std::string& prompt,
+    const std::string& defaultEntry = "");

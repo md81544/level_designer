@@ -81,7 +81,7 @@ void Level::load(const std::string& filename)
                                     static_cast<unsigned>(stoi(vec[4])),
                                     static_cast<unsigned>(stoi(vec[5])) };
                 m_levelDescription = vec[6];
-                m_window.setTitle(filename + " - " + m_levelDescription);
+                m_window.setTitle(m_fileName + " - " + m_levelDescription);
                 break;
             case 'N': // New object, parameter 1 is type, parameter 2 appears unused
                 if (vec[1] == "OBSTRUCTION") {
@@ -425,10 +425,11 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
             }
         } else {
             switch (scancode) {
-                case sf::Keyboard::Scancode::Period:
+                case sf::Keyboard::Scancode::T:
                     {
-                        std::string foo = getInputFromDialog(window, "Enter stuff", m_font);
-                        std::cout << foo << std::endl;
+                        m_levelDescription
+                            = getInputFromDialog(window, m_font, "Enter stuff", m_levelDescription);
+                        m_window.setTitle(m_fileName + " - " + m_levelDescription);
                         break;
                     }
                 case sf::Keyboard::Scancode::Equal:
