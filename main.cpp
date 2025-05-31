@@ -27,7 +27,7 @@ int main(int argc, char* argv[])
         const unsigned screenHeight = static_cast<unsigned>(config.readLong("WindowHeight", 800));
         sf::RenderWindow window(
             sf::VideoMode({ screenWidth, screenHeight }),
-            "Amaze Level Designer",
+            argv[1],
             sf::Style::Titlebar | sf::Style::Close);
         window.setFramerateLimit(24);
 
