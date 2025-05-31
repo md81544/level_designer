@@ -427,8 +427,8 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
             switch (scancode) {
                 case sf::Keyboard::Scancode::T:
                     {
-                        m_levelDescription
-                            = getInputFromDialog(window, m_font, "Enter stuff", m_levelDescription);
+                        m_levelDescription = getInputFromDialog(
+                            window, m_font, "Enter Level Title", m_levelDescription);
                         m_window.setTitle(m_fileName + " - " + m_levelDescription);
                         break;
                     }
