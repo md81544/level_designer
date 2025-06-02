@@ -61,12 +61,12 @@ struct StartPosition {
 };
 
 struct MovingObject {
-    float xDelta;
-    float xMaxDifference;
-    float yDelta;
-    float yMaxDifference;
-    float rotationDelta; // rotation just continues around so no max
-    std::vector<Line> lines;
+    float xDelta { 0.f };
+    float xMaxDifference { 0.f };
+    float yDelta { 0.f };
+    float yMaxDifference { 0.f };
+    float rotationDelta { 0.f }; // rotation just continues around so no max
+    std::vector<Line> lines {};
 };
 
 class Level {
