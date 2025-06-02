@@ -249,6 +249,10 @@ void mgo::Level::draw(sf::RenderWindow& window)
     }
     idx = 0;
     for (const auto& m : m_movingObjects) {
+        unsigned minX { std::numeric_limits<unsigned>::max() };
+        unsigned minY { std::numeric_limits<unsigned>::max() };
+        unsigned maxX { 0 };
+        unsigned maxY { 0 };
         for (auto l : m.lines) {
             if (m_highlightedMovingObjectIdx.has_value()
                 && m_highlightedMovingObjectIdx.value() == idx) {
@@ -257,7 +261,48 @@ void mgo::Level::draw(sf::RenderWindow& window)
                 l.b = 255;
             }
             drawLine(window, l, std::nullopt);
+            // Determine bounding box:
+            if (l.x0 < minX) {
+                minX = l.x0 - 1;
+            }
+            if (l.x1 < minX) {
+                minX = l.x1 - 1;
+            }
+            if (l.y0 < minY) {
+                minY = l.y0 - 1;
+            }
+            if (l.y1 < minY) {
+                minY = l.y1 - 1;
+            }
+            if (l.x0 > maxX) {
+                maxX = l.x0 + 1;
+            }
+            if (l.x1 > maxX) {
+                maxX = l.x1 + 1;
+            }
+            if (l.y0 > maxY) {
+                maxY = l.y0 + 1;
+            }
+            if (l.y1 > maxY) {
+                maxY = l.y1 + 1;
+            }
         }
+        if(m.xDelta != 0.f) {
+            minX -= m.xMaxDifference;
+            maxX += m.xMaxDifference;
+        }
+        if(m.yDelta != 0.f) {
+            minY -= m.yMaxDifference;
+            maxY += m.yMaxDifference;
+        }
+        Line l1 { minX, minY, minX, maxY, 128, 128, 0 };
+        drawLine(window, l1, std::nullopt);
+        Line l2 { minX, maxY, maxX, maxY, 128, 128, 0 };
+        drawLine(window, l2, std::nullopt);
+        Line l3 { maxX, maxY, maxX, minY, 128, 128, 0 };
+        drawLine(window, l3, std::nullopt);
+        Line l4 { minX, minY, maxX, minY, 128, 128, 0 };
+        drawLine(window, l4, std::nullopt);
         ++idx;
     }
     for (const auto& l : m_currentMovingObject.lines) {
