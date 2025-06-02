@@ -517,7 +517,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     break;
                 case sf::Keyboard::Scancode::Escape:
                     m_currentInsertionLine.inactive = true;
-                    endCurrentMovingObject();
+                    finishCurrentMovingObject();
                     break;
                 case sf::Keyboard::Scancode::Left:
                     m_view.move({ -25, 0 });
@@ -624,7 +624,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
         const auto mousePos = event.getIf<sf::Event::MouseButtonPressed>()->position;
         if (mouseButton == sf::Mouse::Button::Right) {
             m_currentInsertionLine.inactive = true;
-            endCurrentMovingObject();
+            finishCurrentMovingObject();
         } else if (mouseButton == sf::Mouse::Button::Left) {
             switch (m_currentMode) {
                 case Mode::LINE:
@@ -1163,7 +1163,7 @@ void Level::addReplayItem(const Action& action)
     m_replayIndex = m_replay.size() - 1;
 }
 
-void Level::endCurrentMovingObject()
+void Level::finishCurrentMovingObject()
 {
     if (m_currentMode == Mode::MOVING) {
         // Write any existing  moving object and start a new one
@@ -1177,7 +1177,7 @@ void Level::endCurrentMovingObject()
 void Level::changeMode(Mode mode)
 {
     if (mode != Mode::MOVING) {
-        endCurrentMovingObject();
+        finishCurrentMovingObject();
     }
     m_highlightedLineIdx = std::nullopt;
     m_currentInsertionLine.inactive = true;

@@ -41,31 +41,32 @@ int main(int argc, char* argv[])
                 if (!event.has_value()) {
                     break;
                 }
-                    level.processEvent(window, *event);
-                }
-
-                level.processViewport();
-                // Draw the floating view items:
-                window.setView(level.getView());
-                window.clear();
-                level.drawGridLines(window);
-                level.draw(window);
-                level.drawObjects(window);
-                // Draw items to the FIXED view:
-                window.setView(level.getFixedView());
-                level.drawModes(window);
-                level.drawDialog(window);
-                // Set view back otherwise mouse coords appear to be
-                // reported in the wrong position
-                window.setView(level.getView());
-                window.display();
+                level.processEvent(window, *event);
             }
-            return 0;
+
+            level.processViewport();
+            // Draw the floating view items:
+            // Note that .setView() changes whether we're writing to the
+            // scrolling or fixed "canvas".
+            window.setView(level.getView());
+            window.clear();
+            level.drawGridLines(window);
+            level.draw(window);
+            level.drawObjects(window);
+            // Draw items to the FIXED view:
+            // See note above re .setView()
+            window.setView(level.getFixedView());
+            level.drawModes(window);
+            level.drawDialog(window);
+            // Set view back otherwise mouse coords appear to be
+            // reported in the wrong position
+            window.setView(level.getView());
+            window.display();
         }
-        catch (const std::exception& e)
-        {
-            // anything caught here is a terminal event
-            std::cout << e.what() << std::endl;
-        }
-        return 1;
+        return 0;
+    } catch (const std::exception& e) {
+        // anything caught here is a terminal event
+        std::cout << e.what() << std::endl;
     }
+    return 1;
+}

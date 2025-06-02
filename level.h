@@ -104,7 +104,7 @@ public:
     void replay();
     void redo();
     void addReplayItem(const Action& action);
-    void endCurrentMovingObject();
+    void finishCurrentMovingObject();
 
 private:
     sf::Window& m_window;

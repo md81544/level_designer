@@ -1,1 +1,3 @@
+* Show limits of movement for movable objects? Maybe a dark outline?
+
 * Multiple selections e.g. highlight several lines for deletion?
