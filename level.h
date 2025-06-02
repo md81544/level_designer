@@ -49,7 +49,7 @@ struct Line {
     uint8_t r { 0 };
     uint8_t g { 0 };
     uint8_t b { 0 };
-    uint8_t thickness {1}; // unused currently
+    uint8_t thickness { 1 }; // unused currently
     bool inactive { false }; // lines don't get deleted, just deactivated, avoids index invalidation
     bool breakable { false };
 };
@@ -104,6 +104,7 @@ public:
     void replay();
     void redo();
     void addReplayItem(const Action& action);
+    void endCurrentMovingObject();
 
 private:
     sf::Window& m_window;

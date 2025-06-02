@@ -1,0 +1,1 @@
+* Multiple selections e.g. highlight several lines for deletion?

@@ -207,8 +207,6 @@ void mgo::Level::save()
             }
             // Is there a moving object in progress?
             if (m_currentMovingObject.lines.size() > 0) {
-                outfile << "# TODO: manually edit xDelta, xMaxDifference, yDelta, yMaxDifference, "
-                           "rotationDelta\n";
                 outfile << "N~MOVING~moving_" << counter;
                 outfile << "~" << m_currentMovingObject.xDelta << "~"
                         << m_currentMovingObject.xMaxDifference << "~"
@@ -519,6 +517,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     break;
                 case sf::Keyboard::Scancode::Escape:
                     m_currentInsertionLine.inactive = true;
+                    endCurrentMovingObject();
                     break;
                 case sf::Keyboard::Scancode::Left:
                     m_view.move({ -25, 0 });
@@ -625,6 +624,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
         const auto mousePos = event.getIf<sf::Event::MouseButtonPressed>()->position;
         if (mouseButton == sf::Mouse::Button::Right) {
             m_currentInsertionLine.inactive = true;
+            endCurrentMovingObject();
         } else if (mouseButton == sf::Mouse::Button::Left) {
             switch (m_currentMode) {
                 case Mode::LINE:
@@ -1163,14 +1163,21 @@ void Level::addReplayItem(const Action& action)
     m_replayIndex = m_replay.size() - 1;
 }
 
-void Level::changeMode(Mode mode)
+void Level::endCurrentMovingObject()
 {
-    if (m_currentMode == Mode::MOVING && mode != Mode::MOVING) {
+    if (m_currentMode == Mode::MOVING) {
         // Write any existing  moving object and start a new one
         if (!m_currentMovingObject.lines.empty()) {
             m_movingObjects.push_back(m_currentMovingObject);
         }
         m_currentMovingObject = {};
+    }
+}
+
+void Level::changeMode(Mode mode)
+{
+    if (mode != Mode::MOVING) {
+        endCurrentMovingObject();
     }
     m_highlightedLineIdx = std::nullopt;
     m_currentInsertionLine.inactive = true;
