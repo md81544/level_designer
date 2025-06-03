@@ -20,15 +20,21 @@ int main(int argc, char* argv[])
 
         mgo::ConfigReader config("level_designer.cfg");
 
-        // To get around SFML's inability to cope with high-DPI screens (e.g. Apple's "Retina"
-        // displays) we just set the window size to whatever the user has in the config file - the
-        // user (I) can adjust to whatever is best for the machine being used
-        const unsigned screenWidth = static_cast<unsigned>(config.readLong("WindowWidth", 800));
-        const unsigned screenHeight = static_cast<unsigned>(config.readLong("WindowHeight", 800));
+        unsigned screenWidth = static_cast<unsigned>(config.readLong("WindowWidth", 800));
+        unsigned screenHeight = static_cast<unsigned>(config.readLong("WindowHeight", 800));
+        bool fullscreen = config.readBool("Fullscreen", false);
+        const auto mode = sf::VideoMode::getDesktopMode();
+        if (fullscreen) {
+            // If fullscreen, we use the desktop resolution
+            screenWidth = mode.size.x;
+            screenHeight = mode.size.y;
+        }
         sf::RenderWindow window(
-            sf::VideoMode({ screenWidth, screenHeight }),
+            fullscreen ? mode : sf::VideoMode({ screenWidth, screenHeight }),
             argv[1],
-            sf::Style::Titlebar | sf::Style::Close);
+            sf::Style::Titlebar | sf::Style::Close,
+            fullscreen ? sf::State::Fullscreen : sf::State::Windowed);
+        window.setVerticalSyncEnabled(true);
         window.setFramerateLimit(24);
 
         mgo::Level level(window, screenWidth, screenHeight);
