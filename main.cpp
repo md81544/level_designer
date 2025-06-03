@@ -34,7 +34,6 @@ int main(int argc, char* argv[])
             argv[1],
             sf::Style::Titlebar | sf::Style::Close,
             fullscreen ? sf::State::Fullscreen : sf::State::Windowed);
-        window.setVerticalSyncEnabled(true);
         window.setFramerateLimit(24);
 
         mgo::Level level(window, screenWidth, screenHeight);
