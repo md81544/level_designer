@@ -667,6 +667,23 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 m_view.move({ static_cast<float>(xDelta), static_cast<float>(yDelta) });
             }
         } else {
+            if (m_currentMode == Mode::EDIT) {
+                // If we're in edit mode, we want to highlight the line under the cursor
+                auto line = lineUnderCursor(window, mouseMove.x, mouseMove.y);
+                if (line.has_value()) {
+                    m_highlightedLineIdx = line.value();
+                    m_highlightedMovingObjectIdx = std::nullopt;
+                }else {
+                    auto movingObject = movingObjectUnderCursor(window, mouseMove.x, mouseMove.y);
+                    if (movingObject.has_value()) {
+                        m_highlightedMovingObjectIdx = movingObject.value();
+                        m_highlightedLineIdx = std::nullopt;
+                    } else {
+                        m_highlightedLineIdx = std::nullopt;
+                        m_highlightedMovingObjectIdx = std::nullopt;
+                    }
+                }
+            }
             if (m_currentMode == Mode::LINE || m_currentMode == Mode::BREAKABLE
                 || m_currentMode == Mode::MOVING) {
                 if (m_snapMode == SnapMode::AUTO || m_snapMode == SnapMode::GRID) {
