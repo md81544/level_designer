@@ -355,7 +355,6 @@ Level::lineUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsigned mouse
     const auto w = window.mapPixelToCoords({ static_cast<int>(mouseX), static_cast<int>(mouseY) });
     std::size_t idx = 0;
     const float selectionBoxSize = 1 + 4 *  m_viewZoomLevel;
-    std::cout << "Selection box size: " << selectionBoxSize << "\n";
     for (const auto& l : m_lines) {
         if (!l.inactive) {
             if (helperfunctions::doLinesIntersect(
