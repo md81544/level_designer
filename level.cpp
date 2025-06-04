@@ -287,11 +287,11 @@ void mgo::Level::draw(sf::RenderWindow& window)
                 maxY = l.y1 + 1;
             }
         }
-        if(m.xDelta != 0.f) {
+        if (m.xDelta != 0.f) {
             minX -= m.xMaxDifference;
             maxX += m.xMaxDifference;
         }
-        if(m.yDelta != 0.f) {
+        if (m.yDelta != 0.f) {
             minY -= m.yMaxDifference;
             maxY += m.yMaxDifference;
         }
@@ -354,22 +354,52 @@ Level::lineUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsigned mouse
     // the workspace, i.e. the workspace is slightly off screen to the left.
     const auto w = window.mapPixelToCoords({ static_cast<int>(mouseX), static_cast<int>(mouseY) });
     std::size_t idx = 0;
+    const float selectionBoxSize = 1 + 4 *  m_viewZoomLevel;
+    std::cout << "Selection box size: " << selectionBoxSize << "\n";
     for (const auto& l : m_lines) {
         if (!l.inactive) {
             if (helperfunctions::doLinesIntersect(
-                    w.x - 10, w.y, w.x, w.y - 10, l.x0, l.y0, l.x1, l.y1)) {
+                    w.x - selectionBoxSize,
+                    w.y,
+                    w.x,
+                    w.y - selectionBoxSize,
+                    l.x0,
+                    l.y0,
+                    l.x1,
+                    l.y1)) {
                 return idx;
             }
             if (helperfunctions::doLinesIntersect(
-                    w.x, w.y - 10, w.x + 10, w.y, l.x0, l.y0, l.x1, l.y1)) {
+                    w.x,
+                    w.y - selectionBoxSize,
+                    w.x + selectionBoxSize,
+                    w.y,
+                    l.x0,
+                    l.y0,
+                    l.x1,
+                    l.y1)) {
                 return idx;
             }
             if (helperfunctions::doLinesIntersect(
-                    w.x + 10, w.y, w.x, w.y + 10, l.x0, l.y0, l.x1, l.y1)) {
+                    w.x + selectionBoxSize,
+                    w.y,
+                    w.x,
+                    w.y + selectionBoxSize,
+                    l.x0,
+                    l.y0,
+                    l.x1,
+                    l.y1)) {
                 return idx;
             }
             if (helperfunctions::doLinesIntersect(
-                    w.x, w.y + 10, w.x - 10, w.y, l.x0, l.y0, l.x1, l.y1)) {
+                    w.x,
+                    w.y + selectionBoxSize,
+                    w.x - selectionBoxSize,
+                    w.y,
+                    l.x0,
+                    l.y0,
+                    l.x1,
+                    l.y1)) {
                 return idx;
             }
         }
