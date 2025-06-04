@@ -781,6 +781,8 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     }
                 case Mode::EDIT:
                     {
+                        // TODO this is probably redundant now that we highlight the
+                        // object on hover instead
                         // Check to see if there is a line under the cursor
                         auto line = lineUnderCursor(window, mousePos.x, mousePos.y);
                         if (line.has_value()) {
