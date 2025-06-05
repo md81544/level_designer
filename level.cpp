@@ -103,6 +103,9 @@ void Level::load(const std::string& filename)
                     m_currentMovingObject.yDelta = std::stof(vec[5]);
                     m_currentMovingObject.yMaxDifference = std::stof(vec[6]);
                     m_currentMovingObject.rotationDelta = std::stof(vec[7]);
+                    if (vec.size() > 8) {
+                        m_currentMovingObject.gravity = std::stof(vec[8]);
+                    }
                 } else {
                     std::cout << "Unrecognised object type '" << vec[1] << "' in file\n";
                 }
@@ -197,7 +200,7 @@ void mgo::Level::save()
             for (const auto& m : m_movingObjects) {
                 outfile << "N~MOVING~moving_" << counter;
                 outfile << "~" << m.xDelta << "~" << m.xMaxDifference << "~" << m.yDelta << "~"
-                        << m.yMaxDifference << "~" << m.rotationDelta << "\n";
+                        << m.yMaxDifference << "~" << m.rotationDelta << "~" << m.gravity << "\n";
                 for (const auto& l : m.lines) {
                     outfile << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1 << "~"
                             << static_cast<int>(l.r) << "~" << static_cast<int>(l.g) << "~"
@@ -212,7 +215,8 @@ void mgo::Level::save()
                         << m_currentMovingObject.xMaxDifference << "~"
                         << m_currentMovingObject.yDelta << "~"
                         << m_currentMovingObject.yMaxDifference << "~"
-                        << m_currentMovingObject.rotationDelta << "\n";
+                        << m_currentMovingObject.rotationDelta << "~"
+                        << m_currentMovingObject.gravity << "\n";
                 for (const auto& l : m_currentMovingObject.lines) {
                     outfile << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1 << "~"
                             << static_cast<int>(l.r) << "~" << static_cast<int>(l.g) << "~"
@@ -354,7 +358,7 @@ Level::lineUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsigned mouse
     // the workspace, i.e. the workspace is slightly off screen to the left.
     const auto w = window.mapPixelToCoords({ static_cast<int>(mouseX), static_cast<int>(mouseY) });
     std::size_t idx = 0;
-    const float selectionBoxSize = 1 + 4 *  m_viewZoomLevel;
+    const float selectionBoxSize = 1 + 4 * m_viewZoomLevel;
     for (const auto& l : m_lines) {
         if (!l.inactive) {
             if (helperfunctions::doLinesIntersect(
@@ -633,6 +637,22 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                         }
                     }
                     break;
+                case sf::Keyboard::Scancode::G:
+                    if (m_highlightedMovingObjectIdx.has_value()) {
+                        auto& obj = m_movingObjects[m_highlightedMovingObjectIdx.value()];
+                        std::string s = getInputFromDialog(
+                            window,
+                            m_fixedView,
+                            m_font,
+                            "Enter Gravity (10 is a good value)",
+                            helperfunctions::to_string_with_precision(obj.gravity, 1),
+                            InputType::numeric);
+                        if (!s.empty()) {
+                            float gravity = std::stof(s);
+                            obj.gravity = gravity;
+                        }
+                    }
+                    break;
                 // Note Y is handled above as it's also used with Cmd for Redo
                 case sf::Keyboard::Scancode::R:
                     // Edit moving object's rotation delta
@@ -673,7 +693,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 if (line.has_value()) {
                     m_highlightedLineIdx = line.value();
                     m_highlightedMovingObjectIdx = std::nullopt;
-                }else {
+                } else {
                     auto movingObject = movingObjectUnderCursor(window, mouseMove.x, mouseMove.y);
                     if (movingObject.has_value()) {
                         m_highlightedMovingObjectIdx = movingObject.value();

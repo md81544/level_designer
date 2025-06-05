@@ -66,6 +66,7 @@ struct MovingObject {
     float yDelta { 0.f };
     float yMaxDifference { 0.f };
     float rotationDelta { 0.f }; // rotation just continues around so no max
+    float gravity { 0.f };
     std::vector<Line> lines {};
 };
 
