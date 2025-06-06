@@ -1,3 +1,2 @@
 * Multiple selections e.g. highlight several lines for deletion?
-
-* Make "Exit" symbol at least a rectangle (or better, text)
+* Maybe make pulsation editable?
