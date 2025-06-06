@@ -1141,27 +1141,25 @@ sf::View& Level::getFixedView()
 
 void Level::clampViewport()
 {
-    // Clamp the view within the bounds of the map
-    sf::Vector2f viewSize = m_view.getSize();
-    sf::Vector2f viewCenter = m_view.getCenter();
+    const float mapWidth = 2000.f;
+    const float mapHeight = 2000.f;
 
-    const float leftBound = viewSize.x / 3;
-    const float rightBound = 2000 - viewSize.x / 3;
-    const float topBound = viewSize.y / 3;
-    const float bottomBound = 2000 - viewSize.y / 3;
+    sf::Vector2f viewCentre = m_view.getCenter();
 
-    if (viewCenter.x < leftBound) {
-        m_view.setCenter({ leftBound, viewCenter.y });
+    // Calculate half the view size (what's visible on screen)
+    sf::Vector2f halfSize = m_view.getSize() / 2.f;
+
+    viewCentre.x = std::max(halfSize.x, std::min(viewCentre.x, mapWidth - halfSize.x));
+    viewCentre.y = std::max(halfSize.y, std::min(viewCentre.y, mapHeight - halfSize.y));
+
+    // If the view is larger than the map in either dimension, centre it
+    if (m_view.getSize().x > mapWidth) {
+        viewCentre.x = mapWidth / 2.f;
     }
-    if (viewCenter.x > rightBound) {
-        m_view.setCenter({ rightBound, viewCenter.y });
+    if (m_view.getSize().y > mapHeight) {
+        viewCentre.y = mapHeight / 2.f;
     }
-    if (viewCenter.y < topBound) {
-        m_view.setCenter({ viewCenter.x, topBound });
-    }
-    if (viewCenter.y > bottomBound) {
-        m_view.setCenter({ viewCenter.x, bottomBound });
-    }
+    m_view.setCenter(viewCentre);
 }
 
 void Level::revert()

@@ -1,3 +1,5 @@
+* When creating lines, the cursor being outside the grid makes the line
+  go in the opposite direction
 * Create objects which are not obstacles - just decoration
 * Bug with large screen - display jumps around until zoomed in more
 * Multiple selections e.g. highlight several lines for deletion?
