@@ -1139,7 +1139,7 @@ sf::View& Level::getFixedView()
     return m_fixedView;
 }
 
-void Level::processViewport()
+void Level::clampViewport()
 {
     // Clamp the view within the bounds of the map
     sf::Vector2f viewSize = m_view.getSize();

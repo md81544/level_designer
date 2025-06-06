@@ -99,7 +99,7 @@ public:
     void drawObjects(sf::RenderWindow& window);
     sf::View& getView();
     sf::View& getFixedView();
-    void processViewport();
+    void clampViewport();
     void revert();
     void undo();
     void replay();

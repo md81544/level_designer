@@ -49,7 +49,7 @@ int main(int argc, char* argv[])
                 level.processEvent(window, *event);
             }
 
-            level.processViewport();
+            level.clampViewport();
             // Draw the floating view items:
             // Note that .setView() changes whether we're writing to the
             // scrolling or fixed "canvas".
