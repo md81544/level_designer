@@ -644,7 +644,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                             window,
                             m_fixedView,
                             m_font,
-                            "Enter Gravity (10 is a good value)",
+                            "Enter Gravity (between 10 and 100 is good)",
                             helperfunctions::to_string_with_precision(obj.gravity, 1),
                             InputType::numeric);
                         if (!s.empty()) {
@@ -1105,15 +1105,16 @@ void Level::drawObjects(sf::RenderWindow& window)
         window.draw(ship);
     }
     if (m_exitPosition.has_value()) {
-        sf::CircleShape c;
-        c.setFillColor(sf::Color::Red);
-        float r = 20.f;
-        c.setRadius(r);
-        c.setOrigin({ r, r });
-        c.setPosition(
+        sf::Text exit(m_font);
+        exit.setCharacterSize(18.f);
+        exit.setString("EXIT");
+        sf::FloatRect textRect = exit.getLocalBounds();
+        exit.setOrigin({ textRect.size.x / 2, textRect.size.y / 2 });
+        exit.setFillColor({ 52, 213, 235 });
+        exit.setPosition(
             { static_cast<float>(m_exitPosition.value().first),
               static_cast<float>(m_exitPosition.value().second) });
-        window.draw(c);
+        window.draw(exit);
     }
     if (!m_fuelObjects.empty()) {
         for (const auto& p : m_fuelObjects) {
