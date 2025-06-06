@@ -1106,10 +1106,10 @@ void Level::drawObjects(sf::RenderWindow& window)
     }
     if (m_exitPosition.has_value()) {
         sf::Text exit(m_font);
-        exit.setCharacterSize(18.f);
+        exit.setCharacterSize(26.f);
         exit.setString("EXIT");
         sf::FloatRect textRect = exit.getLocalBounds();
-        exit.setOrigin({ textRect.size.x / 2, textRect.size.y / 2 });
+        exit.setOrigin({ textRect.size.x / 2.f, textRect.size.y / 2.f });
         exit.setFillColor({ 52, 213, 235 });
         exit.setPosition(
             { static_cast<float>(m_exitPosition.value().first),
