@@ -509,9 +509,13 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
             switch (scancode) {
                 case sf::Keyboard::Scancode::T:
                     {
-                        m_levelDescription = getInputFromDialog(
+                        std::string title = getInputFromDialog(
                             window, m_fixedView, m_font, "Enter Level Title", m_levelDescription);
-                        m_window.setTitle(m_fileName + " - " + m_levelDescription);
+                        if (!title.empty()) {
+                            m_levelDescription = title;
+                            m_window.setTitle(m_fileName + " - " + m_levelDescription);
+                            m_dirty = true;
+                        }
                         break;
                     }
                 case sf::Keyboard::Scancode::Equal:
@@ -556,6 +560,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                             if (!s.empty()) {
                                 float delta = std::stof(s);
                                 obj.yDelta = delta;
+                                m_dirty = true;
                             }
                             s = getInputFromDialog(
                                 window,
@@ -567,6 +572,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                             if (!s.empty()) {
                                 float diff = std::stof(s);
                                 obj.yMaxDifference = diff;
+                                m_dirty = true;
                             }
                         }
                     }
@@ -623,6 +629,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                         if (!s.empty()) {
                             float delta = std::stof(s);
                             obj.xDelta = delta;
+                            m_dirty = true;
                         }
                         s = getInputFromDialog(
                             window,
@@ -634,6 +641,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                         if (!s.empty()) {
                             float diff = std::stof(s);
                             obj.xMaxDifference = diff;
+                            m_dirty = true;
                         }
                     }
                     break;
@@ -650,6 +658,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                         if (!s.empty()) {
                             float gravity = std::stof(s);
                             obj.gravity = gravity;
+                            m_dirty = true;
                         }
                     }
                     break;
@@ -668,6 +677,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                         if (!s.empty()) {
                             float delta = std::stof(s);
                             obj.rotationDelta = delta;
+                            m_dirty = true;
                         }
                     }
                     break;
