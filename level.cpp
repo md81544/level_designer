@@ -420,20 +420,16 @@ Level::movingObjectUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsign
     for (const auto& m : m_movingObjects) {
         for (const auto& l : m.lines) {
             if (!l.inactive) {
-                if (utils::doLinesIntersect(
-                        w.x - 10, w.y, w.x, w.y - 10, l.x0, l.y0, l.x1, l.y1)) {
+                if (utils::doLinesIntersect(w.x - 10, w.y, w.x, w.y - 10, l.x0, l.y0, l.x1, l.y1)) {
                     return idx;
                 }
-                if (utils::doLinesIntersect(
-                        w.x, w.y - 10, w.x + 10, w.y, l.x0, l.y0, l.x1, l.y1)) {
+                if (utils::doLinesIntersect(w.x, w.y - 10, w.x + 10, w.y, l.x0, l.y0, l.x1, l.y1)) {
                     return idx;
                 }
-                if (utils::doLinesIntersect(
-                        w.x + 10, w.y, w.x, w.y + 10, l.x0, l.y0, l.x1, l.y1)) {
+                if (utils::doLinesIntersect(w.x + 10, w.y, w.x, w.y + 10, l.x0, l.y0, l.x1, l.y1)) {
                     return idx;
                 }
-                if (utils::doLinesIntersect(
-                        w.x, w.y + 10, w.x - 10, w.y, l.x0, l.y0, l.x1, l.y1)) {
+                if (utils::doLinesIntersect(w.x, w.y + 10, w.x - 10, w.y, l.x0, l.y0, l.x1, l.y1)) {
                     return idx;
                 }
             }
