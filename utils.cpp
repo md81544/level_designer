@@ -1,4 +1,4 @@
-#include "helperfunctions.h"
+#include "utils.h"
 
 #include <algorithm>
 #include <cmath>
@@ -14,7 +14,7 @@ unsigned squaredDistance(unsigned x1, unsigned y1, unsigned x2, unsigned y2)
 }
 
 namespace mgo {
-namespace helperfunctions {
+namespace utils {
 
 bool doLinesIntersect(long x1, long y1, long x2, long y2, long x3, long y3, long x4, long y4)
 {
@@ -130,5 +130,5 @@ std::optional<std::pair<unsigned, unsigned>> closestPointOnLine(
     }
 }
 
-} // namespace helperfunctions
+} // namespace utils
 } // namespace mgo

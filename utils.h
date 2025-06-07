@@ -4,7 +4,7 @@
 #include <sstream>
 
 namespace mgo {
-namespace helperfunctions {
+namespace utils {
 
 template <typename T> std::string to_string_with_precision(const T a_value, const int n = 6)
 {
@@ -25,5 +25,5 @@ std::optional<std::pair<unsigned, unsigned>> closestPointOnLine(
     unsigned y,
     unsigned d);
 
-} // namespace helperfunctions
+} // namespace utils
 } // namespace mgo

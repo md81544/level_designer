@@ -1,6 +1,6 @@
 #include "level.h"
 #include "dialog.h"
-#include "helperfunctions.h"
+#include "utils.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -361,7 +361,7 @@ Level::lineUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsigned mouse
     const float selectionBoxSize = 1 + 4 * m_viewZoomLevel;
     for (const auto& l : m_lines) {
         if (!l.inactive) {
-            if (helperfunctions::doLinesIntersect(
+            if (utils::doLinesIntersect(
                     w.x - selectionBoxSize,
                     w.y,
                     w.x,
@@ -372,7 +372,7 @@ Level::lineUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsigned mouse
                     l.y1)) {
                 return idx;
             }
-            if (helperfunctions::doLinesIntersect(
+            if (utils::doLinesIntersect(
                     w.x,
                     w.y - selectionBoxSize,
                     w.x + selectionBoxSize,
@@ -383,7 +383,7 @@ Level::lineUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsigned mouse
                     l.y1)) {
                 return idx;
             }
-            if (helperfunctions::doLinesIntersect(
+            if (utils::doLinesIntersect(
                     w.x + selectionBoxSize,
                     w.y,
                     w.x,
@@ -394,7 +394,7 @@ Level::lineUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsigned mouse
                     l.y1)) {
                 return idx;
             }
-            if (helperfunctions::doLinesIntersect(
+            if (utils::doLinesIntersect(
                     w.x,
                     w.y + selectionBoxSize,
                     w.x - selectionBoxSize,
@@ -420,19 +420,19 @@ Level::movingObjectUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsign
     for (const auto& m : m_movingObjects) {
         for (const auto& l : m.lines) {
             if (!l.inactive) {
-                if (helperfunctions::doLinesIntersect(
+                if (utils::doLinesIntersect(
                         w.x - 10, w.y, w.x, w.y - 10, l.x0, l.y0, l.x1, l.y1)) {
                     return idx;
                 }
-                if (helperfunctions::doLinesIntersect(
+                if (utils::doLinesIntersect(
                         w.x, w.y - 10, w.x + 10, w.y, l.x0, l.y0, l.x1, l.y1)) {
                     return idx;
                 }
-                if (helperfunctions::doLinesIntersect(
+                if (utils::doLinesIntersect(
                         w.x + 10, w.y, w.x, w.y + 10, l.x0, l.y0, l.x1, l.y1)) {
                     return idx;
                 }
-                if (helperfunctions::doLinesIntersect(
+                if (utils::doLinesIntersect(
                         w.x, w.y + 10, w.x - 10, w.y, l.x0, l.y0, l.x1, l.y1)) {
                     return idx;
                 }
@@ -555,7 +555,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                                 m_fixedView,
                                 m_font,
                                 "Enter Y Delta",
-                                helperfunctions::to_string_with_precision(obj.yDelta, 1),
+                                utils::to_string_with_precision(obj.yDelta, 1),
                                 InputType::numeric);
                             if (!s.empty()) {
                                 float delta = std::stof(s);
@@ -567,7 +567,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                                 m_fixedView,
                                 m_font,
                                 "Enter Y +/- Max Motion (Squares = 50)",
-                                helperfunctions::to_string_with_precision(obj.yMaxDifference, 1),
+                                utils::to_string_with_precision(obj.yMaxDifference, 1),
                                 InputType::numeric);
                             if (!s.empty()) {
                                 float diff = std::stof(s);
@@ -624,7 +624,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                             m_fixedView,
                             m_font,
                             "Enter X Delta",
-                            helperfunctions::to_string_with_precision(obj.xDelta, 1),
+                            utils::to_string_with_precision(obj.xDelta, 1),
                             InputType::numeric);
                         if (!s.empty()) {
                             float delta = std::stof(s);
@@ -636,7 +636,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                             m_fixedView,
                             m_font,
                             "Enter X Max +/- Motion (Squares = 50)",
-                            helperfunctions::to_string_with_precision(obj.xMaxDifference, 1),
+                            utils::to_string_with_precision(obj.xMaxDifference, 1),
                             InputType::numeric);
                         if (!s.empty()) {
                             float diff = std::stof(s);
@@ -653,7 +653,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                             m_fixedView,
                             m_font,
                             "Enter Gravity (between 10 and 100 is good)",
-                            helperfunctions::to_string_with_precision(obj.gravity, 1),
+                            utils::to_string_with_precision(obj.gravity, 1),
                             InputType::numeric);
                         if (!s.empty()) {
                             float gravity = std::stof(s);
@@ -672,7 +672,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                             m_fixedView,
                             m_font,
                             "Enter Rotation delta",
-                            helperfunctions::to_string_with_precision(obj.rotationDelta, 1),
+                            utils::to_string_with_precision(obj.rotationDelta, 1),
                             InputType::numeric);
                         if (!s.empty()) {
                             float delta = std::stof(s);
@@ -1067,7 +1067,7 @@ void Level::highlightNearestLinePoint(sf::RenderWindow& window, unsigned mouseX,
         if (l.inactive) {
             continue;
         }
-        auto nearest = helperfunctions::closestPointOnLine(l.x0, l.y0, l.x1, l.y1, w.x, w.y, 5);
+        auto nearest = utils::closestPointOnLine(l.x0, l.y0, l.x1, l.y1, w.x, w.y, 5);
         if (nearest.has_value()) {
             m_currentNearestSnapPoint = std::tie(nearest.value().first, nearest.value().second);
             return;
@@ -1078,7 +1078,7 @@ void Level::highlightNearestLinePoint(sf::RenderWindow& window, unsigned mouseX,
             if (l.inactive) {
                 continue;
             }
-            auto nearest = helperfunctions::closestPointOnLine(l.x0, l.y0, l.x1, l.y1, w.x, w.y, 5);
+            auto nearest = utils::closestPointOnLine(l.x0, l.y0, l.x1, l.y1, w.x, w.y, 5);
             if (nearest.has_value()) {
                 m_currentNearestSnapPoint = std::tie(nearest.value().first, nearest.value().second);
                 return;
@@ -1090,7 +1090,7 @@ void Level::highlightNearestLinePoint(sf::RenderWindow& window, unsigned mouseX,
         if (l.inactive) {
             continue;
         }
-        auto nearest = helperfunctions::closestPointOnLine(l.x0, l.y0, l.x1, l.y1, w.x, w.y, 5);
+        auto nearest = utils::closestPointOnLine(l.x0, l.y0, l.x1, l.y1, w.x, w.y, 5);
         if (nearest.has_value()) {
             m_currentNearestSnapPoint = std::tie(nearest.value().first, nearest.value().second);
             return;
