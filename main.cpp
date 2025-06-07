@@ -22,7 +22,7 @@ int main(int argc, char* argv[])
 
         unsigned screenWidth = static_cast<unsigned>(config.readLong("WindowWidth", 800));
         unsigned screenHeight = static_cast<unsigned>(config.readLong("WindowHeight", 800));
-        bool fullscreen = config.readBool("Fullscreen", false);
+        const bool fullscreen = config.readBool("Fullscreen", false);
         const auto mode = sf::VideoMode::getDesktopMode();
         if (fullscreen) {
             // If fullscreen, we use the desktop resolution

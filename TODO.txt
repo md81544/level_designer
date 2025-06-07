@@ -1,6 +1,6 @@
+* Changing moving objects' parameters should set the dirty flag
 * When creating lines, the cursor being outside the grid makes the line
-  go in the opposite direction
+  go in the opposite direction (can't replicate on macpro)
 * Create objects which are not obstacles - just decoration
-* Bug with large screen - display jumps around until zoomed in more
 * Multiple selections e.g. highlight several lines for deletion?
 * Maybe make pulsation editable?
