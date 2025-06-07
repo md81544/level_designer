@@ -1,4 +1,3 @@
-* Changing moving objects' parameters should set the dirty flag
 * When creating lines, the cursor being outside the grid makes the line
   go in the opposite direction (can't replicate on macpro)
 * Create objects which are not obstacles - just decoration
