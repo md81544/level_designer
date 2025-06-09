@@ -1,3 +1,9 @@
+* Create regular polygon (in "line" or "moving" mode) -- enough sides would approximate a circle too
+  - maybe just press "p", it then asks for number of sides, then you can click once for the centre, and
+    drag out the radius. Clicking again would set the shape in place.
+
+* Possible to make the dialog nicer? Draw the background behind it?
+
 * When creating lines, the cursor being outside the grid makes the line
   go in the opposite direction (can't replicate on macpro)
 * Create objects which are not obstacles - just decoration

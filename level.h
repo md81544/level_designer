@@ -18,7 +18,9 @@ enum class Mode {
     EXIT,
     START,
     FUEL,
-    MOVING // objects which have motion
+    MOVING, // objects which have motion
+    POLYGON_CENTRE,
+    POLYGON_RADIUS
 };
 
 enum class SnapMode {
@@ -70,6 +72,13 @@ struct MovingObject {
     std::vector<Line> lines {};
 };
 
+struct CurrentPolygon {
+    std::optional<float> centreX { std::nullopt };
+    std::optional<float> centreY { std::nullopt };
+    unsigned sides { 0 };
+    std::vector<Line> lines {};
+};
+
 class Level {
 public:
     Level(sf::Window& window, unsigned windowWidth, unsigned windowHeight);
@@ -78,6 +87,12 @@ public:
     void draw(sf::RenderWindow& window);
     void drawDialog(sf::RenderWindow& window);
     void drawLine(sf::RenderWindow& window, const Line& line, std::optional<std::size_t> idx);
+    void drawRegularPolygon(
+        sf::RenderWindow& window,
+        float centreX,
+        float centreY,
+        unsigned numberOfSides,
+        float radius);
     void drawGridLines(sf::RenderWindow& window);
     // Returns the index (into m_Lines) of the first (of potentially several) lines that are *near*
     // the cursor or no value if no lines are nearby.
@@ -134,7 +149,6 @@ private:
     Mode m_currentMode { Mode::LINE };
     SnapMode m_snapMode { SnapMode::AUTO };
     void changeMode(Mode mode);
-    void cycleMode(bool backwards);
     void changeSnapMode();
     sf::View m_view;
     float m_viewZoomLevel { 1.f };
@@ -143,6 +157,7 @@ private:
     bool m_dirty { false };
     std::optional<int> m_oldMouseX;
     std::optional<int> m_oldMouseY;
+    CurrentPolygon m_currentPolygon;
 };
 
 } // namespace mgo

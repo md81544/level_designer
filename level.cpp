@@ -312,6 +312,9 @@ void mgo::Level::draw(sf::RenderWindow& window)
     for (const auto& l : m_currentMovingObject.lines) {
         drawLine(window, l, std::nullopt);
     }
+    for (const auto& l: m_currentPolygon.lines) {
+        drawLine(window, l, std::nullopt);
+    }
 }
 
 void mgo::Level::drawDialog(sf::RenderWindow& window)
@@ -466,42 +469,36 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
     if (event.is<sf::Event::KeyPressed>()) {
         // Mode switchers - require shift key, e.g. Shift-L for line etc
         const auto scancode = event.getIf<sf::Event::KeyPressed>()->scancode;
-        bool handled = false;
         if (event.getIf<sf::Event::KeyPressed>()->shift) {
             switch (scancode) {
                 case sf::Keyboard::Scancode::B:
                     changeMode(Mode::BREAKABLE);
-                    handled = true;
                     break;
                 case sf::Keyboard::Scancode::E:
                     changeMode(Mode::EDIT);
-                    handled = true;
                     break;
                 case sf::Keyboard::Scancode::L:
                     changeMode(Mode::LINE);
-                    handled = true;
                     break;
                 case sf::Keyboard::Scancode::F:
                     changeMode(Mode::FUEL);
-                    handled = true;
                     break;
                 case sf::Keyboard::Scancode::S:
                     changeMode(Mode::START);
-                    handled = true;
                     break;
                 case sf::Keyboard::Scancode::V:
                     changeMode(Mode::MOVING);
-                    handled = true;
                     break;
                 case sf::Keyboard::Scancode::X:
                     changeMode(Mode::EXIT);
-                    handled = true;
+                    break;
+                case sf::Keyboard::Scancode::P:
+                    changeMode(Mode::POLYGON_CENTRE);
                     break;
                 default:
                     break;
             }
-        }
-        if (!handled) {
+        } else {
             switch (scancode) {
                 case sf::Keyboard::Scancode::T:
                     {
@@ -534,9 +531,6 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     } else {
                         changeSnapMode();
                     }
-                    break;
-                case sf::Keyboard::Scancode::M:
-                    cycleMode(event.getIf<sf::Event::KeyPressed>()->shift);
                     break;
                 case sf::Keyboard::Scancode::Y: // redo
                     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LSystem)
@@ -729,6 +723,16 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                         m_currentInsertionLine.y1 = w.y;
                     }
                 }
+            } else if (m_currentMode == Mode::POLYGON_RADIUS) {
+                auto w = window.mapPixelToCoords(
+                    { static_cast<int>(mouseMove.x), static_cast<int>(mouseMove.y) });
+                m_currentPolygon.lines = utils::getRegularPolygon(
+                    w.x,
+                    w.y,
+                    *m_currentPolygon.centreX,
+                    *m_currentPolygon.centreY,
+                    m_currentPolygon.sides);
+
             } else {
                 m_currentNearestSnapPoint = std::nullopt;
             }
@@ -907,6 +911,34 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                         }
                         break;
                     }
+                case Mode::POLYGON_CENTRE:
+                    {
+                        auto w = window.mapPixelToCoords(
+                            { static_cast<int>(mousePos.x), static_cast<int>(mousePos.y) });
+                        m_currentPolygon.centreX = w.x;
+                        m_currentPolygon.centreY = w.y;
+                        std::string s = getInputFromDialog(
+                            window,
+                            m_fixedView,
+                            m_font,
+                            "Enter Number of Sides (3-64)",
+                            "12",
+                            InputType::numeric);
+                        if (!s.empty()) {
+                            unsigned sides = std::stoi(s);
+                            if (sides < 3) {
+                                sides = 3;
+                            }
+                            if (sides > 64) {
+                                sides = 64;
+                            }
+                            m_currentPolygon.sides = sides;
+                            m_dirty = true;
+                        }
+                        changeMode(Mode::POLYGON_RADIUS);
+                        break;
+                    }
+
                 default:
                     break;
             }
@@ -1013,6 +1045,10 @@ void mgo::Level::drawModes(sf::RenderWindow& window)
             break;
         case Mode::MOVING:
             txtMode.setString("MOVING");
+            break;
+        case Mode::POLYGON_CENTRE:
+        case Mode::POLYGON_RADIUS:
+            txtMode.setString("POLYGON");
             break;
         default:
             break;
@@ -1297,6 +1333,10 @@ void Level::changeMode(Mode mode)
     if (mode != Mode::MOVING) {
         finishCurrentMovingObject();
     }
+    if (mode != Mode::POLYGON_RADIUS) {
+        m_currentPolygon.centreX = std::nullopt;
+        m_currentPolygon.centreY = std::nullopt;
+    }
     m_highlightedLineIdx = std::nullopt;
     m_currentInsertionLine.inactive = true;
     m_currentMode = mode;
@@ -1312,56 +1352,6 @@ void Level::changeMode(Mode mode)
         m_currentInsertionLine.r = 255;
         m_currentInsertionLine.g = 172;
         m_currentInsertionLine.b = 163;
-    }
-}
-
-void Level::cycleMode(bool backwards)
-{
-    switch (m_currentMode) {
-        case Mode::LINE:
-            if (backwards) {
-                changeMode(Mode::FUEL);
-            } else {
-                changeMode(Mode::BREAKABLE);
-            }
-            break;
-        case Mode::BREAKABLE:
-            if (backwards) {
-                changeMode(Mode::LINE);
-            } else {
-                changeMode(Mode::EDIT);
-            }
-            break;
-        case Mode::EDIT:
-            if (backwards) {
-                changeMode(Mode::BREAKABLE);
-            } else {
-                changeMode(Mode::START);
-            }
-            break;
-        case Mode::START:
-            if (backwards) {
-                changeMode(Mode::EDIT);
-            } else {
-                changeMode(Mode::EXIT);
-            }
-            break;
-        case Mode::EXIT:
-            if (backwards) {
-                changeMode(Mode::START);
-            } else {
-                changeMode(Mode::FUEL);
-            }
-            break;
-        case Mode::FUEL:
-            if (backwards) {
-                changeMode(Mode::EXIT);
-            } else {
-                changeMode(Mode::LINE);
-            }
-            break;
-        default:
-            break;
     }
 }
 

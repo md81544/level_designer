@@ -1,4 +1,5 @@
 #include "utils.h"
+#include "level.h"
 
 #include <algorithm>
 #include <cmath>
@@ -9,6 +10,16 @@ namespace {
 unsigned squaredDistance(unsigned x1, unsigned y1, unsigned x2, unsigned y2)
 {
     return (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
+}
+
+std::tuple<float, float>
+calculatePolarParams(float centreX, float centreY, float startX, float startY)
+{
+    float dx = startX - centreX;
+    float dy = startY - centreY;
+    float radius = sqrt(dx * dx + dy * dy);
+    float startAngle = atan2(dy, dx);
+    return { radius, startAngle };
 }
 
 }
@@ -128,6 +139,42 @@ std::optional<std::pair<unsigned, unsigned>> closestPointOnLine(
     } else {
         return std::nullopt;
     }
+}
+
+std::vector<Line> getRegularPolygon(
+    float startX,
+    float startY,
+    float centreX,
+    float centreY,
+    unsigned numberOfSides)
+{
+    if (numberOfSides < 3) {
+        return {};
+    }
+    if (numberOfSides > 64) {
+        numberOfSides = 64;
+    }
+    auto [radius, startAngle] = calculatePolarParams(centreX, centreY, startX, startY);
+
+    constexpr float PI = 3.14159265358979323846;
+    float angleIncrement = 2 * PI / numberOfSides;
+    std::vector<Line> vec;
+
+    float prevX = startX;
+    float prevY = startY;
+    float firstX = prevX;
+    float firstY = prevY;
+    
+    for (unsigned i = 1; i < numberOfSides; i++) {
+        float currentAngle = startAngle + i * angleIncrement;
+        float currentX = centreX + radius * cos(currentAngle);
+        float currentY = centreY + radius * sin(currentAngle);
+        vec.emplace_back(prevX, prevY, currentX, currentY, 0, 255, 0, 1, false, false);
+        prevX = currentX;
+        prevY = currentY;
+    }
+    vec.emplace_back(prevX, prevY, firstX, firstY, 0, 255, 0, 1, false, false);
+    return vec;
 }
 
 } // namespace utils

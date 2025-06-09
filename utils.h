@@ -2,8 +2,12 @@
 
 #include <optional>
 #include <sstream>
+#include <vector>
 
 namespace mgo {
+
+struct Line;
+
 namespace utils {
 
 template <typename T> std::string to_string_with_precision(const T a_value, const int n = 6)
@@ -24,6 +28,13 @@ std::optional<std::pair<unsigned, unsigned>> closestPointOnLine(
     unsigned x,
     unsigned y,
     unsigned d);
+
+std::vector<Line> getRegularPolygon(
+    float startX,
+    float startY,
+    float centreX,
+    float centreY,
+    unsigned numberOfSides);
 
 } // namespace utils
 } // namespace mgo
