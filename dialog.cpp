@@ -31,6 +31,7 @@ std::string getInputFromDialog(
 
     std::string input = defaultEntry;
     bool enterPressed = false;
+    bool firstKeyPress = true;
 
     // Dialog loop
     std::optional event = window.pollEvent(); // Clear the keypress that got us here
@@ -45,8 +46,12 @@ std::string getInputFromDialog(
             } else if (event->is<sf::Event::TextEntered>()) {
                 auto unicode = event->getIf<sf::Event::TextEntered>()->unicode;
                 if (unicode == '\b') {
-                    if (!input.empty()) {
-                        input.pop_back();
+                    if (firstKeyPress) {
+                        input.clear();
+                    } else {
+                        if (!input.empty()) {
+                            input.pop_back();
+                        }
                     }
                 } else if (unicode == '\r' || unicode == '\n') {
                     enterPressed = true;
@@ -54,9 +59,11 @@ std::string getInputFromDialog(
                     auto c = static_cast<char>(unicode);
                     if (inputType == InputType::numeric) {
                         if (std::isdigit(c) || c == '.' || (input.length() == 0 && c == '-')) {
+                            firstKeyPress = false;
                             input += c;
                         }
                     } else {
+                        firstKeyPress = false;
                         input += c;
                     }
                 }
