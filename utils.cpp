@@ -12,13 +12,13 @@ unsigned squaredDistance(unsigned x1, unsigned y1, unsigned x2, unsigned y2)
     return (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
 }
 
-std::tuple<float, float>
-calculatePolarParams(float centreX, float centreY, float startX, float startY)
+std::tuple<double, double>
+calculatePolarParams(double centreX, double centreY, double startX, double startY)
 {
-    float dx = startX - centreX;
-    float dy = startY - centreY;
-    float radius = sqrt(dx * dx + dy * dy);
-    float startAngle = atan2(dy, dx);
+    double dx = startX - centreX;
+    double dy = startY - centreY;
+    double radius = sqrt(dx * dx + dy * dy);
+    double startAngle = atan2(dy, dx);
     return { radius, startAngle };
 }
 
@@ -142,10 +142,10 @@ std::optional<std::pair<unsigned, unsigned>> closestPointOnLine(
 }
 
 std::vector<Line> getRegularPolygon(
-    float startX,
-    float startY,
-    float centreX,
-    float centreY,
+    double startX,
+    double startY,
+    double centreX,
+    double centreY,
     unsigned numberOfSides)
 {
     if (numberOfSides < 3) {
@@ -156,19 +156,19 @@ std::vector<Line> getRegularPolygon(
     }
     auto [radius, startAngle] = calculatePolarParams(centreX, centreY, startX, startY);
 
-    constexpr float PI = 3.14159265358979323846;
-    float angleIncrement = 2 * PI / numberOfSides;
+    constexpr double PI = 3.14159265358979323846;
+    double angleIncrement = 2 * PI / numberOfSides;
     std::vector<Line> vec;
 
-    float prevX = startX;
-    float prevY = startY;
-    float firstX = prevX;
-    float firstY = prevY;
+    double prevX = startX;
+    double prevY = startY;
+    double firstX = prevX;
+    double firstY = prevY;
     
     for (unsigned i = 1; i < numberOfSides; i++) {
-        float currentAngle = startAngle + i * angleIncrement;
-        float currentX = centreX + radius * cos(currentAngle);
-        float currentY = centreY + radius * sin(currentAngle);
+        double currentAngle = startAngle + i * angleIncrement;
+        double currentX = centreX + radius * cos(currentAngle);
+        double currentY = centreY + radius * sin(currentAngle);
         vec.emplace_back(prevX, prevY, currentX, currentY, 0, 255, 0, 1, false, false);
         prevX = currentX;
         prevY = currentY;

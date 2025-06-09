@@ -938,6 +938,16 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                         changeMode(Mode::POLYGON_RADIUS);
                         break;
                     }
+                case Mode::POLYGON_RADIUS:
+                {
+                    // Finalise an in-progress polygon
+                    // TODO how to make it a movable object??
+                    m_lines.insert(m_lines.end(), m_currentPolygon.lines.begin(), m_currentPolygon.lines.end());
+                    m_currentPolygon.lines.clear();
+                    m_currentPolygon.centreX = std::nullopt;
+                    m_currentPolygon.centreY = std::nullopt;
+                    changeMode(Mode::POLYGON_CENTRE);
+                }
 
                 default:
                     break;

@@ -1,6 +1,4 @@
-* Create regular polygon (in "line" or "moving" mode) -- enough sides would approximate a circle too
-  - maybe just press "p", it then asks for number of sides, then you can click once for the centre, and
-    drag out the radius. Clicking again would set the shape in place.
+* Need to be able to create moving polygons -- how?
 
 * Possible to make the dialog nicer? Draw the background behind it?
 

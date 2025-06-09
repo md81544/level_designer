@@ -30,10 +30,10 @@ std::optional<std::pair<unsigned, unsigned>> closestPointOnLine(
     unsigned d);
 
 std::vector<Line> getRegularPolygon(
-    float startX,
-    float startY,
-    float centreX,
-    float centreY,
+    double startX,
+    double startY,
+    double centreX,
+    double centreY,
     unsigned numberOfSides);
 
 } // namespace utils
