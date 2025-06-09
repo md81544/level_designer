@@ -70,7 +70,7 @@ std::string getInputFromDialog(
         }
 
         // Clear and redraw the window
-        window.clear({ 0, 0, 0 });
+        window.clear(sf::Color::Black);
         window.draw(promptText);
         window.draw(inputBox);
         window.draw(inputText);

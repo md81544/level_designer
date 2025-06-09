@@ -1,9 +1,14 @@
 * Need to be able to create moving polygons -- how?
+  * Maybe all groups of lines should be considered movable? How to group?
 
 * Possible to make the dialog nicer? Draw the background behind it?
 
 * When creating lines, the cursor being outside the grid makes the line
   go in the opposite direction (can't replicate on macpro)
+  
 * Create objects which are not obstacles - just decoration
+
 * Multiple selections e.g. highlight several lines for deletion?
+  - maybe ties in with the TODO of making groups of lines movable?
+
 * Maybe make pulsation editable?
