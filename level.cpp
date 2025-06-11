@@ -803,8 +803,8 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     }
                 case Mode::EDIT:
                     {
-                        if (!(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)
-                            || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RShift))) {
+                        if (!(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LSystem)
+                            || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RSystem))) {
                             m_highlightedLineIndices.clear();
                         }
                         // Check to see if there is a line under the cursor
