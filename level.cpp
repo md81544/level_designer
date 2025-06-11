@@ -312,7 +312,7 @@ void mgo::Level::draw(sf::RenderWindow& window)
     for (const auto& l : m_currentMovingObject.lines) {
         drawLine(window, l, std::nullopt);
     }
-    for (const auto& l: m_currentPolygon.lines) {
+    for (const auto& l : m_currentPolygon.lines) {
         drawLine(window, l, std::nullopt);
     }
 }
@@ -331,8 +331,16 @@ void mgo::Level::drawLine(sf::RenderWindow& window, const Line& l, std::optional
 {
     sf::Vertex line[]
         = { sf::Vertex(sf::Vector2f(l.x0, l.y0)), sf::Vertex(sf::Vector2f(l.x1, l.y1)) };
-    if (idx.has_value() && m_highlightedLineIdx.has_value()
-        && m_highlightedLineIdx.value() == idx.value()) {
+    bool highlighted = false;
+    if (idx.has_value()) {
+        for (const size_t i : m_highlightedLineIndices) {
+            if (i == *idx) {
+                highlighted = true;
+                break;
+            }
+        }
+    }
+    if (highlighted) {
         line[0].color = sf::Color(sf::Color::White);
         line[1].color = sf::Color(sf::Color::White);
     } else {
@@ -575,12 +583,13 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     break;
                 case sf::Keyboard::Scancode::Backspace:
                 case sf::Keyboard::Scancode::Delete:
-                    if (m_highlightedLineIdx.has_value()) {
-                        m_lines[m_highlightedLineIdx.value()].inactive = true;
-                        addReplayItem({ Mode::EDIT, m_highlightedLineIdx.value() });
-                        m_highlightedLineIdx = std::nullopt;
-                        m_dirty = true;
-                    } else if (m_highlightedMovingObjectIdx.has_value()) {
+                    for (const size_t i : m_highlightedLineIndices) {
+                        m_lines[i].inactive = true;
+                        addReplayItem({ Mode::EDIT, i });
+                    }
+                    m_highlightedLineIndices.clear();
+                    m_dirty = true;
+                    if (m_highlightedMovingObjectIdx.has_value()) {
                         m_movingObjects.erase(
                             m_movingObjects.begin() + m_highlightedMovingObjectIdx.value());
                         // TODO: not sure if this will work yet:
@@ -687,23 +696,6 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 m_view.move({ static_cast<float>(xDelta), static_cast<float>(yDelta) });
             }
         } else {
-            if (m_currentMode == Mode::EDIT) {
-                // If we're in edit mode, we want to highlight the line under the cursor
-                auto line = lineUnderCursor(window, mouseMove.x, mouseMove.y);
-                if (line.has_value()) {
-                    m_highlightedLineIdx = line.value();
-                    m_highlightedMovingObjectIdx = std::nullopt;
-                } else {
-                    auto movingObject = movingObjectUnderCursor(window, mouseMove.x, mouseMove.y);
-                    if (movingObject.has_value()) {
-                        m_highlightedMovingObjectIdx = movingObject.value();
-                        m_highlightedLineIdx = std::nullopt;
-                    } else {
-                        m_highlightedLineIdx = std::nullopt;
-                        m_highlightedMovingObjectIdx = std::nullopt;
-                    }
-                }
-            }
             if (m_currentMode == Mode::LINE || m_currentMode == Mode::BREAKABLE
                 || m_currentMode == Mode::MOVING) {
                 if (m_snapMode == SnapMode::AUTO || m_snapMode == SnapMode::GRID) {
@@ -811,14 +803,18 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     }
                 case Mode::EDIT:
                     {
-                        // TODO this is probably redundant now that we highlight the
-                        // object on hover instead
+                        if (!(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)
+                            || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RShift))) {
+                            m_highlightedLineIndices.clear();
+                        }
                         // Check to see if there is a line under the cursor
                         auto line = lineUnderCursor(window, mousePos.x, mousePos.y);
+                        addOrRemoveHighlightedLine(line);
                         if (line.has_value()) {
                             m_highlightedLineIdx = line.value();
                             m_highlightedMovingObjectIdx = std::nullopt;
                         } else {
+                            m_highlightedLineIndices.clear();
                             auto movingObject
                                 = movingObjectUnderCursor(window, mousePos.x, mousePos.y);
                             if (movingObject.has_value()) {
@@ -939,15 +935,18 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                         break;
                     }
                 case Mode::POLYGON_RADIUS:
-                {
-                    // Finalise an in-progress polygon
-                    // TODO how to make it a movable object??
-                    m_lines.insert(m_lines.end(), m_currentPolygon.lines.begin(), m_currentPolygon.lines.end());
-                    m_currentPolygon.lines.clear();
-                    m_currentPolygon.centreX = std::nullopt;
-                    m_currentPolygon.centreY = std::nullopt;
-                    changeMode(Mode::POLYGON_CENTRE);
-                }
+                    {
+                        // Finalise an in-progress polygon
+                        // TODO how to make it a movable object??
+                        m_lines.insert(
+                            m_lines.end(),
+                            m_currentPolygon.lines.begin(),
+                            m_currentPolygon.lines.end());
+                        m_currentPolygon.lines.clear();
+                        m_currentPolygon.centreX = std::nullopt;
+                        m_currentPolygon.centreY = std::nullopt;
+                        changeMode(Mode::POLYGON_CENTRE);
+                    }
 
                 default:
                     break;
@@ -973,6 +972,39 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
         }
     }
 }
+
+void Level::addOrRemoveHighlightedLine(std::optional<size_t>& lineIdx)
+{
+    if (!lineIdx.has_value()) {
+        return;
+    }
+    auto i = std::find(m_highlightedLineIndices.begin(), m_highlightedLineIndices.end(), *lineIdx);
+    if (i == m_highlightedLineIndices.end()) {
+        // m_highlightedLineIndices.push_back(*lineIdx);
+        addConnectedLinesToHighlight(m_lines[*lineIdx]);
+    } else {
+        m_highlightedLineIndices.erase(i);
+    }
+}
+
+void Level::addConnectedLinesToHighlight(const Line& line)
+{
+    for (std::size_t i = 0; i < m_lines.size(); ++i) {
+        if (!m_lines[i].inactive) {
+            if (!m_highlightedLineIndices.contains(i)) {
+                if ((m_lines[i].x0 == line.x0 && m_lines[i].y0 == line.y0)
+                    || (m_lines[i].x1 == line.x1 && m_lines[i].y1 == line.y1)
+                    || (m_lines[i].x0 == line.x1 && m_lines[i].y0 == line.y1)
+                    || (m_lines[i].x1 == line.x0 && m_lines[i].y1 == line.y0)) {
+                    m_highlightedLineIndices.insert(i);
+                    addConnectedLinesToHighlight(m_lines[i]);
+                }
+            }
+        }
+    }
+}
+
+void Level::RemoveConnectedLinesFromHighlight(const Line&) { }
 
 void Level::quit(sf::RenderWindow& window)
 {

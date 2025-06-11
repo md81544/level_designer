@@ -3,6 +3,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -123,6 +124,9 @@ public:
     void finishCurrentMovingObject();
 
 private:
+    void addOrRemoveHighlightedLine(std::optional<size_t>& lineIdx);
+    void addConnectedLinesToHighlight(const Line& line);
+    void RemoveConnectedLinesFromHighlight(const Line& line);
     sf::Window& m_window;
     std::string m_levelDescription;
     sf::Font m_font;
@@ -141,7 +145,8 @@ private:
     sf::Text m_dialogText;
     std::function<void(bool, std::string)> m_dialogCallback { [](bool, const std::string&) { } };
     sf::Text m_editModeText;
-    std::optional<std::size_t> m_highlightedLineIdx;
+    std::optional<std::size_t> m_highlightedLineIdx; // TODO REMOVE in favour of the below
+    std::set<std::size_t> m_highlightedLineIndices;
     std::optional<std::size_t> m_highlightedMovingObjectIdx;
     std::optional<std::tuple<unsigned, unsigned>> m_currentNearestSnapPoint { std::nullopt };
     Line m_currentInsertionLine;

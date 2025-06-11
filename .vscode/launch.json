@@ -9,7 +9,7 @@
             "request": "launch",
             "name": "Debug",
             "program": "${workspaceFolder}/level_designer",
-            "args": ["/Users/mcd/tmp/level2.cfg"],
+            "args": ["/Users/mcd/tmp/level0.cfg"],
             "cwd": "${workspaceFolder}"
         }
     ]
