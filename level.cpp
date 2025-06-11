@@ -508,6 +508,22 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
             }
         } else {
             switch (scancode) {
+                case sf::Keyboard::Scancode::V:
+                    {
+                        // Convert selected lines to a movable object
+                        if (!m_highlightedLineIndices.empty()){
+                            MovingObject m;
+                            for(std::size_t i : m_highlightedLineIndices){
+                                m_lines[i].r = 255;
+                                m_lines[i].g = 172;
+                                m_lines[i].b = 163;
+                                m.lines.push_back(m_lines[i]);
+                                m_lines[i].inactive = true;
+                            }
+                            m_movingObjects.push_back(m);
+                        }
+                    }
+                    break;
                 case sf::Keyboard::Scancode::T:
                     {
                         std::string title = getInputFromDialog(
@@ -804,12 +820,17 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 case Mode::EDIT:
                     {
                         if (!(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LSystem)
-                            || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RSystem))) {
+                              || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RSystem))) {
                             m_highlightedLineIndices.clear();
                         }
                         // Check to see if there is a line under the cursor
                         auto line = lineUnderCursor(window, mousePos.x, mousePos.y);
-                        addOrRemoveHighlightedLine(line);
+                        if (!(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl)
+                              || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RControl))) {
+                            addOrRemoveHighlightedLine(line, true);
+                        } else {
+                            addOrRemoveHighlightedLine(line, false);
+                        }
                         if (line.has_value()) {
                             m_highlightedLineIdx = line.value();
                             m_highlightedMovingObjectIdx = std::nullopt;
@@ -973,17 +994,21 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
     }
 }
 
-void Level::addOrRemoveHighlightedLine(std::optional<size_t>& lineIdx)
+void Level::addOrRemoveHighlightedLine(std::optional<size_t>& lineIdx, bool includeConnectedLines)
 {
     if (!lineIdx.has_value()) {
         return;
     }
     auto i = std::find(m_highlightedLineIndices.begin(), m_highlightedLineIndices.end(), *lineIdx);
     if (i == m_highlightedLineIndices.end()) {
-        // m_highlightedLineIndices.push_back(*lineIdx);
-        addConnectedLinesToHighlight(m_lines[*lineIdx]);
+        if (includeConnectedLines) {
+            addConnectedLinesToHighlight(m_lines[*lineIdx]);
+        } else {
+            m_highlightedLineIndices.insert(*lineIdx);
+        }
     } else {
         m_highlightedLineIndices.erase(i);
+        // TODO remove connected lines if includeConnectedLines == true
     }
 }
 
@@ -1003,8 +1028,6 @@ void Level::addConnectedLinesToHighlight(const Line& line)
         }
     }
 }
-
-void Level::RemoveConnectedLinesFromHighlight(const Line&) { }
 
 void Level::quit(sf::RenderWindow& window)
 {

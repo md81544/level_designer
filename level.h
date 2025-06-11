@@ -124,9 +124,8 @@ public:
     void finishCurrentMovingObject();
 
 private:
-    void addOrRemoveHighlightedLine(std::optional<size_t>& lineIdx);
+    void addOrRemoveHighlightedLine(std::optional<size_t>& lineIdx, bool includeConnectedLines);
     void addConnectedLinesToHighlight(const Line& line);
-    void RemoveConnectedLinesFromHighlight(const Line& line);
     sf::Window& m_window;
     std::string m_levelDescription;
     sf::Font m_font;
