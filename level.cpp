@@ -958,7 +958,6 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 case Mode::POLYGON_RADIUS:
                     {
                         // Finalise an in-progress polygon
-                        // TODO how to make it a movable object??
                         m_lines.insert(
                             m_lines.end(),
                             m_currentPolygon.lines.begin(),

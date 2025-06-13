@@ -155,6 +155,9 @@ std::vector<Line> getRegularPolygon(
         numberOfSides = 64;
     }
     auto [radius, startAngle] = calculatePolarParams(centreX, centreY, startX, startY);
+    if (radius < 2) {
+        return {};
+    }
 
     constexpr double PI = 3.14159265358979323846;
     double angleIncrement = 2 * PI / numberOfSides;
@@ -164,7 +167,7 @@ std::vector<Line> getRegularPolygon(
     double prevY = startY;
     double firstX = prevX;
     double firstY = prevY;
-    
+
     for (unsigned i = 1; i < numberOfSides; i++) {
         double currentAngle = startAngle + i * angleIncrement;
         double currentX = centreX + radius * cos(currentAngle);
