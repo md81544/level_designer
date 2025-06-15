@@ -832,7 +832,6 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                             addOrRemoveHighlightedLine(line, false);
                         }
                         if (line.has_value()) {
-                            m_highlightedLineIdx = line.value();
                             m_highlightedMovingObjectIdx = std::nullopt;
                         } else {
                             m_highlightedLineIndices.clear();
@@ -840,7 +839,6 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                                 = movingObjectUnderCursor(window, mousePos.x, mousePos.y);
                             if (movingObject.has_value()) {
                                 m_highlightedMovingObjectIdx = movingObject.value();
-                                m_highlightedLineIdx = std::nullopt;
                             }
                         }
                         break;
@@ -1401,7 +1399,6 @@ void Level::changeMode(Mode mode)
         m_currentPolygon.centreX = std::nullopt;
         m_currentPolygon.centreY = std::nullopt;
     }
-    m_highlightedLineIdx = std::nullopt;
     m_currentInsertionLine.inactive = true;
     m_currentMode = mode;
     if (m_currentMode == Mode::LINE) {

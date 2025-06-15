@@ -144,7 +144,6 @@ private:
     sf::Text m_dialogText;
     std::function<void(bool, std::string)> m_dialogCallback { [](bool, const std::string&) { } };
     sf::Text m_editModeText;
-    std::optional<std::size_t> m_highlightedLineIdx; // TODO REMOVE in favour of the below
     std::set<std::size_t> m_highlightedLineIndices;
     std::optional<std::size_t> m_highlightedMovingObjectIdx;
     std::optional<std::tuple<unsigned, unsigned>> m_currentNearestSnapPoint { std::nullopt };
