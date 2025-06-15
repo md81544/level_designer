@@ -1,7 +1,6 @@
 #include "dialog.h"
 
-// This is not very pretty... it just takes over the main window, which means
-// that there's just a black screen behind the "dialog".
+// Note this has its own event loop so acts as a modal dialog
 
 std::string getInputFromDialog(
     sf::RenderWindow& window,
@@ -11,12 +10,17 @@ std::string getInputFromDialog(
     const std::string& defaultEntry, /* ="" */
     InputType inputType /* = InputType::string */)
 {
+    // Save the existing main window's contents so we're not displaying on a black screen
+    sf::Texture windowContent;
+    if (windowContent.resize({ window.getSize().x, window.getSize().y })) {
+        windowContent.update(window);
+    }
     auto oldView = window.getView();
     window.setView(view);
     // Text and input box elements
     sf::Text promptText(font, prompt, 20);
     promptText.setFillColor(sf::Color::Green);
-    promptText.setPosition({ 20, 20 });
+    promptText.setPosition({ 20, 30 });
 
     sf::RectangleShape inputBox(sf::Vector2f(480, 40));
     inputBox.setFillColor(sf::Color::White);
@@ -78,6 +82,7 @@ std::string getInputFromDialog(
 
         // Clear and redraw the window
         window.clear(sf::Color::Black);
+        window.draw(sf::Sprite(windowContent)); // draw the static main window content
         window.draw(promptText);
         window.draw(inputBox);
         window.draw(inputText);
