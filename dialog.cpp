@@ -11,10 +11,8 @@ std::string getInputFromDialog(
     InputType inputType /* = InputType::string */)
 {
     // Save the existing main window's contents so we're not displaying on a black screen
-    sf::Texture windowContent;
-    if (windowContent.resize({ window.getSize().x, window.getSize().y })) {
-        windowContent.update(window);
-    }
+    sf::Texture windowContent(sf::Vector2u(window.getSize().x, window.getSize().y));
+    windowContent.update(window);
     auto oldView = window.getView();
     window.setView(view);
     // Text and input box elements
