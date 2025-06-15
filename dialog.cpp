@@ -80,7 +80,9 @@ std::string getInputFromDialog(
 
         // Clear and redraw the window
         window.clear(sf::Color::Black);
-        window.draw(sf::Sprite(windowContent)); // draw the static main window content
+        sf::Sprite sprite(windowContent);
+        sprite.setColor({ 160, 160, 160 }); // dim it a bit
+        window.draw(sprite); // draw the static main window content
         window.draw(promptText);
         window.draw(inputBox);
         window.draw(inputText);
