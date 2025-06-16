@@ -511,9 +511,9 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 case sf::Keyboard::Scancode::V:
                     {
                         // Convert selected lines to a movable object
-                        if (!m_highlightedLineIndices.empty()){
+                        if (!m_highlightedLineIndices.empty()) {
                             MovingObject m;
-                            for(std::size_t i : m_highlightedLineIndices){
+                            for (std::size_t i : m_highlightedLineIndices) {
                                 m_lines[i].r = 255;
                                 m_lines[i].g = 172;
                                 m_lines[i].b = 163;
@@ -619,16 +619,24 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     finishCurrentMovingObject();
                     break;
                 case sf::Keyboard::Scancode::Left:
-                    m_view.move({ -25, 0 });
+                    if (m_highlightedMovingObjectIdx.has_value()) {
+                        moveObject(*m_highlightedMovingObjectIdx, -1, 0);
+                    }
                     break;
                 case sf::Keyboard::Scancode::Right:
-                    m_view.move({ 25, 0 });
+                    if (m_highlightedMovingObjectIdx.has_value()) {
+                        moveObject(*m_highlightedMovingObjectIdx, 1, 0);
+                    }
                     break;
                 case sf::Keyboard::Scancode::Up:
-                    m_view.move({ 0, -25 });
+                    if (m_highlightedMovingObjectIdx.has_value()) {
+                        moveObject(*m_highlightedMovingObjectIdx, 0, -1);
+                    }
                     break;
                 case sf::Keyboard::Scancode::Down:
-                    m_view.move({ 0, 25 });
+                    if (m_highlightedMovingObjectIdx.has_value()) {
+                        moveObject(*m_highlightedMovingObjectIdx, 0, 1);
+                    }
                     break;
                 case sf::Keyboard::Scancode::X:
                     // Edit moving object's X delta and max difference
@@ -1023,6 +1031,17 @@ void Level::addConnectedLinesToHighlight(const Line& line)
                 }
             }
         }
+    }
+}
+
+void Level::moveObject(std::size_t movingObjectIdx, unsigned x, unsigned y)
+{
+    auto& obj = m_movingObjects[movingObjectIdx];
+    for(auto& line : obj.lines) {
+        line.x0 += x;
+        line.y0 += y;
+        line.x1 += x;
+        line.y1 += y;
     }
 }
 
