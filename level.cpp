@@ -620,22 +620,30 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     break;
                 case sf::Keyboard::Scancode::Left:
                     if (m_highlightedMovingObjectIdx.has_value()) {
-                        moveObject(*m_highlightedMovingObjectIdx, -1, 0);
+                        moveMovingObject(*m_highlightedMovingObjectIdx, -1, 0);
+                    } else {
+                        moveLines(-1, 0);
                     }
                     break;
                 case sf::Keyboard::Scancode::Right:
                     if (m_highlightedMovingObjectIdx.has_value()) {
-                        moveObject(*m_highlightedMovingObjectIdx, 1, 0);
+                        moveMovingObject(*m_highlightedMovingObjectIdx, 1, 0);
+                    } else {
+                        moveLines(1, 0);
                     }
                     break;
                 case sf::Keyboard::Scancode::Up:
                     if (m_highlightedMovingObjectIdx.has_value()) {
-                        moveObject(*m_highlightedMovingObjectIdx, 0, -1);
+                        moveMovingObject(*m_highlightedMovingObjectIdx, 0, -1);
+                    } else {
+                        moveLines(0, -1);
                     }
                     break;
                 case sf::Keyboard::Scancode::Down:
                     if (m_highlightedMovingObjectIdx.has_value()) {
-                        moveObject(*m_highlightedMovingObjectIdx, 0, 1);
+                        moveMovingObject(*m_highlightedMovingObjectIdx, 0, 1);
+                    } else {
+                        moveLines(0, 1);
                     }
                     break;
                 case sf::Keyboard::Scancode::X:
@@ -1034,14 +1042,24 @@ void Level::addConnectedLinesToHighlight(const Line& line)
     }
 }
 
-void Level::moveObject(std::size_t movingObjectIdx, unsigned x, unsigned y)
+void Level::moveMovingObject(std::size_t movingObjectIdx, unsigned x, unsigned y)
 {
     auto& obj = m_movingObjects[movingObjectIdx];
-    for(auto& line : obj.lines) {
+    for (auto& line : obj.lines) {
         line.x0 += x;
         line.y0 += y;
         line.x1 += x;
         line.y1 += y;
+    }
+}
+
+void Level::moveLines(unsigned x, unsigned y)
+{
+    for (auto& idx : m_highlightedLineIndices) {
+        m_lines[idx].x0 += x;
+        m_lines[idx].y0 += y;
+        m_lines[idx].x1 += x;
+        m_lines[idx].y1 += y;
     }
 }
 
