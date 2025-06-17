@@ -315,6 +315,7 @@ void Level::drawMovingObjectBoundary(
         minY -= m.yMaxDifference;
         maxY += m.yMaxDifference;
     }
+
     if (m.rotationDelta == 0.f) {
         Line l1 { minX, minY, minX, maxY, 128, 128, 0 };
         drawLine(window, l1, std::nullopt);
@@ -325,16 +326,30 @@ void Level::drawMovingObjectBoundary(
         Line l4 { minX, minY, maxX, minY, 128, 128, 0 };
         drawLine(window, l4, std::nullopt);
     } else {
+        // It's rotating, so we calculate the max radius by finding the vertex furthest from the centre
         float centreX = minX + (maxX - minX) / 2;
         float centreY = minY + (maxY - minY) / 2;
-        float radius = std::sqrt(
-            ((maxX - centreX) * (maxX - centreX)) + ((maxY - centreY) * (maxY - centreY)));
+        float maxRadius { 0.f };
+        for (const auto& l : m.lines) {
+            auto r = std::sqrt(
+                ((l.x0 - centreX) * (l.x0 - centreX)) + ((l.y0 - centreY) * (l.y0 - centreY)));
+            if (r > maxRadius) {
+                maxRadius = r;
+            }
+            r = std::sqrt(
+                ((l.x1 - centreX) * (l.x1 - centreX)) + ((l.y1 - centreY) * (l.y1 - centreY)));
+            if (r > maxRadius) {
+                maxRadius = r;
+            }
+        }
+        // The radius could also be affected by x/y movement
+        maxRadius += m.xMaxDifference > m.yMaxDifference? m.xMaxDifference : m.yMaxDifference;
         sf::CircleShape circle;
-        circle.setRadius(radius);
-        circle.setOutlineColor({ 128, 128, 0 });
+        circle.setRadius(maxRadius);
+        circle.setOutlineColor({ 128, 128, 128 });
         circle.setOutlineThickness(1);
         circle.setFillColor(sf::Color::Transparent);
-        circle.setPosition({ centreX - radius, centreY - radius });
+        circle.setPosition({ centreX - maxRadius, centreY - maxRadius });
         window.draw(circle);
     }
 }
