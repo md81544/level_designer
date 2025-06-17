@@ -253,52 +253,69 @@ void mgo::Level::draw(sf::RenderWindow& window)
     }
     idx = 0;
     for (const auto& m : m_movingObjects) {
-        unsigned minX { std::numeric_limits<unsigned>::max() };
-        unsigned minY { std::numeric_limits<unsigned>::max() };
-        unsigned maxX { 0 };
-        unsigned maxY { 0 };
-        for (auto l : m.lines) {
-            if (m_highlightedMovingObjectIdx.has_value()
-                && m_highlightedMovingObjectIdx.value() == idx) {
-                l.r = 255;
-                l.g = 255;
-                l.b = 255;
-            }
-            drawLine(window, l, std::nullopt);
-            // Determine bounding box:
-            if (l.x0 < minX) {
-                minX = l.x0 - 1;
-            }
-            if (l.x1 < minX) {
-                minX = l.x1 - 1;
-            }
-            if (l.y0 < minY) {
-                minY = l.y0 - 1;
-            }
-            if (l.y1 < minY) {
-                minY = l.y1 - 1;
-            }
-            if (l.x0 > maxX) {
-                maxX = l.x0 + 1;
-            }
-            if (l.x1 > maxX) {
-                maxX = l.x1 + 1;
-            }
-            if (l.y0 > maxY) {
-                maxY = l.y0 + 1;
-            }
-            if (l.y1 > maxY) {
-                maxY = l.y1 + 1;
-            }
+        drawMovingObjectBoundary(m, idx, window);
+        ++idx;
+    }
+    for (const auto& l : m_currentMovingObject.lines) {
+        drawLine(window, l, std::nullopt);
+    }
+    for (const auto& l : m_currentPolygon.lines) {
+        drawLine(window, l, std::nullopt);
+    }
+}
+
+void Level::drawMovingObjectBoundary(
+    const mgo::MovingObject& m,
+    size_t idx,
+    sf::RenderWindow& window)
+{
+    unsigned minX { std::numeric_limits<unsigned>::max() };
+    unsigned minY { std::numeric_limits<unsigned>::max() };
+    unsigned maxX { 0 };
+    unsigned maxY { 0 };
+    for (auto l : m.lines) {
+        if (m_highlightedMovingObjectIdx.has_value()
+            && m_highlightedMovingObjectIdx.value() == idx) {
+            l.r = 255;
+            l.g = 255;
+            l.b = 255;
         }
-        if (m.xDelta != 0.f) {
-            minX -= m.xMaxDifference;
-            maxX += m.xMaxDifference;
+        drawLine(window, l, std::nullopt);
+        // Determine bounding box:
+        if (l.x0 < minX) {
+            minX = l.x0 - 1;
         }
-        if (m.yDelta != 0.f) {
-            minY -= m.yMaxDifference;
-            maxY += m.yMaxDifference;
+        if (l.x1 < minX) {
+            minX = l.x1 - 1;
         }
+        if (l.y0 < minY) {
+            minY = l.y0 - 1;
+        }
+        if (l.y1 < minY) {
+            minY = l.y1 - 1;
+        }
+        if (l.x0 > maxX) {
+            maxX = l.x0 + 1;
+        }
+        if (l.x1 > maxX) {
+            maxX = l.x1 + 1;
+        }
+        if (l.y0 > maxY) {
+            maxY = l.y0 + 1;
+        }
+        if (l.y1 > maxY) {
+            maxY = l.y1 + 1;
+        }
+    }
+    if (m.xDelta != 0.f) {
+        minX -= m.xMaxDifference;
+        maxX += m.xMaxDifference;
+    }
+    if (m.yDelta != 0.f) {
+        minY -= m.yMaxDifference;
+        maxY += m.yMaxDifference;
+    }
+    if (m.rotationDelta == 0.f) {
         Line l1 { minX, minY, minX, maxY, 128, 128, 0 };
         drawLine(window, l1, std::nullopt);
         Line l2 { minX, maxY, maxX, maxY, 128, 128, 0 };
@@ -307,13 +324,18 @@ void mgo::Level::draw(sf::RenderWindow& window)
         drawLine(window, l3, std::nullopt);
         Line l4 { minX, minY, maxX, minY, 128, 128, 0 };
         drawLine(window, l4, std::nullopt);
-        ++idx;
-    }
-    for (const auto& l : m_currentMovingObject.lines) {
-        drawLine(window, l, std::nullopt);
-    }
-    for (const auto& l : m_currentPolygon.lines) {
-        drawLine(window, l, std::nullopt);
+    } else {
+        float centreX = minX + (maxX - minX) / 2;
+        float centreY = minY + (maxY - minY) / 2;
+        float radius = std::sqrt(
+            ((maxX - centreX) * (maxX - centreX)) + ((maxY - centreY) * (maxY - centreY)));
+        sf::CircleShape circle;
+        circle.setRadius(radius);
+        circle.setOutlineColor({ 128, 128, 0 });
+        circle.setOutlineThickness(1);
+        circle.setFillColor(sf::Color::Transparent);
+        circle.setPosition({ centreX - radius, centreY - radius });
+        window.draw(circle);
     }
 }
 
@@ -619,30 +641,30 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     finishCurrentMovingObject();
                     break;
                 case sf::Keyboard::Scancode::Left:
-                        if (m_highlightedMovingObjectIdx.has_value()) {
+                    if (m_highlightedMovingObjectIdx.has_value()) {
                         moveMovingObject(*m_highlightedMovingObjectIdx, -1, 0);
-                        } else {
+                    } else {
                         moveLines(-1, 0);
                     }
                     break;
                 case sf::Keyboard::Scancode::Right:
-                        if (m_highlightedMovingObjectIdx.has_value()) {
+                    if (m_highlightedMovingObjectIdx.has_value()) {
                         moveMovingObject(*m_highlightedMovingObjectIdx, 1, 0);
-                        } else {
+                    } else {
                         moveLines(1, 0);
                     }
                     break;
                 case sf::Keyboard::Scancode::Up:
-                        if (m_highlightedMovingObjectIdx.has_value()) {
+                    if (m_highlightedMovingObjectIdx.has_value()) {
                         moveMovingObject(*m_highlightedMovingObjectIdx, 0, -1);
-                        } else {
+                    } else {
                         moveLines(0, -1);
                     }
                     break;
                 case sf::Keyboard::Scancode::Down:
-                        if (m_highlightedMovingObjectIdx.has_value()) {
+                    if (m_highlightedMovingObjectIdx.has_value()) {
                         moveMovingObject(*m_highlightedMovingObjectIdx, 0, 1);
-                        } else {
+                    } else {
                         moveLines(0, 1);
                     }
                     break;

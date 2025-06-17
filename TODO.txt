@@ -1,9 +1,5 @@
 * Now dialog is working nicely maybe expand it to get rid of the other dialog code
 
-* It'd be nice to be able to move objects... but define an object...?
-    - Maybe all groups of lines should be considered movable? How to group?
-    - highlight contiguous lines and press a key to group
-
 * When creating lines, the cursor being outside the grid makes the line
   go in the opposite direction (can't replicate on macpro)
   

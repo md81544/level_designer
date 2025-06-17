@@ -86,6 +86,7 @@ public:
     void load(const std::string& filename);
     void save();
     void draw(sf::RenderWindow& window);
+    void drawMovingObjectBoundary(const mgo::MovingObject& m, size_t idx, sf::RenderWindow& window);
     void drawDialog(sf::RenderWindow& window);
     void drawLine(sf::RenderWindow& window, const Line& line, std::optional<std::size_t> idx);
     void drawRegularPolygon(
