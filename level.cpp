@@ -326,7 +326,8 @@ void Level::drawMovingObjectBoundary(
         Line l4 { minX, minY, maxX, minY, 128, 128, 0 };
         drawLine(window, l4, std::nullopt);
     } else {
-        // It's rotating, so we calculate the max radius by finding the vertex furthest from the centre
+        // It's rotating, so we calculate the max radius by finding the vertex furthest from the
+        // centre
         float centreX = minX + (maxX - minX) / 2;
         float centreY = minY + (maxY - minY) / 2;
         float maxRadius { 0.f };
@@ -342,16 +343,31 @@ void Level::drawMovingObjectBoundary(
                 maxRadius = r;
             }
         }
-        // The radius could also be affected by x/y movement
-        maxRadius += m.xMaxDifference > m.yMaxDifference? m.xMaxDifference : m.yMaxDifference;
-        sf::CircleShape circle;
-        circle.setRadius(maxRadius);
-        circle.setOutlineColor({ 128, 128, 128 });
-        circle.setOutlineThickness(1);
-        circle.setFillColor(sf::Color::Transparent);
-        circle.setPosition({ centreX - maxRadius, centreY - maxRadius });
-        window.draw(circle);
+        drawCircle(maxRadius, centreX, centreY, window);
+        // The radius could also be affected by x/y movement, we also draw a circle at either end
+        // TODO this doesn't work well if there is both x and y movement as we then have five
+        // circles showing more of a cross shape rather than the boundaries of movement. Worth
+        // adressing further?
+        if (m.xMaxDifference > 0.f) {
+            drawCircle(maxRadius, centreX - m.xMaxDifference, centreY, window);
+            drawCircle(maxRadius, centreX + m.xMaxDifference, centreY, window);
+        }
+        if (m.yMaxDifference > 0.f) {
+            drawCircle(maxRadius, centreX, centreY - m.yMaxDifference, window);
+            drawCircle(maxRadius, centreX, centreY + m.yMaxDifference, window);
+        }
     }
+}
+
+void Level::drawCircle(float maxRadius, float centreX, float centreY, sf::RenderWindow& window)
+{
+    sf::CircleShape circle;
+    circle.setRadius(maxRadius);
+    circle.setOutlineColor({ 128, 128, 0 });
+    circle.setOutlineThickness(1);
+    circle.setFillColor(sf::Color::Transparent);
+    circle.setPosition({ centreX - maxRadius, centreY - maxRadius });
+    window.draw(circle);
 }
 
 void mgo::Level::drawDialog(sf::RenderWindow& window)
