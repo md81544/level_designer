@@ -345,10 +345,16 @@ void Level::drawMovingObjectBoundary(
         }
         drawCircle(maxRadius, centreX, centreY, window);
         // The radius could also be affected by x/y movement, we also draw a circle at either end
-        // TODO this doesn't work well if there is both x and y movement as we then have five
-        // circles showing more of a cross shape rather than the boundaries of movement. Worth
-        // adressing further?
-        if (m.xMaxDifference > 0.f) {
+        if (m.xMaxDifference > 0.f && m.yMaxDifference > 0.f) {
+            // Having six circles around an object that is rotating AND has x AND y deltas looks
+            // a bit messy, but it does give an indication of where the object can be. A nicer
+            // approach might be a boundary with rounded sides, but I think that's too complex
+            // to construct for the benefit
+            drawCircle(maxRadius, centreX - m.xMaxDifference, centreY - m.yMaxDifference, window);
+            drawCircle(maxRadius, centreX + m.xMaxDifference, centreY + m.yMaxDifference, window);
+            drawCircle(maxRadius, centreX + m.xMaxDifference, centreY - m.yMaxDifference, window);
+            drawCircle(maxRadius, centreX - m.xMaxDifference, centreY + m.yMaxDifference, window);
+        } else if (m.xMaxDifference > 0.f) {
             drawCircle(maxRadius, centreX - m.xMaxDifference, centreY, window);
             drawCircle(maxRadius, centreX + m.xMaxDifference, centreY, window);
         }
