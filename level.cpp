@@ -343,24 +343,22 @@ void Level::drawMovingObjectBoundary(
                 maxRadius = r;
             }
         }
-        drawCircle(maxRadius, centreX, centreY, window);
-        // The radius could also be affected by x/y movement, we also draw a circle at either end
-        if (m.xMaxDifference > 0.f && m.yMaxDifference > 0.f) {
-            // Having six circles around an object that is rotating AND has x AND y deltas looks
-            // a bit messy, but it does give an indication of where the object can be. A nicer
-            // approach might be a boundary with rounded sides, but I think that's too complex
-            // to construct for the benefit
-            drawCircle(maxRadius, centreX - m.xMaxDifference, centreY - m.yMaxDifference, window);
-            drawCircle(maxRadius, centreX + m.xMaxDifference, centreY + m.yMaxDifference, window);
-            drawCircle(maxRadius, centreX + m.xMaxDifference, centreY - m.yMaxDifference, window);
-            drawCircle(maxRadius, centreX - m.xMaxDifference, centreY + m.yMaxDifference, window);
-        } else if (m.xMaxDifference > 0.f) {
-            drawCircle(maxRadius, centreX - m.xMaxDifference, centreY, window);
-            drawCircle(maxRadius, centreX + m.xMaxDifference, centreY, window);
-        }
-        if (m.yMaxDifference > 0.f) {
-            drawCircle(maxRadius, centreX, centreY - m.yMaxDifference, window);
-            drawCircle(maxRadius, centreX, centreY + m.yMaxDifference, window);
+        if (m.xMaxDifference > 0.f || m.yMaxDifference > 0.f) {
+            // Circumscribe all possible positions
+            drawRoundedRect(
+                window,
+                centreX - m.xMaxDifference - maxRadius, // top left
+                centreY - m.yMaxDifference - maxRadius,
+                (centreX + m.xMaxDifference + maxRadius) - (centreX - m.xMaxDifference - maxRadius),
+                (centreY + m.yMaxDifference + maxRadius) - (centreY - m.yMaxDifference - maxRadius),
+                maxRadius,
+                128,
+                128,
+                0);
+        } else {
+            // It's just rotating, so we can simply draw a circle around it to show all possible
+            // positions
+            drawCircle(maxRadius, centreX, centreY, window);
         }
     }
 }
@@ -374,6 +372,47 @@ void Level::drawCircle(float maxRadius, float centreX, float centreY, sf::Render
     circle.setFillColor(sf::Color::Transparent);
     circle.setPosition({ centreX - maxRadius, centreY - maxRadius });
     window.draw(circle);
+}
+
+void Level::drawRoundedRect(
+    sf::RenderWindow& window,
+    float x,
+    float y,
+    float w,
+    float h,
+    float r,
+    uint8_t red,
+    uint8_t green,
+    uint8_t blue)
+{
+    // Ensure radius isn't too big for size:
+    r = std::min(r, std::min(w, h) / 2);
+    auto addLine = [&](unsigned x0, unsigned y0, unsigned x1, unsigned y1) {
+        Line line = { x0, y0, x1, y1, red, green, blue };
+        drawLine(window, line);
+    };
+    constexpr unsigned segments = 6; // Number of segments to approximate quarter circles
+    addLine(x + r, y, x + w - r, y);
+    addLine(x + r, y + h, x + w - r, y + h);
+    addLine(x, y + r, x, y + h - r);
+    addLine(x + w, y + r, x + w, y + h - r);
+    auto drawArc = [&](float cx, float cy, float startAngle, float endAngle) {
+        float angleStep = (endAngle - startAngle) / segments;
+        for (unsigned i = 0; i < segments; ++i) {
+            float a0 = startAngle + i * angleStep;
+            float a1 = a0 + angleStep;
+            unsigned x0 = static_cast<unsigned>(cx + r * std::cos(a0));
+            unsigned y0 = static_cast<unsigned>(cy + r * std::sin(a0));
+            unsigned x1 = static_cast<unsigned>(cx + r * std::cos(a1));
+            unsigned y1 = static_cast<unsigned>(cy + r * std::sin(a1));
+            addLine(x0, y0, x1, y1);
+        }
+    };
+    constexpr float PI = 3.14159265f;
+    drawArc(x + r, y + r, PI, 1.5f * PI);
+    drawArc(x + w - r, y + r, 1.5f * PI, 2.0f * PI);
+    drawArc(x + w - r, y + h - r, 0.0f, 0.5f * PI);
+    drawArc(x + r, y + h - r, 0.5f * PI, PI);
 }
 
 void mgo::Level::drawDialog(sf::RenderWindow& window)

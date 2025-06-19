@@ -88,8 +88,18 @@ public:
     void draw(sf::RenderWindow& window);
     void drawMovingObjectBoundary(const mgo::MovingObject& m, size_t idx, sf::RenderWindow& window);
     void drawCircle(float maxRadius, float centreX, float centreY, sf::RenderWindow& window);
+    void drawRoundedRect(
+        sf::RenderWindow& window,
+        float x,
+        float y,
+        float w,
+        float h,
+        float r,
+        uint8_t red,
+        uint8_t green,
+        uint8_t blue);
     void drawDialog(sf::RenderWindow& window);
-    void drawLine(sf::RenderWindow& window, const Line& line, std::optional<std::size_t> idx);
+    void drawLine(sf::RenderWindow& window, const Line& line, std::optional<std::size_t> idx = std::nullopt);
     void drawRegularPolygon(
         sf::RenderWindow& window,
         float centreX,
