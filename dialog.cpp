@@ -46,19 +46,19 @@ std::string getInputFromDialog(
             if (event->is<sf::Event::Closed>()) {
                 window.close();
             } else if (event->is<sf::Event::TextEntered>()) {
-                auto unicode = event->getIf<sf::Event::TextEntered>()->unicode;
-                if (unicode == '\b') {
-                    if (firstKeyPress) {
-                        input.clear();
-                    } else {
-                        if (!input.empty()) {
-                            input.pop_back();
-                        }
+                auto keyPress = event->getIf<sf::Event::TextEntered>()->unicode;
+                // If the user doesn't press enter then clear the entry
+                if (keyPress != '\r' && keyPress != '\n' && firstKeyPress) {
+                    input.clear();
+                }
+                if (keyPress == '\b') {
+                    if (!input.empty()) {
+                        input.pop_back();
                     }
-                } else if (unicode == '\r' || unicode == '\n') {
+                } else if (keyPress == '\r' || keyPress == '\n') {
                     enterPressed = true;
-                } else if (unicode < 128) { // ASCII characters
-                    auto c = static_cast<char>(unicode);
+                } else if (keyPress > 31 && keyPress < 128) { // ASCII characters
+                    auto c = static_cast<char>(keyPress);
                     if (inputType == InputType::numeric) {
                         if (std::isdigit(c) || c == '.' || (input.length() == 0 && c == '-')) {
                             firstKeyPress = false;
@@ -83,6 +83,7 @@ std::string getInputFromDialog(
         sf::Sprite sprite(windowContent);
         sprite.setColor({ 160, 160, 160 }); // dim it a bit
         window.draw(sprite); // draw the static main window content
+
         window.draw(promptText);
         window.draw(inputBox);
         window.draw(inputText);
