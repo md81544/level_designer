@@ -7,7 +7,7 @@ I tried that recently and Inkscape just has too many bugs and quirks to make it 
 
 I experimented with other SVG programs, both local and web-based, and none fitted my requirements. So I thought, how hard can it be to make my own? : )
 
-This is the result. Three days' worth of effort and I have an graphical editor I can use. It's a bit quick-and-dirty, but functional.
+This is the result. Three days' worth of initial effort and I had an graphical editor I could use. It's a bit quick-and-dirty (it sorely requires refactoring), but it's functional.
 
 ### Usage
 Existing level files can be loaded by specifying the file name on the command line. There is an example.lvl file included.

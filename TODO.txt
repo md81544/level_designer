@@ -1,8 +1,10 @@
+* Add a polygon, then a breakable line, then press undo. Both disappear.
+
 * Now dialog is working nicely maybe expand it to get rid of the other dialog code
 
 * When creating lines, the cursor being outside the grid makes the line
   go in the opposite direction (can't replicate on macpro)
-  
+
 * Create objects which are not obstacles - just decoration
 
 * Multiple selections e.g. highlight several lines for deletion?
