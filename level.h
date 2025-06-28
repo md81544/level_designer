@@ -100,12 +100,6 @@ public:
         uint8_t blue);
     void drawDialog(sf::RenderWindow& window);
     void drawLine(sf::RenderWindow& window, const Line& line, std::optional<std::size_t> idx = std::nullopt);
-    void drawRegularPolygon(
-        sf::RenderWindow& window,
-        float centreX,
-        float centreY,
-        unsigned numberOfSides,
-        float radius);
     void drawGridLines(sf::RenderWindow& window);
     // Returns the index (into m_Lines) of the first (of potentially several) lines that are *near*
     // the cursor or no value if no lines are nearby.
