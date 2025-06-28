@@ -1070,14 +1070,21 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                 case Mode::POLYGON_RADIUS:
                     {
                         // Finalise an in-progress polygon
-                        m_lines.insert(
-                            m_lines.end(),
-                            m_currentPolygon.lines.begin(),
-                            m_currentPolygon.lines.end());
-                        m_currentPolygon.lines.clear();
-                        m_currentPolygon.centreX = std::nullopt;
-                        m_currentPolygon.centreY = std::nullopt;
-                        changeMode(Mode::POLYGON_CENTRE);
+                        auto w = window.mapPixelToCoords(
+                            { static_cast<int>(mousePos.x), static_cast<int>(mousePos.y) });
+                        auto maxDist = std::max(
+                            std::abs(static_cast<float>(w.x) - *m_currentPolygon.centreX),
+                            std::abs(static_cast<float>(w.y) - *m_currentPolygon.centreY));
+                        if (maxDist > 5.f) { // arbitrary lower limit for polygons' radii
+                            m_lines.insert(
+                                m_lines.end(),
+                                m_currentPolygon.lines.begin(),
+                                m_currentPolygon.lines.end());
+                            m_currentPolygon.lines.clear();
+                            m_currentPolygon.centreX = std::nullopt;
+                            m_currentPolygon.centreY = std::nullopt;
+                            changeMode(Mode::POLYGON_CENTRE);
+                        }
                     }
 
                 default:
