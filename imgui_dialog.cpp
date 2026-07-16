@@ -59,8 +59,8 @@ Dialog::Dialog(sf::RenderWindow& window)
     // Load a custom font BEFORE the first UpdateFontTexture call.
     // If we skip this, the default ImGui font is used automatically.
     ImGuiIO& io = ImGui::GetIO();
-    // TODO io.Fonts->Clear();
-    // TODO io.Fonts->AddFontFromFileTTF((dataDir + "/Oxanium-SemiBold.ttf").c_str(), 18.0f);
+    io.Fonts->Clear();
+    io.Fonts->AddFontFromFileTTF("DroidSansMono.ttf", 16.0f);
     auto _ = ImGui::SFML::UpdateFontTexture();
 
     // Disable creation of imgui.ini (enable by removing this line if you want
@@ -192,18 +192,21 @@ Status Dialog::build()
 
     if (ImGui::Button("Quit", ImVec2(120, 0))) {
         m_confirmBox.open("Confirm", "Are you sure?", MessageBox::Buttons::OkCancel);
-        switch (m_confirmBox.draw()) {
-            case MessageBox::Result::Ok:
-                rc.quit = true;
-                break;
-            case MessageBox::Result::Cancel:
-                break;
-            case MessageBox::Result::None:
-                break; // still open, or not open at all
-        }
     }
 
     ImGui::End();
+
+    // This must run every frame, not just when Quit was clicked:
+    switch (m_confirmBox.draw()) {
+        case MessageBox::Result::Ok:
+            rc.quit = true;
+            break;
+        case MessageBox::Result::Cancel:
+            break;
+        case MessageBox::Result::None:
+            break;
+    }
+
     return rc;
 }
 
