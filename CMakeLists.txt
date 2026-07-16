@@ -69,6 +69,14 @@ ADD_CUSTOM_TARGET(release
     COMMENT "Switch CMAKE_BUILD_TYPE to Release"
 )
 
+# Symlink to the binary
+add_custom_command(
+    TARGET ${APP_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+        $<TARGET_FILE:${APP_NAME}>
+        ${CMAKE_SOURCE_DIR}/$<TARGET_FILE_NAME:${APP_NAME}>
+    COMMENT "Updating symlink: $<TARGET_FILE_NAME:${APP_NAME}> -> $<TARGET_FILE:${APP_NAME}>"
+)
 add_custom_command(
     TARGET ${APP_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E create_symlink
