@@ -2,13 +2,11 @@
 #include "imgui_dialog.h"
 #include <SFML/Graphics.hpp>
 #include <functional>
-#include <memory>
 #include <optional>
 #include <set>
 #include <string>
 #include <tuple>
 #include <utility>
-#include <variant>
 #include <vector>
 
 // As this application is a bit quick-and-dirty, this class holds pretty much everything in it

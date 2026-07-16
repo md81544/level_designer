@@ -1226,7 +1226,7 @@ void Level::quit(sf::RenderWindow& window)
 
 void Level::zoomOut()
 {
-    if (m_view.getSize().x < 2400.f) {
+    if (m_view.getSize().x < 5000.f) {
         m_view.zoom(1.05f);
         m_viewZoomLevel *= 1.05f;
     }

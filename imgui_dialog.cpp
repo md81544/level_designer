@@ -196,7 +196,8 @@ Status Dialog::build()
 
     ImGui::End();
 
-    // This must run every frame, not just when Quit was clicked:
+    // This must run every frame!
+    
     switch (m_confirmBox.draw()) {
         case MessageBox::Result::Ok:
             rc.quit = true;
@@ -204,6 +205,7 @@ Status Dialog::build()
         case MessageBox::Result::Cancel:
             break;
         case MessageBox::Result::None:
+            // still open, or not open at all
             break;
     }
 

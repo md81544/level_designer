@@ -3,7 +3,7 @@ I am in the process of resurrecting a game called "Amaze" that I wrote for an op
 
 To design the levels originally, I used Inkscape, and wrote a small utility to parse the SVG file to create levels that the game could use.
 
-I tried that recently and Inkscape just has too many bugs and quirks to make it usable for me. I don't recall having so many issues in the past... maybe bit-rot has set in there?
+I tried that recently and Inkscape just has too many bugs and quirks (on Mac) to make it usable for me.
 
 I experimented with other SVG programs, both local and web-based, and none fitted my requirements. So I thought, how hard can it be to make my own? : )
 
