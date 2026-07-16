@@ -25,6 +25,33 @@ struct Status {
     bool save { false };
 };
 
+class MessageBox {
+public:
+    enum class Result {
+        None,
+        Ok,
+        Cancel
+    };
+
+    enum class Buttons {
+        OkOnly,
+        OkCancel
+    };
+
+    // Call this to trigger the popup to open (e.g. from a button click)
+    void
+    open(const std::string& title, const std::string& message, Buttons buttons = Buttons::OkCancel);
+    // Call this every frame, unconditionally. Returns the button pressed
+    // this frame (Result::None most of the time).
+    Result draw();
+
+private:
+    std::string m_title;
+    std::string m_message;
+    Buttons m_buttons { Buttons::OkCancel };
+    bool m_shouldOpen = { false };
+};
+
 class Dialog {
 public:
     explicit Dialog(sf::RenderWindow& window);
@@ -39,7 +66,7 @@ public:
 private:
     sf::Clock m_deltaClock;
     sf::RenderWindow& m_window;
-    int m_currentListBoxIndex { -1 };
+    MessageBox m_confirmBox;
 };
 
 } // namespace imgui

@@ -328,3 +328,4 @@ level_designer
 .DS_Store
 build/
 .cache/
+compile_commands.json

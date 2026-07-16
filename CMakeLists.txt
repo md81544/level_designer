@@ -27,6 +27,15 @@ FetchContent_Declare(ImGui-SFML
     SYSTEM)
 FetchContent_MakeAvailable(ImGui-SFML)
 
+# Silence warnings produced while compiling the fetched dependencies themselves.
+# SYSTEM (above) only suppresses warnings when *we* include their headers;
+# it doesn't touch the compilation of their own .cpp files.
+foreach(dep_target IN ITEMS imgui ImGui-SFML)
+    if(TARGET ${dep_target})
+        target_compile_options(${dep_target} PRIVATE -w)
+    endif()
+endforeach()
+
 add_executable(${APP_NAME}
     configreader.cpp
     dialog.cpp
@@ -58,4 +67,12 @@ ADD_CUSTOM_TARGET(release
     COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Release ${CMAKE_SOURCE_DIR}
     COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target all
     COMMENT "Switch CMAKE_BUILD_TYPE to Release"
+)
+
+add_custom_command(
+    TARGET ${APP_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+        ${CMAKE_BINARY_DIR}/compile_commands.json
+        ${CMAKE_SOURCE_DIR}/compile_commands.json
+    COMMENT "Updating symlink: compile_commands.json"
 )

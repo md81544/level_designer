@@ -8,6 +8,48 @@
 namespace mgo {
 namespace imgui {
 
+void MessageBox::open(const std::string& title, const std::string& message, Buttons buttons)
+{
+    m_title = title;
+    m_message = message;
+    m_buttons = buttons;
+    m_shouldOpen = true;
+}
+
+MessageBox::Result MessageBox::draw()
+{
+    Result result = Result::None;
+
+    if (m_shouldOpen) {
+        ImGui::OpenPopup(m_title.c_str());
+        m_shouldOpen = false;
+    }
+
+    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+    if (ImGui::BeginPopupModal(m_title.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::TextWrapped("%s", m_message.c_str());
+        ImGui::Separator();
+
+        if (ImGui::Button("OK", ImVec2(120, 0))) {
+            result = Result::Ok;
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SetItemDefaultFocus();
+        if (m_buttons == Buttons::OkCancel) {
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+                result = Result::Cancel;
+                ImGui::CloseCurrentPopup();
+            }
+        }
+        ImGui::EndPopup();
+    }
+
+    return result;
+}
+
 Dialog::Dialog(sf::RenderWindow& window)
     : m_window(window)
 {
@@ -132,12 +174,12 @@ Status Dialog::build()
     if (ImGui::Button("Polygon", ImVec2(120, 0))) {
         rc.polygon = true;
     }
-    
+
     ImGui::Separator();
     if (ImGui::Button("Snap Mode", ImVec2(120, 0))) {
         rc.snapMode = true;
     }
-    
+
     ImGui::Separator();
     if (ImGui::Button("Save", ImVec2(120, 0))) {
         rc.save = true;
@@ -149,7 +191,16 @@ Status Dialog::build()
     ImGui::Separator();
 
     if (ImGui::Button("Quit", ImVec2(120, 0))) {
-        rc.quit = true;
+        m_confirmBox.open("Confirm", "Are you sure?", MessageBox::Buttons::OkCancel);
+        switch (m_confirmBox.draw()) {
+            case MessageBox::Result::Ok:
+                rc.quit = true;
+                break;
+            case MessageBox::Result::Cancel:
+                break;
+            case MessageBox::Result::None:
+                break; // still open, or not open at all
+        }
     }
 
     ImGui::End();
