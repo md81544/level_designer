@@ -1,11 +1,10 @@
 #include "configreader.h"
+#include "imgui_dialog.h"
 #include "level.h"
 
 #include <SFML/Graphics.hpp>
-#include <cmath>
-#include <filesystem>
+#include <imgui-SFML.h>
 #include <iostream>
-#include <stdexcept>
 
 int main(int argc, char* argv[])
 {
@@ -37,36 +36,46 @@ int main(int argc, char* argv[])
         window.setFramerateLimit(24);
 
         mgo::Level level(window, screenWidth, screenHeight);
+        mgo::imgui::Dialog dialog(window);
 
         level.load(argv[1]);
+        mgo::imgui::Status menuStatus;
 
         while (window.isOpen()) {
             for (;;) {
-                const auto event = window.pollEvent();
-                if (!event.has_value()) {
+                // imgui polls for events, processEvents() returns us
+                // a set of events that it didn't handle
+                auto unprocessedEvents = dialog.processEvents();
+                for (const auto& e : unprocessedEvents) {
+                    level.processEvent(window, e);
+                }
+                level.processMenuInput(menuStatus);
+
+                level.clampViewport();
+                // Draw the floating view items:
+                // Note that .setView() changes whether we're writing to the
+                // scrolling or fixed "canvas".
+                window.setView(level.getView());
+                window.clear();
+                level.drawGridLines(window);
+                level.draw(window);
+                level.drawObjects(window);
+                // Draw items to the FIXED view:
+                // See note above re .setView()
+                window.setView(level.getFixedView());
+                level.drawModes(window);
+                level.drawDialog(window);
+                menuStatus = dialog.build();
+                if (menuStatus.quit) {
+                    window.close();
                     break;
                 }
-                level.processEvent(window, *event);
+                dialog.render();
+                // Set view back otherwise mouse coords appear to be
+                // reported in the wrong position
+                window.setView(level.getView());
+                window.display();
             }
-
-            level.clampViewport();
-            // Draw the floating view items:
-            // Note that .setView() changes whether we're writing to the
-            // scrolling or fixed "canvas".
-            window.setView(level.getView());
-            window.clear();
-            level.drawGridLines(window);
-            level.draw(window);
-            level.drawObjects(window);
-            // Draw items to the FIXED view:
-            // See note above re .setView()
-            window.setView(level.getFixedView());
-            level.drawModes(window);
-            level.drawDialog(window);
-            // Set view back otherwise mouse coords appear to be
-            // reported in the wrong position
-            window.setView(level.getView());
-            window.display();
         }
         return 0;
     } catch (const std::exception& e) {

@@ -1,7 +1,11 @@
 #include "level.h"
 #include "dialog.h"
+#include "imgui_dialog.h"
 #include "utils.h"
 
+#include <SFML/Window/Event.hpp>
+#include <SFML/Window/Keyboard.hpp>
+#include <cmath>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -328,8 +332,8 @@ void Level::drawMovingObjectBoundary(
     } else {
         // It's rotating, so we calculate the max radius by finding the vertex furthest from the
         // centre
-        float centreX = minX + (maxX - minX) / 2;
-        float centreY = minY + (maxY - minY) / 2;
+        float centreX = minX + (maxX - minX) / 2.f;
+        float centreY = minY + (maxY - minY) / 2.f;
         float maxRadius { 0.f };
         for (const auto& l : m.lines) {
             auto r = std::sqrt(
@@ -548,6 +552,40 @@ Level::movingObjectUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsign
     return std::nullopt;
 }
 
+void mgo::Level::processMenuInput(const imgui::Status& status)
+{
+    if (status.breakable) {
+        changeMode(Mode::BREAKABLE);
+    }
+    if (status.edit) {
+        changeMode(Mode::EDIT);
+    }
+    if (status.line) {
+        changeMode(Mode::LINE);
+    }
+    if (status.fuel) {
+        changeMode(Mode::FUEL);
+    }
+    if (status.start) {
+        changeMode(Mode::START);
+    }
+    if (status.moving) {
+        changeMode(Mode::MOVING);
+    }
+    if (status.exit) {
+        changeMode(Mode::EXIT);
+    }
+    if (status.polygon) {
+        changeMode(Mode::POLYGON_CENTRE);
+    }
+    if (status.snapMode) {
+        changeSnapMode();
+    }
+    if (status.save) {
+        save();
+    }
+}
+
 void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
 {
     if (event.is<sf::Event::Closed>()) {
@@ -555,6 +593,7 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
     }
     if (m_isDialogActive) {
         // if a dialog is active then we respond differently to events:
+        // TODO junk this when imgui fully replaces dialogs
         if (event.is<sf::Event::KeyPressed>()) {
             const auto scancode = event.getIf<sf::Event::KeyPressed>()->scancode;
             switch (scancode) {
@@ -648,8 +687,12 @@ void mgo::Level::processEvent(sf::RenderWindow& window, const sf::Event& event)
                     break;
                 case sf::Keyboard::Scancode::S:
                     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LSystem)
-                        || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RSystem)) {
-                        save();
+                        || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RSystem)
+                        || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl)
+                        || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RControl)) {
+                        {
+                            save();
+                        }
                     } else {
                         changeSnapMode();
                     }

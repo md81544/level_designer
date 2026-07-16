@@ -1,4 +1,5 @@
 #pragma once
+#include "imgui_dialog.h"
 #include <SFML/Graphics.hpp>
 #include <functional>
 #include <memory>
@@ -99,7 +100,10 @@ public:
         uint8_t green,
         uint8_t blue);
     void drawDialog(sf::RenderWindow& window);
-    void drawLine(sf::RenderWindow& window, const Line& line, std::optional<std::size_t> idx = std::nullopt);
+    void drawLine(
+        sf::RenderWindow& window,
+        const Line& line,
+        std::optional<std::size_t> idx = std::nullopt);
     void drawGridLines(sf::RenderWindow& window);
     // Returns the index (into m_Lines) of the first (of potentially several) lines that are *near*
     // the cursor or no value if no lines are nearby.
@@ -108,6 +112,7 @@ public:
     std::optional<std::size_t>
     movingObjectUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsigned mouseY);
     void processEvent(sf::RenderWindow& window, const sf::Event& event);
+    void processMenuInput(const imgui::Status& status);
     void quit(sf::RenderWindow& window);
     void zoomOut();
     void zoomIn();
