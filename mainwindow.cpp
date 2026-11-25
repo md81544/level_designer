@@ -145,6 +145,10 @@ void MainWindow::createMenus()
                    std::function<void()> fn) {
         QAction* action = menu->addAction(text);
         action->setShortcuts(shortcuts);
+        // By default, on macOS Qt guesses from their text which actions belong
+        // in the application menu, e.g. it would make Insert > Exit the Quit
+        // item. Roles are set explicitly where needed instead.
+        action->setMenuRole(QAction::NoRole);
         connect(action, &QAction::triggered, this, [this, fn = std::move(fn)] {
             fn();
             m_canvas->update();
