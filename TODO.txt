@@ -1,16 +1,8 @@
-* Move level files to JSON (shared with ../amaze, which must change too):
-  - Optional fields with defaults (e.g. a rotation for any object, including
-    the exit); named rather than positional fields; no '~' escaping problems
-  - Describe what things are, not how to draw them: the game derives colours,
-    thickness and text (e.g. "EXIT") from the type, optionally overridden
-  - Shapes as polylines (lists of points, "closed" flag) rather than segments
-  - "formatVersion" field; readers ignore unknown fields
-  - Migrate: both programs read both formats (JSON starts with '{', old with
-    '!'), the editor writes JSON, convert amaze/data, then drop the old reader
-  - Write a short format spec first (field names, units, defaults, ints/floats)
-  - NB: amaze and level_designer each have their own JSON reader/writer (no
-    shared code or submodule), so the two MUST be kept in line: change both
-    together, keep the spec up to date, and have round-trip tests on both sides
+* Level files are now JSON (see LEVEL_FORMAT.md), and all levels have been
+  converted. Remaining: remove reading of the old format, when it's no longer
+  wanted: parseOldFormat() in levelformat.cpp (in both repos: the copies must be
+  kept identical), amaze's old reader in levelfile.cpp, and the tests of
+  converting old levels.
 
 * Create objects which are not obstacles - just decoration
 

@@ -276,5 +276,7 @@ TEST_CASE("All of amaze's levels convert from the old format without losing anyt
         // And the JSON reads back exactly
         CHECK(parseJson(toJson(level)) == level);
     }
-    CHECK(count > 0);
+    if (count == 0) {
+        SKIP("No old format levels left to check, in " << dir);
+    }
 }
