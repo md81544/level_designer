@@ -35,17 +35,6 @@ enum class SnapMode {
 
 namespace mgo {
 
-struct Action {
-    Mode actionType;
-    std::size_t index;
-    unsigned x0 { 0 };
-    unsigned y0 { 0 };
-    unsigned x1 { 0 };
-    unsigned y1 { 0 };
-    unsigned rotation { 0 };
-    bool erased { false };
-};
-
 struct Line {
     unsigned x0;
     unsigned y0;
@@ -134,7 +123,10 @@ public:
     // supplied object
     void setSelectedMovingObjectMotion(const MovingObject& motion);
 
-    void revert();
+    // Each change to the level's contents can be undone separately (except
+    // consecutive nudges, which undo together)
+    bool canUndo() const;
+    bool canRedo() const;
     void undo();
     void redo();
 
@@ -153,8 +145,26 @@ private:
     std::optional<std::size_t> movingObjectUnderCursor(QPointF pos) const;
     void highlightGridVertex(QPointF pos);
     void highlightNearestLinePoint(QPointF pos);
-    void replay();
-    void addReplayItem(const Action& action);
+    // The level's contents, for undo / redo
+    struct Snapshot {
+        unsigned long stateId;
+        std::string description;
+        std::vector<Line> lines;
+        std::optional<StartPosition> startPosition;
+        std::optional<std::pair<unsigned, unsigned>> exitPosition;
+        std::vector<std::pair<unsigned, unsigned>> fuelObjects;
+        std::vector<MovingObject> movingObjects;
+        MovingObject currentMovingObject;
+    };
+    enum class Change {
+        Other,
+        Nudge
+    };
+    static constexpr std::size_t MAX_UNDO = 1000;
+    Snapshot snapshot() const;
+    void restore(const Snapshot& snapshot);
+    // Must be called before each change to the level's contents, so it can be undone
+    void checkpoint(Change change = Change::Other);
     void finishCurrentMovingObject();
     void addOrRemoveHighlightedLine(std::optional<size_t>& lineIdx, bool includeConnectedLines);
     void addConnectedLinesToHighlight(const Line& line);
@@ -168,8 +178,14 @@ private:
     std::vector<std::pair<unsigned, unsigned>> m_fuelObjects;
     std::vector<MovingObject> m_movingObjects;
 
-    std::vector<Action> m_replay; // this is used for undo/redo
-    long m_replayIndex { 0 };
+    std::vector<Snapshot> m_undoStack;
+    std::vector<Snapshot> m_redoStack;
+    // Identifies the state of the level's contents, so we know whether it's
+    // the state last saved
+    unsigned long m_stateId { 0 };
+    unsigned long m_savedStateId { 0 };
+    unsigned long m_nextStateId { 1 };
+    bool m_lastChangeWasNudge { false };
 
     std::set<std::size_t> m_highlightedLineIndices;
     std::optional<std::size_t> m_highlightedMovingObjectIdx;
@@ -179,7 +195,6 @@ private:
     Mode m_currentMode { Mode::LINE };
     SnapMode m_snapMode { SnapMode::AUTO };
     std::string m_fileName;
-    bool m_dirty { false };
     CurrentPolygon m_currentPolygon;
 };
 

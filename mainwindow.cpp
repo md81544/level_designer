@@ -171,8 +171,9 @@ void MainWindow::createMenus()
 
     // Edit
     QMenu* editMenu = menuBar()->addMenu("&Edit");
-    add(editMenu, "&Undo", { QKeySequence::Undo }, [this] { m_level.undo(); });
-    add(editMenu,
+    m_undoAction = add(editMenu, "&Undo", { QKeySequence::Undo }, [this] { m_level.undo(); });
+    m_redoAction = add(
+        editMenu,
         "&Redo",
         { QKeySequence::Redo, QKeySequence(Qt::CTRL | Qt::Key_Y) },
         [this] { m_level.redo(); });
@@ -297,6 +298,8 @@ void MainWindow::updateUi()
 
     m_revertAction->setEnabled(
         m_level.isDirty() && QFileInfo::exists(QString::fromStdString(fileName)));
+    m_undoAction->setEnabled(m_level.canUndo());
+    m_redoAction->setEnabled(m_level.canRedo());
     m_deleteAction->setEnabled(m_level.hasSelection());
     m_makeMovingAction->setEnabled(m_level.hasSelectedLines());
     m_movingPropertiesAction->setEnabled(m_level.selectedMovingObject().has_value());

@@ -61,6 +61,8 @@ private:
     std::map<Mode, QAction*> m_modeActions;
     std::map<SnapMode, QAction*> m_snapActions;
     QAction* m_revertAction { nullptr };
+    QAction* m_undoAction { nullptr };
+    QAction* m_redoAction { nullptr };
     QAction* m_deleteAction { nullptr };
     QAction* m_makeMovingAction { nullptr };
     QAction* m_movingPropertiesAction { nullptr };

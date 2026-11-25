@@ -1,5 +1,3 @@
-* Add a polygon, then a breakable line, then press undo. Both disappear.
-
 * Create objects which are not obstacles - just decoration
 
 * Multiple selections e.g. highlight several lines for deletion?

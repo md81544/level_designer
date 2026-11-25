@@ -8,7 +8,6 @@
 #include <QPolygonF>
 
 #include <algorithm>
-#include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
@@ -214,7 +213,7 @@ void Level::save(const std::string& filename)
         throw std::runtime_error("Failed writing to " + filename);
     }
     m_fileName = filename;
-    m_dirty = false;
+    m_savedStateId = m_stateId;
 }
 
 const std::string& Level::fileName() const
@@ -230,14 +229,14 @@ const std::string& Level::description() const
 void Level::setDescription(const std::string& description)
 {
     if (description != m_levelDescription) {
+        checkpoint();
         m_levelDescription = description;
-        m_dirty = true;
     }
 }
 
 bool Level::isDirty() const
 {
-    return m_dirty;
+    return m_stateId != m_savedStateId;
 }
 
 Mode Level::mode() const
@@ -619,6 +618,8 @@ void Level::mouseMoved(QPointF w)
 
 void Level::leftClicked(QPointF w, float zoomLevel, bool extendSelection, bool singleLine)
 {
+    // e.g. selecting something else ends a series of nudges which undo together
+    m_lastChangeWasNudge = false;
     switch (m_currentMode) {
         case Mode::LINE:
         case Mode::BREAKABLE:
@@ -631,6 +632,7 @@ void Level::leftClicked(QPointF w, float zoomLevel, bool extendSelection, bool s
                     if (!m_currentInsertionLine.inactive) {
                         if (m_currentInsertionLine.x0 != m_currentInsertionLine.x1
                             || m_currentInsertionLine.y0 != m_currentInsertionLine.y1) {
+                            checkpoint();
                             m_currentInsertionLine.breakable = m_currentMode != Mode::LINE;
                             if (m_currentMode == Mode::MOVING) {
                                 Line l = m_currentInsertionLine;
@@ -641,15 +643,6 @@ void Level::leftClicked(QPointF w, float zoomLevel, bool extendSelection, bool s
                             } else {
                                 m_lines.push_back(m_currentInsertionLine);
                             }
-                            addReplayItem(
-                                { m_currentMode,
-                                  0,
-                                  m_currentInsertionLine.x0,
-                                  m_currentInsertionLine.y0,
-                                  m_currentInsertionLine.x1,
-                                  m_currentInsertionLine.y1,
-                                  0 });
-                            m_dirty = true;
                             // next line starts at the current line's end:
                             m_currentInsertionLine.x0 = m_currentInsertionLine.x1;
                             m_currentInsertionLine.y0 = m_currentInsertionLine.y1;
@@ -695,6 +688,7 @@ void Level::leftClicked(QPointF w, float zoomLevel, bool extendSelection, bool s
                 // if we're within r workspace units of an existing start object,
                 // we treat additional clicks as a way to modify the object's rotation
                 unsigned r = 20;
+                checkpoint();
                 if (m_startPosition.has_value()
                     && ((m_startPosition.value().x > w.x() - r
                          && m_startPosition.value().x < w.x() + r)
@@ -704,37 +698,16 @@ void Level::leftClicked(QPointF w, float zoomLevel, bool extendSelection, bool s
                     if (m_startPosition.value().r >= 360) {
                         m_startPosition.value().r = 0;
                     }
-                    addReplayItem(
-                        { Mode::START,
-                          0,
-                          m_startPosition.value().x,
-                          m_startPosition.value().y,
-                          0,
-                          0,
-                          m_startPosition.value().r });
                 } else {
                     m_startPosition
                         = { static_cast<unsigned>(w.x()), static_cast<unsigned>(w.y()), 0 };
-                    addReplayItem(
-                        { Mode::START,
-                          0,
-                          static_cast<unsigned>(w.x()),
-                          static_cast<unsigned>(w.y()) });
                 }
-                m_dirty = true;
                 break;
             }
         case Mode::EXIT:
             {
+                checkpoint();
                 m_exitPosition = std::make_pair(w.x(), w.y());
-                addReplayItem(
-                    { Mode::EXIT,
-                      0,
-                      static_cast<unsigned>(w.x()),
-                      static_cast<unsigned>(w.y()),
-                      0,
-                      0 });
-                m_dirty = true;
                 break;
             }
         case Mode::FUEL:
@@ -742,6 +715,7 @@ void Level::leftClicked(QPointF w, float zoomLevel, bool extendSelection, bool s
                 // if we are within r workspace units of an existing fuel object, we
                 // treat this as a request to delete it instead of placing a new one
                 unsigned r = 20;
+                checkpoint();
                 std::size_t idx = 0;
                 bool erased { false };
                 for (const auto& f : m_fuelObjects) {
@@ -749,20 +723,13 @@ void Level::leftClicked(QPointF w, float zoomLevel, bool extendSelection, bool s
                         && (f.second > w.y() - r && f.second < w.y() + r)) {
                         m_fuelObjects.erase(m_fuelObjects.begin() + idx);
                         erased = true;
-                        addReplayItem({ Mode::FUEL, idx, 0, 0, 0, 0, 0, true });
                         break;
                     }
                     ++idx;
                 }
                 if (!erased) {
                     m_fuelObjects.push_back(std::make_pair(w.x(), w.y()));
-                    addReplayItem(
-                        { Mode::FUEL,
-                          idx,
-                          static_cast<unsigned>(w.x()),
-                          static_cast<unsigned>(w.y()) });
                 }
-                m_dirty = true;
                 break;
             }
         case Mode::POLYGON_CENTRE:
@@ -779,12 +746,12 @@ void Level::leftClicked(QPointF w, float zoomLevel, bool extendSelection, bool s
                     std::abs(static_cast<float>(w.x()) - *m_currentPolygon.centreX),
                     std::abs(static_cast<float>(w.y()) - *m_currentPolygon.centreY));
                 if (maxDist > 5.f) { // arbitrary lower limit for polygons' radii
+                    checkpoint();
                     m_lines.insert(
                         m_lines.end(),
                         m_currentPolygon.lines.begin(),
                         m_currentPolygon.lines.end());
                     m_currentPolygon.lines.clear();
-                    m_dirty = true;
                     changeMode(Mode::POLYGON_CENTRE);
                 }
                 break;
@@ -814,23 +781,27 @@ bool Level::hasSelectedLines() const
 
 void Level::deleteSelection()
 {
+    if (!hasSelection()) {
+        return;
+    }
+    checkpoint();
     for (const size_t i : m_highlightedLineIndices) {
         m_lines[i].inactive = true;
-        addReplayItem({ Mode::EDIT, i });
-        m_dirty = true;
     }
     m_highlightedLineIndices.clear();
     if (m_highlightedMovingObjectIdx.has_value()) {
         m_movingObjects.erase(m_movingObjects.begin() + m_highlightedMovingObjectIdx.value());
-        // TODO: not sure if this will work yet:
-        addReplayItem({ Mode::EDIT, m_highlightedMovingObjectIdx.value() });
         m_highlightedMovingObjectIdx = std::nullopt;
-        m_dirty = true;
     }
 }
 
 void Level::nudgeSelection(int x, int y)
 {
+    if (!hasSelection()) {
+        return;
+    }
+    // Consecutive nudges undo together
+    checkpoint(Change::Nudge);
     if (m_highlightedMovingObjectIdx.has_value()) {
         moveMovingObject(*m_highlightedMovingObjectIdx, x, y);
     } else {
@@ -843,6 +814,7 @@ void Level::convertSelectionToMovingObject()
     if (m_highlightedLineIndices.empty()) {
         return;
     }
+    checkpoint();
     MovingObject m;
     for (std::size_t i : m_highlightedLineIndices) {
         m_lines[i].r = 255;
@@ -854,7 +826,6 @@ void Level::convertSelectionToMovingObject()
     m_movingObjects.push_back(m);
     m_highlightedLineIndices.clear();
     m_highlightedMovingObjectIdx = m_movingObjects.size() - 1;
-    m_dirty = true;
 }
 
 std::optional<MovingObject> Level::selectedMovingObject() const
@@ -870,6 +841,7 @@ void Level::setSelectedMovingObjectMotion(const MovingObject& motion)
     if (!m_highlightedMovingObjectIdx.has_value()) {
         return;
     }
+    checkpoint();
     auto& obj = m_movingObjects[*m_highlightedMovingObjectIdx];
     obj.xDelta = motion.xDelta;
     obj.xMaxDifference = motion.xMaxDifference;
@@ -877,7 +849,6 @@ void Level::setSelectedMovingObjectMotion(const MovingObject& motion)
     obj.yMaxDifference = motion.yMaxDifference;
     obj.rotationDelta = motion.rotationDelta;
     obj.gravity = motion.gravity;
-    m_dirty = true;
 }
 
 void Level::addOrRemoveHighlightedLine(std::optional<size_t>& lineIdx, bool includeConnectedLines)
@@ -924,7 +895,6 @@ void Level::moveMovingObject(std::size_t movingObjectIdx, int x, int y)
         line.x1 += x;
         line.y1 += y;
     }
-    m_dirty = true;
 }
 
 void Level::moveLines(int x, int y)
@@ -934,7 +904,6 @@ void Level::moveLines(int x, int y)
         m_lines[idx].y0 += y;
         m_lines[idx].x1 += x;
         m_lines[idx].y1 += y;
-        m_dirty = true;
     }
 }
 
@@ -942,119 +911,77 @@ void Level::moveLines(int x, int y)
 // Undo / redo
 // ---------------------------------------------------------------------------
 
-void Level::revert()
+Level::Snapshot Level::snapshot() const
 {
-    // Revert to last saved state
-    // Clear collections:
-    m_lines.clear();
-    m_startPosition = std::nullopt;
-    m_exitPosition = std::nullopt;
-    m_fuelObjects.clear();
-    m_movingObjects.clear();
+    return { m_stateId,         m_levelDescription, m_lines,         m_startPosition,
+             m_exitPosition,    m_fuelObjects,      m_movingObjects, m_currentMovingObject };
+}
+
+void Level::restore(const Snapshot& snapshot)
+{
+    m_stateId = snapshot.stateId;
+    m_levelDescription = snapshot.description;
+    m_lines = snapshot.lines;
+    m_startPosition = snapshot.startPosition;
+    m_exitPosition = snapshot.exitPosition;
+    m_fuelObjects = snapshot.fuelObjects;
+    m_movingObjects = snapshot.movingObjects;
+    m_currentMovingObject = snapshot.currentMovingObject;
+    // A moving object can only be in progress in MOVING mode
+    if (m_currentMode != Mode::MOVING && !m_currentMovingObject.lines.empty()) {
+        m_movingObjects.push_back(m_currentMovingObject);
+        m_currentMovingObject = {};
+    }
+    // The selection and anything in progress may refer to things which no
+    // longer exist
     m_highlightedLineIndices.clear();
     m_highlightedMovingObjectIdx = std::nullopt;
-    // reload
-    load(m_fileName);
-    m_dirty = false;
+    m_currentInsertionLine.inactive = true;
+    m_lastChangeWasNudge = false;
+}
+
+void Level::checkpoint(Change change)
+{
+    const bool merge = change == Change::Nudge && m_lastChangeWasNudge && !m_undoStack.empty();
+    if (!merge) {
+        m_undoStack.push_back(snapshot());
+        if (m_undoStack.size() > MAX_UNDO) {
+            m_undoStack.erase(m_undoStack.begin());
+        }
+    }
+    m_redoStack.clear();
+    m_stateId = m_nextStateId++;
+    m_lastChangeWasNudge = change == Change::Nudge;
+}
+
+bool Level::canUndo() const
+{
+    return !m_undoStack.empty();
+}
+
+bool Level::canRedo() const
+{
+    return !m_redoStack.empty();
 }
 
 void Level::undo()
 {
-    // The way undo works is to revert to the last save, then reapply all steps held in
-    // m_replay. This will allow for redo as well.
-    m_currentInsertionLine.inactive = true;
-    revert();
-    replay();
-    if (m_replayIndex >= 0) {
-        --m_replayIndex; // can go to -1
+    if (m_undoStack.empty()) {
+        return;
     }
-}
-
-void Level::replay()
-{
-    for (long i = 0; i < m_replayIndex; ++i) {
-        if (i > static_cast<long>(m_replay.size()) - 1) {
-            break;
-        }
-        const auto& a = m_replay[i];
-        m_dirty = true;
-        switch (a.actionType) {
-            case Mode::LINE:
-                {
-                    Line line;
-                    line.breakable = false;
-                    line.x0 = a.x0;
-                    line.y0 = a.y0;
-                    line.x1 = a.x1;
-                    line.y1 = a.y1;
-                    line.r = 255;
-                    m_lines.push_back(line);
-                }
-                break;
-            case Mode::BREAKABLE:
-                {
-                    Line line;
-                    line.breakable = true;
-                    line.x0 = a.x0;
-                    line.y0 = a.y0;
-                    line.x1 = a.x1;
-                    line.y1 = a.y1;
-                    m_lines.push_back(line);
-                }
-                break;
-            case Mode::EDIT:
-                m_lines[a.index].inactive = true;
-                break;
-            case Mode::EXIT:
-                m_exitPosition = std::make_pair(a.x0, a.y0);
-                break;
-            case Mode::START:
-                m_startPosition = { a.x0, a.y0, a.rotation };
-                break;
-            case Mode::FUEL:
-                if (a.erased) {
-                    m_fuelObjects.erase(m_fuelObjects.begin() + a.index);
-                } else {
-                    m_fuelObjects.push_back(std::make_pair(a.x0, a.y0));
-                }
-                break;
-            case Mode::MOVING:
-                {
-                    Line l;
-                    l.x0 = a.x0;
-                    l.y0 = a.y0;
-                    l.x1 = a.x1;
-                    l.y1 = a.y1;
-                    l.r = 255;
-                    l.g = 172;
-                    l.b = 163;
-                    m_currentMovingObject.lines.push_back(l);
-                }
-                break;
-            default:
-                Log::error("Unknown action type in replay: {}", static_cast<int>(a.actionType));
-                assert(false);
-        }
-    }
+    m_redoStack.push_back(snapshot());
+    restore(m_undoStack.back());
+    m_undoStack.pop_back();
 }
 
 void Level::redo()
 {
-    if (m_replay.empty() || m_replayIndex >= static_cast<long>(m_replay.size())) {
+    if (m_redoStack.empty()) {
         return;
     }
-    m_replayIndex += 2;
-    replay();
-}
-
-void Level::addReplayItem(const Action& action)
-{
-    std::size_t from = 1 + (m_replayIndex > 0 ? m_replayIndex : 0);
-    if (from < m_replay.size()) {
-        m_replay.erase(m_replay.begin() + from, m_replay.end());
-    }
-    m_replay.push_back(action);
-    m_replayIndex = m_replay.size() - 1;
+    m_undoStack.push_back(snapshot());
+    restore(m_redoStack.back());
+    m_redoStack.pop_back();
 }
 
 // ---------------------------------------------------------------------------
