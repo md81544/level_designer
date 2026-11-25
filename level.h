@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QPointF>
+#include <QRectF>
 
 #include <cstdint>
 #include <optional>
@@ -105,19 +106,44 @@ public:
 
     // Input, in workspace coordinates. zoomLevel is workspace units per pixel.
     void mouseMoved(QPointF pos);
-    // extendSelection adds to (rather than replaces) the selection; singleLine
-    // selects only the line clicked rather than all lines connected to it
+    // In EDIT mode, selects the item clicked, if any. extendSelection toggles
+    // the item in the selection, rather than replacing the selection;
+    // singleLine selects only the line clicked rather than all lines
+    // connected to it.
     void leftClicked(QPointF pos, float zoomLevel, bool extendSelection, bool singleLine);
     // Stops drawing the current line (and finishes any moving object being drawn)
     void finishCurrentLine();
 
-    // Operations on the selection
+    // Selection (in EDIT mode). Any number of lines, moving objects and fuel,
+    // the exit and the ship can be selected.
     bool hasSelection() const;
     bool hasSelectedLines() const;
+    bool isItemAt(QPointF pos, float zoomLevel) const;
+    bool isSelectedItemAt(QPointF pos, float zoomLevel) const;
+    // Selects just the item at pos (if any)
+    void selectOnlyItemAt(QPointF pos, float zoomLevel, bool singleLine);
+    // Selects the items entirely inside the rectangle, adding to the existing
+    // selection if extendSelection
+    void selectInRect(const QRectF& rect, bool extendSelection);
+    void selectAll();
+    void clearSelection();
+    // The area covered by the selected items, if any
+    std::optional<QRectF> selectionBounds() const;
+
+    // Operations on the selection
     void deleteSelection();
     void nudgeSelection(int x, int y);
+    // Dragging the selection: call beginTransform() at the start of the drag,
+    // then moveSelection() / rotateSelection() as it progresses, with the total
+    // movement / rotation since the start, then endTransform(). The drag is
+    // undone as one change. The selection is kept within the map.
+    void beginTransform();
+    void moveSelection(int x, int y);
+    // Rotates clockwise (on screen) by degrees about centre
+    void rotateSelection(double degrees, QPointF centre);
+    void endTransform();
     void convertSelectionToMovingObject();
-    // The selected moving object, if any
+    // The selected moving object, if exactly one is selected
     std::optional<MovingObject> selectedMovingObject() const;
     // Sets the selected moving object's motion (not its lines) from the
     // supplied object
@@ -143,6 +169,28 @@ private:
     // the cursor or no value if no lines are nearby.
     std::optional<std::size_t> lineUnderCursor(QPointF pos, float zoomLevel) const;
     std::optional<std::size_t> movingObjectUnderCursor(QPointF pos) const;
+    struct Item {
+        enum class Type {
+            SHIP,
+            EXIT,
+            FUEL,
+            LINE,
+            MOVING_OBJECT
+        };
+        Type type;
+        std::size_t index { 0 }; // for FUEL, LINE and MOVING_OBJECT
+    };
+    std::optional<Item> itemAt(QPointF pos, float zoomLevel) const;
+    bool isSelected(const Item& item) const;
+    void select(const Item& item, bool includeConnectedLines);
+    void deselect(const Item& item);
+    // Calls fn(x, y) with references to the coordinates of each point of the selected items
+    template <typename Fn> void forEachSelectedPoint(Fn fn);
+    // Call before changing the contents during a transform
+    void transformCheckpoint();
+    // Rotates the selection as rotateSelection(), unless that would take it
+    // off the map, in which case it returns false without changing anything
+    bool applyRotation(double degrees, QPointF centre);
     void highlightGridVertex(QPointF pos);
     void highlightNearestLinePoint(QPointF pos);
     // The level's contents, for undo / redo
@@ -163,13 +211,14 @@ private:
     static constexpr std::size_t MAX_UNDO = 1000;
     Snapshot snapshot() const;
     void restore(const Snapshot& snapshot);
+    // Copies the contents (but not the state ID) from the snapshot
+    void restoreContents(const Snapshot& snapshot);
     // Must be called before each change to the level's contents, so it can be undone
     void checkpoint(Change change = Change::Other);
     void finishCurrentMovingObject();
-    void addOrRemoveHighlightedLine(std::optional<size_t>& lineIdx, bool includeConnectedLines);
     void addConnectedLinesToHighlight(const Line& line);
-    void moveMovingObject(std::size_t movingObjectIdx, int x, int y);
-    void moveLines(int x, int y);
+    // Moves the selection, limiting the movement to keep it on the map
+    void translateSelection(int x, int y);
 
     std::string m_levelDescription;
     std::vector<Line> m_lines;
@@ -187,8 +236,17 @@ private:
     unsigned long m_nextStateId { 1 };
     bool m_lastChangeWasNudge { false };
 
+    // The selection
     std::set<std::size_t> m_highlightedLineIndices;
-    std::optional<std::size_t> m_highlightedMovingObjectIdx;
+    std::set<std::size_t> m_selectedMovingObjects;
+    std::set<std::size_t> m_selectedFuel;
+    bool m_exitSelected { false };
+    bool m_shipSelected { false };
+    // The contents at the start of a transform (see beginTransform())
+    std::optional<Snapshot> m_transformOrigin;
+    bool m_transformCheckpointed { false };
+    double m_lastValidRotation { 0.0 };
+
     std::optional<std::tuple<unsigned, unsigned>> m_currentNearestSnapPoint { std::nullopt };
     Line m_currentInsertionLine { 0, 0, 0, 0, 255, 0, 0, 1, true };
     MovingObject m_currentMovingObject;

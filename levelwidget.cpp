@@ -2,6 +2,7 @@
 #include "level.h"
 
 #include <QKeyEvent>
+#include <QLineF>
 #include <QMouseEvent>
 #include <QNativeGestureEvent>
 #include <QPainter>
@@ -12,6 +13,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 
 namespace mgo {
 
@@ -28,6 +30,17 @@ constexpr double ZOOM_STEP = 1.25;
 constexpr double WHEEL_ZOOM_STEP = 1.1;
 // Pixels scrolled per scroll bar arrow click; a mouse wheel notch scrolls three times this
 constexpr int SCROLL_STEP = 20;
+// The selection's box and rotation handle (pixels): the box is drawn this far
+// outside the selection, and the handle this far above the box
+constexpr double SELECTION_MARGIN = 4.0;
+constexpr double HANDLE_DISTANCE = 24.0;
+constexpr double HANDLE_RADIUS = 6.0;
+// How far (pixels) the mouse must move with the button down to start a drag
+constexpr int DRAG_THRESHOLD = 3;
+// With shift held, rotation is in steps of this many degrees
+constexpr double ROTATION_STEP = 15.0;
+const QColor SELECTION_BOX_COLOUR { 255, 255, 255, 160 };
+const QColor HANDLE_COLOUR { 80, 160, 255 };
 
 // The application's style, but with permanently visible scroll bars. On
 // macOS, scroll bars are by default "transient" overlays which only appear
@@ -89,6 +102,11 @@ QPointF LevelWidget::viewportCentre() const
 QPointF LevelWidget::toWorkspace(QPointF viewportPos) const
 {
     return m_centre + (viewportPos - viewportCentre()) * m_zoom;
+}
+
+QPointF LevelWidget::toViewport(QPointF workspacePos) const
+{
+    return (workspacePos - m_centre) / m_zoom + viewportCentre();
 }
 
 QPointF LevelWidget::toMap(QPointF viewportPos) const
@@ -240,6 +258,78 @@ void LevelWidget::paintEvent(QPaintEvent*)
     painter.scale(1.0 / m_zoom, 1.0 / m_zoom);
     painter.translate(-m_centre);
     m_level.draw(painter);
+
+    // Selection box, rotation handle etc are drawn in viewport coordinates,
+    // so they're the same size whatever the zoom
+    painter.resetTransform();
+    painter.setRenderHint(QPainter::Antialiasing);
+    QPen dashed(SELECTION_BOX_COLOUR, 1.0, Qt::DashLine);
+    if (m_drag == Drag::Box && m_dragMoved) {
+        painter.setPen(dashed);
+        painter.setBrush(QColor(255, 255, 255, 30));
+        painter.drawRect(QRectF(m_dragStart, m_dragCurrent).normalized());
+    }
+    if (m_drag == Drag::Rotate && m_dragMoved) {
+        // From the centre of rotation to the mouse
+        const QPointF centre = toViewport(m_rotationCentre);
+        painter.setPen(dashed);
+        painter.drawLine(centre, m_dragCurrent);
+        painter.setPen(QPen(HANDLE_COLOUR, 1.5));
+        painter.drawLine(centre - QPointF(5, 0), centre + QPointF(5, 0));
+        painter.drawLine(centre - QPointF(0, 5), centre + QPointF(0, 5));
+    } else if (const auto box = selectionRect()) {
+        painter.setPen(dashed);
+        painter.setBrush(Qt::NoBrush);
+        painter.drawRect(*box);
+        const QPointF handle = *rotationHandle();
+        painter.drawLine(QPointF(box->center().x(), box->top()), handle);
+        painter.setPen(QPen(Qt::white, 1.0));
+        painter.setBrush(HANDLE_COLOUR);
+        painter.drawEllipse(handle, HANDLE_RADIUS, HANDLE_RADIUS);
+    }
+}
+
+std::optional<QRectF> LevelWidget::selectionRect() const
+{
+    if (m_level.mode() != Mode::EDIT) {
+        return std::nullopt;
+    }
+    const auto bounds = m_level.selectionBounds();
+    if (!bounds.has_value()) {
+        return std::nullopt;
+    }
+    return QRectF(toViewport(bounds->topLeft()), toViewport(bounds->bottomRight()))
+        .adjusted(-SELECTION_MARGIN, -SELECTION_MARGIN, SELECTION_MARGIN, SELECTION_MARGIN);
+}
+
+std::optional<QPointF> LevelWidget::rotationHandle() const
+{
+    const auto box = selectionRect();
+    if (!box.has_value()) {
+        return std::nullopt;
+    }
+    return QPointF(box->center().x(), box->top() - HANDLE_DISTANCE);
+}
+
+bool LevelWidget::isOnRotationHandle(QPointF viewportPos) const
+{
+    const auto handle = rotationHandle();
+    return handle.has_value() && QLineF(*handle, viewportPos).length() <= HANDLE_RADIUS + 3;
+}
+
+void LevelWidget::updateCursor(QPointF viewportPos)
+{
+    Qt::CursorShape shape = Qt::ArrowCursor;
+    if (m_drag == Drag::Move) {
+        shape = Qt::ClosedHandCursor;
+    } else if (m_drag == Drag::Rotate || (m_drag == Drag::None && isOnRotationHandle(viewportPos))) {
+        shape = Qt::PointingHandCursor;
+    } else if (
+        m_drag == Drag::None && m_level.mode() == Mode::EDIT
+        && m_level.isSelectedItemAt(toMap(viewportPos), m_zoom)) {
+        shape = Qt::OpenHandCursor;
+    }
+    viewport()->setCursor(shape);
 }
 
 void LevelWidget::resizeEvent(QResizeEvent* event)
@@ -261,6 +351,31 @@ void LevelWidget::resizeEvent(QResizeEvent* event)
 void LevelWidget::mouseMoveEvent(QMouseEvent* event)
 {
     const QPointF pos = event->position();
+    if (m_drag != Drag::None && event->buttons().testFlag(Qt::LeftButton)) {
+        m_dragCurrent = pos;
+        m_lastMousePos = pos;
+        if (!m_dragMoved && (pos - m_dragStart).manhattanLength() < DRAG_THRESHOLD) {
+            return; // not a drag yet: ignore small movements during a click
+        }
+        m_dragMoved = true;
+        if (m_drag == Drag::Move) {
+            const QPointF delta = (pos - m_dragStart) * m_zoom;
+            m_level.moveSelection(
+                static_cast<int>(std::lround(delta.x())), static_cast<int>(std::lround(delta.y())));
+        } else if (m_drag == Drag::Rotate) {
+            const QPointF centre = toViewport(m_rotationCentre);
+            auto angle = [&centre](QPointF p) {
+                return std::atan2(p.y() - centre.y(), p.x() - centre.x()) * 180.0 / std::numbers::pi;
+            };
+            double degrees = angle(pos) - angle(m_dragStart);
+            if (event->modifiers().testFlag(Qt::ShiftModifier)) {
+                degrees = std::round(degrees / ROTATION_STEP) * ROTATION_STEP;
+            }
+            m_level.rotateSelection(degrees, m_rotationCentre);
+        }
+        changed();
+        return;
+    }
     if (event->modifiers().testFlag(Qt::ShiftModifier)) {
         // Pan
         if (m_lastMousePos.has_value()) {
@@ -271,22 +386,83 @@ void LevelWidget::mouseMoveEvent(QMouseEvent* event)
         m_level.mouseMoved(toMap(pos));
     }
     m_lastMousePos = pos;
+    updateCursor(pos);
     changed();
 }
 
 void LevelWidget::mousePressEvent(QMouseEvent* event)
 {
+    const QPointF pos = event->position();
     // Note that on macOS, ControlModifier is the Command key, and Ctrl-click
     // arrives as a right click
+    const bool extendSelection = event->modifiers().testFlag(Qt::ControlModifier);
+    const bool singleLine = event->modifiers().testFlag(Qt::AltModifier);
     if (event->button() == Qt::RightButton) {
         m_level.finishCurrentLine();
     } else if (event->button() == Qt::LeftButton) {
-        m_level.leftClicked(
-            toMap(event->position()),
-            m_zoom,
-            event->modifiers().testFlag(Qt::ControlModifier),
-            event->modifiers().testFlag(Qt::AltModifier));
+        const QPointF mapPos = toMap(pos);
+        m_drag = Drag::None;
+        m_dragStart = m_dragCurrent = pos;
+        m_dragMoved = false;
+        m_pressedOnSelected = false;
+        m_dragSingleLine = singleLine;
+        if (m_level.mode() == Mode::EDIT) {
+            if (isOnRotationHandle(pos)) {
+                m_drag = Drag::Rotate;
+                m_rotationCentre = m_level.selectionBounds()->center();
+            } else if (!extendSelection && m_level.isSelectedItemAt(mapPos, m_zoom)) {
+                // Drag the selection, or if there's no drag, select just this item
+                m_drag = Drag::Move;
+                m_pressedOnSelected = true;
+            } else {
+                m_level.leftClicked(mapPos, m_zoom, extendSelection, singleLine);
+                if (m_level.isSelectedItemAt(mapPos, m_zoom)) {
+                    m_drag = Drag::Move;
+                } else if (!m_level.isItemAt(mapPos, m_zoom)) {
+                    m_drag = Drag::Box;
+                }
+            }
+        } else {
+            m_level.leftClicked(mapPos, m_zoom, extendSelection, singleLine);
+            // Placing the ship or exit selects it, so it can be dragged straight away
+            if (m_level.mode() == Mode::EDIT && m_level.isSelectedItemAt(mapPos, m_zoom)) {
+                m_drag = Drag::Move;
+            }
+        }
+        if (m_drag == Drag::Move || m_drag == Drag::Rotate) {
+            m_level.beginTransform();
+        }
+        updateCursor(pos);
     }
+    changed();
+}
+
+void LevelWidget::mouseReleaseEvent(QMouseEvent* event)
+{
+    if (event->button() != Qt::LeftButton || m_drag == Drag::None) {
+        return;
+    }
+    const QPointF pos = event->position();
+    switch (m_drag) {
+        case Drag::Move:
+        case Drag::Rotate:
+            m_level.endTransform();
+            if (m_drag == Drag::Move && !m_dragMoved && m_pressedOnSelected) {
+                m_level.selectOnlyItemAt(toMap(pos), m_zoom, m_dragSingleLine);
+            }
+            break;
+        case Drag::Box:
+            if (m_dragMoved) {
+                m_level.selectInRect(
+                    QRectF(toWorkspace(m_dragStart), toWorkspace(pos)).normalized(),
+                    event->modifiers().testFlag(Qt::ControlModifier));
+            }
+            break;
+        case Drag::None:
+            break;
+    }
+    m_drag = Drag::None;
+    updateCursor(pos);
     changed();
 }
 
@@ -326,7 +502,11 @@ void LevelWidget::keyPressEvent(QKeyEvent* event)
 {
     switch (event->key()) {
         case Qt::Key_Escape:
-            m_level.finishCurrentLine();
+            if (m_level.mode() == Mode::EDIT) {
+                m_level.clearSelection();
+            } else {
+                m_level.finishCurrentLine();
+            }
             break;
         case Qt::Key_Left:
             m_level.nudgeSelection(-1, 0);

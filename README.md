@@ -12,7 +12,7 @@ This is the result. Three days' worth of initial effort and I had an graphical e
 ### Usage
 Open an existing level with **File > Open**, or pass its file name on the command line (if the file doesn't exist, it's created when you save). There is an example.lvl file included.
 
-The editor works in "modes", chosen from the **Insert** menu (Line, Breakable Line, Moving Object, Polygon, Fuel, Start Position, Exit), plus **Edit > Select** for selecting existing items to delete, nudge (arrow keys) or turn into moving objects (see the **Object** menu). The status bar shows the current mode and a reminder of how to use it.
+The editor works in "modes", chosen from the **Insert** menu (Line, Breakable Line, Moving Object, Polygon, Fuel, Start Position, Exit), plus **Edit > Select** for selecting existing items: click an item, or drag a box around several. The selection can be dragged (or nudged with the arrow keys) to move it, rotated by dragging the round handle above it (hold Shift for 15° steps), deleted, or (for lines) turned into a moving object via the **Object** menu. The status bar shows the current mode and a reminder of how to use it.
 
 When drawing lines, click to place each point and keep clicking to keep making lines. To stop, press Escape (or right click), then click somewhere else to start a new line. Snapping (to the grid, existing lines, both or neither) is set in **View > Snap To**.
 

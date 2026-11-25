@@ -14,6 +14,7 @@
 #include <fstream>
 #include <ios>
 #include <limits>
+#include <numbers>
 #include <stdexcept>
 #include <string>
 #include <tuple>
@@ -50,6 +51,13 @@ const QPolygonF SHIP_OUTLINE({ { 0, -20 },
                                { -6, 1 },
                                { -6, -11 } });
 const QColor SHIP_COLOUR { 192, 192, 255 };
+const QColor SELECTED_COLOUR { Qt::white };
+
+// Sizes of items, for hit testing and selection (workspace units)
+constexpr double SHIP_RADIUS = 20.0;
+constexpr double FUEL_RADIUS = 10.0;
+constexpr double EXIT_HALF_WIDTH = 32.0;
+constexpr double EXIT_HALF_HEIGHT = 14.0;
 
 } // namespace
 
@@ -327,8 +335,7 @@ void Level::drawMovingObjectBoundary(QPainter& painter, const MovingObject& m, s
     unsigned maxX { 0 };
     unsigned maxY { 0 };
     for (auto l : m.lines) {
-        if (m_highlightedMovingObjectIdx.has_value()
-            && m_highlightedMovingObjectIdx.value() == idx) {
+        if (m_selectedMovingObjects.contains(idx)) {
             l.r = 255;
             l.g = 255;
             l.b = 255;
@@ -447,7 +454,7 @@ void Level::drawObjects(QPainter& painter) const
         painter.rotate(360.0 - m_startPosition.value().r);
         painter.setRenderHint(QPainter::Antialiasing);
         // In the game the ship's lines are a little thicker than the walls'
-        QPen pen = hairline(SHIP_COLOUR);
+        QPen pen = hairline(m_shipSelected ? SELECTED_COLOUR : SHIP_COLOUR);
         pen.setWidthF(1.5);
         pen.setJoinStyle(Qt::RoundJoin);
         painter.setPen(pen);
@@ -459,14 +466,20 @@ void Level::drawObjects(QPainter& painter) const
         QFont font = painter.font();
         font.setPixelSize(26);
         painter.setFont(font);
-        painter.setPen(QColor(52, 213, 235));
+        painter.setPen(m_exitSelected ? SELECTED_COLOUR : QColor(52, 213, 235));
         const QPointF centre(m_exitPosition.value().first, m_exitPosition.value().second);
         painter.drawText(QRectF(centre - QPointF(100, 50), QSizeF(200, 100)), Qt::AlignCenter, "EXIT");
     }
-    painter.setPen(Qt::NoPen);
-    painter.setBrush(Qt::yellow);
-    for (const auto& p : m_fuelObjects) {
-        painter.drawEllipse(QPointF(p.first, p.second), 10.0, 10.0);
+    for (std::size_t i = 0; i < m_fuelObjects.size(); ++i) {
+        const QPointF centre(m_fuelObjects[i].first, m_fuelObjects[i].second);
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(Qt::yellow);
+        painter.drawEllipse(centre, FUEL_RADIUS, FUEL_RADIUS);
+        if (m_selectedFuel.contains(i)) {
+            painter.setPen(hairline(SELECTED_COLOUR));
+            painter.setBrush(Qt::NoBrush);
+            painter.drawEllipse(centre, FUEL_RADIUS + 3, FUEL_RADIUS + 3);
+        }
     }
 }
 
@@ -695,45 +708,40 @@ void Level::leftClicked(QPointF w, float zoomLevel, bool extendSelection, bool s
             }
         case Mode::EDIT:
             {
+                const auto item = itemAt(w, zoomLevel);
                 if (!extendSelection) {
-                    m_highlightedLineIndices.clear();
+                    clearSelection();
                 }
-                // Check to see if there is a line under the cursor
-                auto line = lineUnderCursor(w, zoomLevel);
-                addOrRemoveHighlightedLine(line, !singleLine);
-                if (line.has_value()) {
-                    m_highlightedMovingObjectIdx = std::nullopt;
-                } else {
-                    m_highlightedLineIndices.clear();
-                    m_highlightedMovingObjectIdx = movingObjectUnderCursor(w);
+                if (item.has_value()) {
+                    if (extendSelection && isSelected(*item)) {
+                        deselect(*item);
+                    } else {
+                        select(*item, !singleLine);
+                    }
                 }
                 break;
             }
         case Mode::START:
             {
-                // if we're within r workspace units of an existing start object,
-                // we treat additional clicks as a way to modify the object's rotation
-                unsigned r = 20;
+                // Place the ship (keeping its rotation), and select it, ready
+                // to be moved or rotated
                 checkpoint();
-                if (m_startPosition.has_value()
-                    && ((m_startPosition.value().x > w.x() - r
-                         && m_startPosition.value().x < w.x() + r)
-                        && (m_startPosition.value().y > w.y() - r
-                            && m_startPosition.value().y < w.y() + r))) {
-                    m_startPosition.value().r += 15;
-                    if (m_startPosition.value().r >= 360) {
-                        m_startPosition.value().r = 0;
-                    }
-                } else {
-                    m_startPosition
-                        = { static_cast<unsigned>(w.x()), static_cast<unsigned>(w.y()), 0 };
-                }
+                const unsigned rotation = m_startPosition.has_value() ? m_startPosition->r : 0;
+                m_startPosition
+                    = { static_cast<unsigned>(w.x()), static_cast<unsigned>(w.y()), rotation };
+                changeMode(Mode::EDIT);
+                clearSelection();
+                m_shipSelected = true;
                 break;
             }
         case Mode::EXIT:
             {
+                // As for the ship
                 checkpoint();
                 m_exitPosition = std::make_pair(w.x(), w.y());
+                changeMode(Mode::EDIT);
+                clearSelection();
+                m_exitSelected = true;
                 break;
             }
         case Mode::FUEL:
@@ -795,14 +803,241 @@ void Level::finishCurrentLine()
 // Selection
 // ---------------------------------------------------------------------------
 
+std::optional<Level::Item> Level::itemAt(QPointF w, float zoomLevel) const
+{
+    auto near = [&w](double x, double y, double halfWidth, double halfHeight) {
+        return std::abs(w.x() - x) <= halfWidth && std::abs(w.y() - y) <= halfHeight;
+    };
+    if (m_startPosition.has_value()
+        && near(m_startPosition->x, m_startPosition->y, SHIP_RADIUS, SHIP_RADIUS)) {
+        return Item { Item::Type::SHIP };
+    }
+    if (m_exitPosition.has_value()
+        && near(
+            m_exitPosition->first, m_exitPosition->second, EXIT_HALF_WIDTH, EXIT_HALF_HEIGHT)) {
+        return Item { Item::Type::EXIT };
+    }
+    for (std::size_t i = 0; i < m_fuelObjects.size(); ++i) {
+        if (near(m_fuelObjects[i].first, m_fuelObjects[i].second, FUEL_RADIUS, FUEL_RADIUS)) {
+            return Item { Item::Type::FUEL, i };
+        }
+    }
+    if (auto line = lineUnderCursor(w, zoomLevel)) {
+        return Item { Item::Type::LINE, *line };
+    }
+    if (auto movingObject = movingObjectUnderCursor(w)) {
+        return Item { Item::Type::MOVING_OBJECT, *movingObject };
+    }
+    return std::nullopt;
+}
+
+bool Level::isSelected(const Item& item) const
+{
+    switch (item.type) {
+        case Item::Type::SHIP:
+            return m_shipSelected;
+        case Item::Type::EXIT:
+            return m_exitSelected;
+        case Item::Type::FUEL:
+            return m_selectedFuel.contains(item.index);
+        case Item::Type::LINE:
+            return m_highlightedLineIndices.contains(item.index);
+        case Item::Type::MOVING_OBJECT:
+            return m_selectedMovingObjects.contains(item.index);
+    }
+    return false;
+}
+
+void Level::select(const Item& item, bool includeConnectedLines)
+{
+    switch (item.type) {
+        case Item::Type::SHIP:
+            m_shipSelected = true;
+            break;
+        case Item::Type::EXIT:
+            m_exitSelected = true;
+            break;
+        case Item::Type::FUEL:
+            m_selectedFuel.insert(item.index);
+            break;
+        case Item::Type::LINE:
+            m_highlightedLineIndices.insert(item.index);
+            if (includeConnectedLines) {
+                addConnectedLinesToHighlight(m_lines[item.index]);
+            }
+            break;
+        case Item::Type::MOVING_OBJECT:
+            m_selectedMovingObjects.insert(item.index);
+            break;
+    }
+}
+
+void Level::deselect(const Item& item)
+{
+    switch (item.type) {
+        case Item::Type::SHIP:
+            m_shipSelected = false;
+            break;
+        case Item::Type::EXIT:
+            m_exitSelected = false;
+            break;
+        case Item::Type::FUEL:
+            m_selectedFuel.erase(item.index);
+            break;
+        case Item::Type::LINE:
+            // TODO remove connected lines too?
+            m_highlightedLineIndices.erase(item.index);
+            break;
+        case Item::Type::MOVING_OBJECT:
+            m_selectedMovingObjects.erase(item.index);
+            break;
+    }
+}
+
+bool Level::isItemAt(QPointF pos, float zoomLevel) const
+{
+    return itemAt(pos, zoomLevel).has_value();
+}
+
+bool Level::isSelectedItemAt(QPointF pos, float zoomLevel) const
+{
+    const auto item = itemAt(pos, zoomLevel);
+    return item.has_value() && isSelected(*item);
+}
+
+void Level::selectOnlyItemAt(QPointF pos, float zoomLevel, bool singleLine)
+{
+    clearSelection();
+    if (const auto item = itemAt(pos, zoomLevel)) {
+        select(*item, !singleLine);
+    }
+}
+
+void Level::selectInRect(const QRectF& rect, bool extendSelection)
+{
+    if (!extendSelection) {
+        clearSelection();
+    }
+    auto inside = [&rect](double x, double y, double halfWidth = 0, double halfHeight = 0) {
+        return rect.contains(QPointF(x - halfWidth, y - halfHeight))
+            && rect.contains(QPointF(x + halfWidth, y + halfHeight));
+    };
+    auto lineInside = [&](const Line& l) { return inside(l.x0, l.y0) && inside(l.x1, l.y1); };
+    for (std::size_t i = 0; i < m_lines.size(); ++i) {
+        if (!m_lines[i].inactive && lineInside(m_lines[i])) {
+            m_highlightedLineIndices.insert(i);
+        }
+    }
+    for (std::size_t i = 0; i < m_movingObjects.size(); ++i) {
+        if (std::ranges::all_of(m_movingObjects[i].lines, lineInside)) {
+            m_selectedMovingObjects.insert(i);
+        }
+    }
+    for (std::size_t i = 0; i < m_fuelObjects.size(); ++i) {
+        if (inside(m_fuelObjects[i].first, m_fuelObjects[i].second, FUEL_RADIUS, FUEL_RADIUS)) {
+            m_selectedFuel.insert(i);
+        }
+    }
+    if (m_exitPosition.has_value()
+        && inside(
+            m_exitPosition->first, m_exitPosition->second, EXIT_HALF_WIDTH, EXIT_HALF_HEIGHT)) {
+        m_exitSelected = true;
+    }
+    if (m_startPosition.has_value()
+        && inside(m_startPosition->x, m_startPosition->y, SHIP_RADIUS, SHIP_RADIUS)) {
+        m_shipSelected = true;
+    }
+}
+
+void Level::selectAll()
+{
+    selectInRect(QRectF(0, 0, MAP_SIZE, MAP_SIZE).adjusted(-100, -100, 100, 100), false);
+}
+
+void Level::clearSelection()
+{
+    m_highlightedLineIndices.clear();
+    m_selectedMovingObjects.clear();
+    m_selectedFuel.clear();
+    m_exitSelected = false;
+    m_shipSelected = false;
+}
+
 bool Level::hasSelection() const
 {
-    return hasSelectedLines() || m_highlightedMovingObjectIdx.has_value();
+    return hasSelectedLines() || !m_selectedMovingObjects.empty() || !m_selectedFuel.empty()
+        || m_exitSelected || m_shipSelected;
 }
 
 bool Level::hasSelectedLines() const
 {
     return !m_highlightedLineIndices.empty();
+}
+
+std::optional<QRectF> Level::selectionBounds() const
+{
+    bool any = false;
+    double minX = 0, minY = 0, maxX = 0, maxY = 0;
+    auto add = [&](double x, double y, double halfWidth = 0, double halfHeight = 0) {
+        if (!any) {
+            minX = x - halfWidth;
+            maxX = x + halfWidth;
+            minY = y - halfHeight;
+            maxY = y + halfHeight;
+            any = true;
+        } else {
+            minX = std::min(minX, x - halfWidth);
+            maxX = std::max(maxX, x + halfWidth);
+            minY = std::min(minY, y - halfHeight);
+            maxY = std::max(maxY, y + halfHeight);
+        }
+    };
+    auto addLine = [&](const Line& l) {
+        add(l.x0, l.y0);
+        add(l.x1, l.y1);
+    };
+    for (std::size_t i : m_highlightedLineIndices) {
+        addLine(m_lines[i]);
+    }
+    for (std::size_t i : m_selectedMovingObjects) {
+        std::ranges::for_each(m_movingObjects[i].lines, addLine);
+    }
+    for (std::size_t i : m_selectedFuel) {
+        add(m_fuelObjects[i].first, m_fuelObjects[i].second, FUEL_RADIUS, FUEL_RADIUS);
+    }
+    if (m_exitSelected && m_exitPosition.has_value()) {
+        add(m_exitPosition->first, m_exitPosition->second, EXIT_HALF_WIDTH, EXIT_HALF_HEIGHT);
+    }
+    if (m_shipSelected && m_startPosition.has_value()) {
+        add(m_startPosition->x, m_startPosition->y, SHIP_RADIUS, SHIP_RADIUS);
+    }
+    if (!any) {
+        return std::nullopt;
+    }
+    return QRectF(QPointF(minX, minY), QPointF(maxX, maxY));
+}
+
+template <typename Fn> void Level::forEachSelectedPoint(Fn fn)
+{
+    for (std::size_t i : m_highlightedLineIndices) {
+        fn(m_lines[i].x0, m_lines[i].y0);
+        fn(m_lines[i].x1, m_lines[i].y1);
+    }
+    for (std::size_t i : m_selectedMovingObjects) {
+        for (auto& l : m_movingObjects[i].lines) {
+            fn(l.x0, l.y0);
+            fn(l.x1, l.y1);
+        }
+    }
+    for (std::size_t i : m_selectedFuel) {
+        fn(m_fuelObjects[i].first, m_fuelObjects[i].second);
+    }
+    if (m_exitSelected && m_exitPosition.has_value()) {
+        fn(m_exitPosition->first, m_exitPosition->second);
+    }
+    if (m_shipSelected && m_startPosition.has_value()) {
+        fn(m_startPosition->x, m_startPosition->y);
+    }
 }
 
 void Level::deleteSelection()
@@ -814,11 +1049,45 @@ void Level::deleteSelection()
     for (const size_t i : m_highlightedLineIndices) {
         m_lines[i].inactive = true;
     }
-    m_highlightedLineIndices.clear();
-    if (m_highlightedMovingObjectIdx.has_value()) {
-        m_movingObjects.erase(m_movingObjects.begin() + m_highlightedMovingObjectIdx.value());
-        m_highlightedMovingObjectIdx = std::nullopt;
+    // Erase from the end, so the indices of those still to erase stay valid
+    for (auto i = m_selectedMovingObjects.rbegin(); i != m_selectedMovingObjects.rend(); ++i) {
+        m_movingObjects.erase(m_movingObjects.begin() + *i);
     }
+    for (auto i = m_selectedFuel.rbegin(); i != m_selectedFuel.rend(); ++i) {
+        m_fuelObjects.erase(m_fuelObjects.begin() + *i);
+    }
+    if (m_exitSelected) {
+        m_exitPosition = std::nullopt;
+    }
+    if (m_shipSelected) {
+        m_startPosition = std::nullopt;
+    }
+    clearSelection();
+}
+
+void Level::translateSelection(int x, int y)
+{
+    // Limit the movement to keep the selection on the map
+    long minX = std::numeric_limits<long>::max();
+    long minY = std::numeric_limits<long>::max();
+    long maxX = std::numeric_limits<long>::min();
+    long maxY = std::numeric_limits<long>::min();
+    forEachSelectedPoint([&](unsigned& px, unsigned& py) {
+        minX = std::min<long>(minX, px);
+        maxX = std::max<long>(maxX, px);
+        minY = std::min<long>(minY, py);
+        maxY = std::max<long>(maxY, py);
+    });
+    if (minX > maxX) {
+        return; // nothing selected
+    }
+    const long mapSize = static_cast<long>(MAP_SIZE);
+    const long dx = std::clamp<long>(x, -minX, mapSize - maxX);
+    const long dy = std::clamp<long>(y, -minY, mapSize - maxY);
+    forEachSelectedPoint([&](unsigned& px, unsigned& py) {
+        px = static_cast<unsigned>(px + dx);
+        py = static_cast<unsigned>(py + dy);
+    });
 }
 
 void Level::nudgeSelection(int x, int y)
@@ -828,11 +1097,97 @@ void Level::nudgeSelection(int x, int y)
     }
     // Consecutive nudges undo together
     checkpoint(Change::Nudge);
-    if (m_highlightedMovingObjectIdx.has_value()) {
-        moveMovingObject(*m_highlightedMovingObjectIdx, x, y);
-    } else {
-        moveLines(x, y);
+    translateSelection(x, y);
+}
+
+void Level::beginTransform()
+{
+    m_transformOrigin = snapshot();
+    m_transformCheckpointed = false;
+    m_lastValidRotation = 0.0;
+    m_lastChangeWasNudge = false;
+}
+
+void Level::transformCheckpoint()
+{
+    // The contents are as at the start of the transform when this is first
+    // called, so that's what's undone to
+    if (!m_transformCheckpointed) {
+        checkpoint();
+        m_transformCheckpointed = true;
     }
+}
+
+void Level::moveSelection(int x, int y)
+{
+    if (!m_transformOrigin.has_value()) {
+        return;
+    }
+    restoreContents(*m_transformOrigin);
+    if (x != 0 || y != 0) {
+        transformCheckpoint();
+        translateSelection(x, y);
+    }
+}
+
+bool Level::applyRotation(double degrees, QPointF centre)
+{
+    const double radians = degrees * std::numbers::pi / 180.0;
+    const double cosine = std::cos(radians);
+    const double sine = std::sin(radians);
+    // y is down, so this rotates clockwise on screen
+    auto rotated = [&](unsigned x, unsigned y) {
+        const double dx = x - centre.x();
+        const double dy = y - centre.y();
+        return QPointF(
+            std::round(centre.x() + dx * cosine - dy * sine),
+            std::round(centre.y() + dx * sine + dy * cosine));
+    };
+    // Don't rotate anything off the map
+    bool onMap = true;
+    forEachSelectedPoint([&](unsigned& x, unsigned& y) {
+        const QPointF p = rotated(x, y);
+        if (p.x() < 0 || p.y() < 0 || p.x() > MAP_SIZE || p.y() > MAP_SIZE) {
+            onMap = false;
+        }
+    });
+    if (!onMap) {
+        return false;
+    }
+    if (degrees == 0.0) {
+        return true;
+    }
+    transformCheckpoint();
+    forEachSelectedPoint([&](unsigned& x, unsigned& y) {
+        const QPointF p = rotated(x, y);
+        x = static_cast<unsigned>(p.x());
+        y = static_cast<unsigned>(p.y());
+    });
+    if (m_shipSelected && m_startPosition.has_value()) {
+        // The ship's rotation is anticlockwise
+        const long r = std::lround(m_startPosition->r - degrees) % 360;
+        m_startPosition->r = static_cast<unsigned>(r < 0 ? r + 360 : r);
+    }
+    return true;
+}
+
+void Level::rotateSelection(double degrees, QPointF centre)
+{
+    if (!m_transformOrigin.has_value()) {
+        return;
+    }
+    restoreContents(*m_transformOrigin);
+    if (applyRotation(degrees, centre)) {
+        m_lastValidRotation = degrees;
+    } else {
+        // It would go off the map, so stay at the last rotation which didn't
+        applyRotation(m_lastValidRotation, centre);
+    }
+}
+
+void Level::endTransform()
+{
+    m_transformOrigin = std::nullopt;
 }
 
 void Level::convertSelectionToMovingObject()
@@ -851,48 +1206,30 @@ void Level::convertSelectionToMovingObject()
     }
     m_movingObjects.push_back(m);
     m_highlightedLineIndices.clear();
-    m_highlightedMovingObjectIdx = m_movingObjects.size() - 1;
+    m_selectedMovingObjects.insert(m_movingObjects.size() - 1);
 }
 
 std::optional<MovingObject> Level::selectedMovingObject() const
 {
-    if (!m_highlightedMovingObjectIdx.has_value()) {
+    if (m_selectedMovingObjects.size() != 1) {
         return std::nullopt;
     }
-    return m_movingObjects[*m_highlightedMovingObjectIdx];
+    return m_movingObjects[*m_selectedMovingObjects.begin()];
 }
 
 void Level::setSelectedMovingObjectMotion(const MovingObject& motion)
 {
-    if (!m_highlightedMovingObjectIdx.has_value()) {
+    if (m_selectedMovingObjects.size() != 1) {
         return;
     }
     checkpoint();
-    auto& obj = m_movingObjects[*m_highlightedMovingObjectIdx];
+    auto& obj = m_movingObjects[*m_selectedMovingObjects.begin()];
     obj.xDelta = motion.xDelta;
     obj.xMaxDifference = motion.xMaxDifference;
     obj.yDelta = motion.yDelta;
     obj.yMaxDifference = motion.yMaxDifference;
     obj.rotationDelta = motion.rotationDelta;
     obj.gravity = motion.gravity;
-}
-
-void Level::addOrRemoveHighlightedLine(std::optional<size_t>& lineIdx, bool includeConnectedLines)
-{
-    if (!lineIdx.has_value()) {
-        return;
-    }
-    auto i = std::find(m_highlightedLineIndices.begin(), m_highlightedLineIndices.end(), *lineIdx);
-    if (i == m_highlightedLineIndices.end()) {
-        if (includeConnectedLines) {
-            addConnectedLinesToHighlight(m_lines[*lineIdx]);
-        } else {
-            m_highlightedLineIndices.insert(*lineIdx);
-        }
-    } else {
-        m_highlightedLineIndices.erase(i);
-        // TODO remove connected lines if includeConnectedLines == true
-    }
 }
 
 void Level::addConnectedLinesToHighlight(const Line& line)
@@ -912,27 +1249,6 @@ void Level::addConnectedLinesToHighlight(const Line& line)
     }
 }
 
-void Level::moveMovingObject(std::size_t movingObjectIdx, int x, int y)
-{
-    auto& obj = m_movingObjects[movingObjectIdx];
-    for (auto& line : obj.lines) {
-        line.x0 += x;
-        line.y0 += y;
-        line.x1 += x;
-        line.y1 += y;
-    }
-}
-
-void Level::moveLines(int x, int y)
-{
-    for (auto& idx : m_highlightedLineIndices) {
-        m_lines[idx].x0 += x;
-        m_lines[idx].y0 += y;
-        m_lines[idx].x1 += x;
-        m_lines[idx].y1 += y;
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Undo / redo
 // ---------------------------------------------------------------------------
@@ -946,13 +1262,7 @@ Level::Snapshot Level::snapshot() const
 void Level::restore(const Snapshot& snapshot)
 {
     m_stateId = snapshot.stateId;
-    m_levelDescription = snapshot.description;
-    m_lines = snapshot.lines;
-    m_startPosition = snapshot.startPosition;
-    m_exitPosition = snapshot.exitPosition;
-    m_fuelObjects = snapshot.fuelObjects;
-    m_movingObjects = snapshot.movingObjects;
-    m_currentMovingObject = snapshot.currentMovingObject;
+    restoreContents(snapshot);
     // A moving object can only be in progress in MOVING mode
     if (m_currentMode != Mode::MOVING && !m_currentMovingObject.lines.empty()) {
         m_movingObjects.push_back(m_currentMovingObject);
@@ -960,10 +1270,21 @@ void Level::restore(const Snapshot& snapshot)
     }
     // The selection and anything in progress may refer to things which no
     // longer exist
-    m_highlightedLineIndices.clear();
-    m_highlightedMovingObjectIdx = std::nullopt;
+    clearSelection();
+    m_transformOrigin = std::nullopt;
     m_currentInsertionLine.inactive = true;
     m_lastChangeWasNudge = false;
+}
+
+void Level::restoreContents(const Snapshot& snapshot)
+{
+    m_levelDescription = snapshot.description;
+    m_lines = snapshot.lines;
+    m_startPosition = snapshot.startPosition;
+    m_exitPosition = snapshot.exitPosition;
+    m_fuelObjects = snapshot.fuelObjects;
+    m_movingObjects = snapshot.movingObjects;
+    m_currentMovingObject = snapshot.currentMovingObject;
 }
 
 void Level::checkpoint(Change change)
@@ -1036,8 +1357,7 @@ void Level::changeMode(Mode mode)
         m_currentPolygon.lines.clear();
     }
     if (mode != Mode::EDIT) {
-        m_highlightedLineIndices.clear();
-        m_highlightedMovingObjectIdx = std::nullopt;
+        clearSelection();
     }
     m_currentInsertionLine.inactive = true;
     m_currentNearestSnapPoint = std::nullopt;

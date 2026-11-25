@@ -76,13 +76,14 @@ QString modeHint(Mode mode)
             return "Click to start a line, then click to add each point. Right-click or Esc "
                    "finishes the object.";
         case Mode::EDIT:
-            return QString("Click to select (%1-click adds to the selection, %2-click selects a "
-                           "single line). Arrow keys nudge.")
-                .arg(CMD, ALT);
+            return QString("Click or drag a box to select (%1 adds to the selection). Drag the "
+                           "selection to move it, or its handle to rotate it (Shift: 15\u00b0 "
+                           "steps).")
+                .arg(CMD);
         case Mode::START:
-            return "Click to place the ship; click the ship again to rotate it.";
+            return "Click to place the ship; it's then selected, so it can be moved or rotated.";
         case Mode::EXIT:
-            return "Click to place the exit.";
+            return "Click to place the exit; it's then selected, so it can be moved.";
         case Mode::FUEL:
             return "Click to place fuel; click existing fuel to remove it.";
         case Mode::POLYGON_CENTRE:
@@ -200,6 +201,10 @@ void MainWindow::createMenus()
     };
     editMenu->addSeparator();
     addMode(editMenu, "&Select", QKeySequence(Qt::SHIFT | Qt::Key_E), Mode::EDIT);
+    add(editMenu, "Select &All", { QKeySequence::SelectAll }, [this] {
+        m_level.changeMode(Mode::EDIT);
+        m_level.selectAll();
+    });
 
     QMenu* insertMenu = menuBar()->addMenu("&Insert");
     addMode(insertMenu, "&Line", QKeySequence(Qt::SHIFT | Qt::Key_L), Mode::LINE);
@@ -619,10 +624,19 @@ void MainWindow::showHelp()
                 "<li><b>%1 + wheel</b> or <b>pinch</b>: zoom</li>"
                 "<li><b>Shift + move mouse</b>: scroll the view</li>"
                 "<li><b>Right-click / Esc</b>: stop drawing the current line</li>"
-                "<li><b>%1-click</b>: add to the selection</li>"
-                "<li><b>%2-click</b>: select a single line rather than all those "
+                "</ul>"
+                "<p>When selecting (<b>Edit &gt; Select</b>):</p>"
+                "<ul>"
+                "<li><b>Click</b>: select an item; clicking a line selects all the lines "
                 "connected to it</li>"
-                "<li><b>Arrow keys</b>: nudge the selection</li>"
+                "<li><b>%2-click</b>: select a single line</li>"
+                "<li><b>%1-click</b>: add an item to (or remove it from) the selection</li>"
+                "<li><b>Drag from empty space</b>: select everything inside the box "
+                "(<b>%1</b> to add to the selection)</li>"
+                "<li><b>Drag the selection</b>, or use the <b>arrow keys</b>: move it</li>"
+                "<li><b>Drag the round handle</b> above the selection: rotate it (hold "
+                "<b>Shift</b> for 15&deg; steps)</li>"
+                "<li><b>Esc</b>: clear the selection</li>"
                 "</ul>"
                 "<p>Other keyboard shortcuts are shown in the menus.</p>")
             .arg(CMD, ALT));
