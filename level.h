@@ -134,6 +134,14 @@ public:
     // Whether a line or polygon is being drawn
     bool isDrawing() const;
 
+    // Placing items, as clicking in the START, EXIT and FUEL modes does
+    // (except that adding fuel doesn't remove any already there). Placing the
+    // ship or exit switches to EDIT mode and selects it, so it can be moved
+    // or rotated.
+    void placeShip(QPointF pos);
+    void placeExit(QPointF pos);
+    void addFuel(QPointF pos);
+
     // Selection (in EDIT mode). Any number of lines, moving objects and fuel,
     // the exit and the ship can be selected.
     bool hasSelection() const;

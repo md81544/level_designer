@@ -15,6 +15,7 @@
 #include <QFormLayout>
 #include <QInputDialog>
 #include <QLabel>
+#include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QSettings>
@@ -249,10 +250,31 @@ void MainWindow::createMenus()
         addAction(action);
     }
 
-    auto* separator = new QAction(this);
-    separator->setSeparator(true);
-    m_canvas->setContextMenuActions(
-        { m_deleteAction, m_makeMovingAction, m_movingPropertiesAction, separator, selectAllAction });
+    // The context menu has the operations on the selection, and the modes
+    // (sharing the menu bar's actions, so they're checked and enabled alike)
+    auto separator = [this] {
+        auto* action = new QAction(this);
+        action->setSeparator(true);
+        return action;
+    };
+    auto* contextInsertMenu = new QMenu("Insert", this);
+    contextInsertMenu->addActions(
+        { m_modeActions.at(Mode::LINE),
+          m_modeActions.at(Mode::BREAKABLE),
+          m_modeActions.at(Mode::MOVING),
+          m_modeActions.at(Mode::POLYGON_CENTRE),
+          separator(),
+          m_modeActions.at(Mode::FUEL),
+          m_modeActions.at(Mode::START),
+          m_modeActions.at(Mode::EXIT) });
+    m_canvas->setContextMenuActions({ m_deleteAction,
+                                      m_makeMovingAction,
+                                      m_movingPropertiesAction,
+                                      separator(),
+                                      selectAllAction,
+                                      separator(),
+                                      m_modeActions.at(Mode::EDIT),
+                                      contextInsertMenu->menuAction() });
 
     // View
     QMenu* viewMenu = menuBar()->addMenu("&View");

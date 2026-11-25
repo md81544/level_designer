@@ -712,33 +712,11 @@ void Level::leftClicked(QPointF w, float zoomLevel, bool extendSelection, bool s
                 break;
             }
         case Mode::START:
-            {
-                // Place the ship (keeping its rotation), and select it, ready
-                // to be moved or rotated
-                checkpoint();
-                const unsigned rotation = m_startPosition.has_value() ? m_startPosition->r : 0;
-                m_startPosition
-                    = { static_cast<unsigned>(w.x()), static_cast<unsigned>(w.y()), rotation };
-                changeMode(Mode::EDIT);
-                clearSelection();
-                m_shipSelected = true;
-                break;
-            }
+            placeShip(w);
+            break;
         case Mode::EXIT:
-            {
-                // As for the ship
-                checkpoint();
-                ExitPosition exit { static_cast<unsigned>(w.x()), static_cast<unsigned>(w.y()) };
-                if (m_exitPosition.has_value()) {
-                    exit.r = m_exitPosition->r;
-                    exit.thickness = m_exitPosition->thickness;
-                }
-                m_exitPosition = exit;
-                changeMode(Mode::EDIT);
-                clearSelection();
-                m_exitSelected = true;
-                break;
-            }
+            placeExit(w);
+            break;
         case Mode::FUEL:
             {
                 // if we are within r workspace units of an existing fuel object, we
@@ -793,6 +771,38 @@ void Level::finishCurrentLine()
 {
     m_currentInsertionLine.inactive = true;
     finishCurrentMovingObject();
+}
+
+void Level::placeShip(QPointF w)
+{
+    // Keeping its rotation, and selecting it, ready to be moved or rotated
+    checkpoint();
+    const unsigned rotation = m_startPosition.has_value() ? m_startPosition->r : 0;
+    m_startPosition = { static_cast<unsigned>(w.x()), static_cast<unsigned>(w.y()), rotation };
+    changeMode(Mode::EDIT);
+    clearSelection();
+    m_shipSelected = true;
+}
+
+void Level::placeExit(QPointF w)
+{
+    // As for the ship
+    checkpoint();
+    ExitPosition exit { static_cast<unsigned>(w.x()), static_cast<unsigned>(w.y()) };
+    if (m_exitPosition.has_value()) {
+        exit.r = m_exitPosition->r;
+        exit.thickness = m_exitPosition->thickness;
+    }
+    m_exitPosition = exit;
+    changeMode(Mode::EDIT);
+    clearSelection();
+    m_exitSelected = true;
+}
+
+void Level::addFuel(QPointF w)
+{
+    checkpoint();
+    m_fuelObjects.push_back({ static_cast<unsigned>(w.x()), static_cast<unsigned>(w.y()) });
 }
 
 bool Level::isDrawing() const

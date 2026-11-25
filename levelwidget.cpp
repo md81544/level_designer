@@ -541,6 +541,11 @@ void LevelWidget::showContextMenu(QPointF pos)
         menu.addAction(
             "Select Connected Lines", [&] { m_level.selectLineAt(mapPos, m_zoom, true); });
     }
+    // Placing items where clicked
+    menu.addSeparator();
+    menu.addAction("Place Start Position Here", [&] { m_level.placeShip(mapPos); });
+    menu.addAction("Place Exit Here", [&] { m_level.placeExit(mapPos); });
+    menu.addAction("Add Fuel Here", [&] { m_level.addFuel(mapPos); });
     if (!m_contextMenuActions.isEmpty()) {
         menu.addSeparator();
         menu.addActions(m_contextMenuActions);

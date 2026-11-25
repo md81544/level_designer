@@ -250,3 +250,27 @@ TEST_CASE("Lines in a closed shape can be edited individually")
         CHECK(level.canJoinLinesAt({ 300, 300 }, zoom));
     }
 }
+
+TEST_CASE("Items can be placed directly, as from the context menu")
+{
+    Level level;
+    level.changeMode(Mode::LINE);
+    level.placeShip({ 100, 200 });
+    CHECK(level.mode() == Mode::EDIT);
+    CHECK(level.selectionBounds()->center() == QPointF(100, 200));
+    level.placeExit({ 300, 400 });
+    CHECK(level.selectionBounds()->center() == QPointF(300, 400));
+    level.addFuel({ 500, 600 });
+    level.addFuel({ 500, 600 }); // adds, rather than removing what's there
+
+    TempFile file("placed.lvl");
+    level.save(file.path());
+    const auto saved = levelformat::read(file.path());
+    REQUIRE(saved.ship.has_value());
+    CHECK(saved.ship->x == 100);
+    CHECK(saved.ship->y == 200);
+    REQUIRE(saved.exit.has_value());
+    CHECK(saved.exit->x == 300);
+    CHECK(saved.exit->y == 400);
+    CHECK(saved.fuel.size() == 2);
+}
