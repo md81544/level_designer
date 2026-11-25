@@ -81,7 +81,11 @@ struct CurrentPolygon {
 
 class Level {
 public:
-    Level(sf::Window& window, unsigned windowWidth, unsigned windowHeight);
+    Level(
+        sf::Window& window,
+        unsigned windowWidth,
+        unsigned windowHeight,
+        const std::string& dataDir);
     void load(const std::string& filename);
     void save();
     void draw(sf::RenderWindow& window);

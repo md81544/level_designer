@@ -20,13 +20,17 @@
 #include <boost/algorithm/string/split.hpp>
 
 namespace mgo {
-mgo::Level::Level(sf::Window& window, unsigned windowWidth, unsigned windowHeight)
+mgo::Level::Level(
+    sf::Window& window,
+    unsigned windowWidth,
+    unsigned windowHeight,
+    const std::string& dataDir)
     : m_window(window)
     , m_dialogTitle(m_font)
     , m_dialogText(m_font)
     , m_editModeText(m_font)
 {
-    if (!m_font.openFromFile("DroidSansMono.ttf")) {
+    if (!m_font.openFromFile(std::format("{}DroidSansMono.ttf", dataDir).c_str())) {
         throw std::runtime_error("Could not load font file");
     }
     m_currentInsertionLine.inactive = true;
@@ -583,6 +587,9 @@ void mgo::Level::processMenuInput(const imgui::Status& status)
     }
     if (status.save) {
         save();
+    }
+    if (status.load) {
+        // TODO
     }
 }
 
@@ -1226,7 +1233,7 @@ void Level::quit(sf::RenderWindow& window)
 
 void Level::zoomOut()
 {
-    if (m_view.getSize().x < 5000.f) {
+    if (m_view.getSize().x < m_window.getSize().x * 2) {
         m_view.zoom(1.05f);
         m_viewZoomLevel *= 1.05f;
     }

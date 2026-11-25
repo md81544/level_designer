@@ -19,6 +19,7 @@ FetchContent_Declare(ImGui
 FetchContent_MakeAvailable(ImGui)
 FetchContent_GetProperties(ImGui SOURCE_DIR IMGUI_DIR)
 set(IMGUI_SFML_FIND_SFML OFF)
+
 FetchContent_Declare(ImGui-SFML
     GIT_REPOSITORY https://github.com/SFML/imgui-sfml
     GIT_TAG v3.0
@@ -82,6 +83,9 @@ if(APPLE)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             ${CMAKE_SOURCE_DIR}/level_designer.cfg
             $<TARGET_BUNDLE_CONTENT_DIR:${APP_NAME}>/Resources/level_designer.cfg
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_SOURCE_DIR}/data
+            $<TARGET_BUNDLE_CONTENT_DIR:${APP_NAME}>/Resources/data
         COMMAND ${CMAKE_COMMAND}
             -DBINARY=$<TARGET_FILE:${APP_NAME}>
             -DFRAMEWORKS=$<TARGET_BUNDLE_CONTENT_DIR:${APP_NAME}>/Frameworks

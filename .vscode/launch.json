@@ -8,7 +8,7 @@
             "type": "lldb",
             "request": "launch",
             "name": "Debug",
-            "program": "${workspaceFolder}/level_designer",
+            "program": "${workspaceFolder}/level_designer.app/Contents/MacOS/level_designer",
             "args": ["/Users/mcd/tmp/level2.cfg"],
             "cwd": "${workspaceFolder}"
         }

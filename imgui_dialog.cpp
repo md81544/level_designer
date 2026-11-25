@@ -50,7 +50,7 @@ MessageBox::Result MessageBox::draw()
     return result;
 }
 
-Dialog::Dialog(sf::RenderWindow& window)
+Dialog::Dialog(sf::RenderWindow& window, const std::string& dataDir)
     : m_window(window)
 {
     if (!ImGui::SFML::Init(window)) {
@@ -60,7 +60,7 @@ Dialog::Dialog(sf::RenderWindow& window)
     // If we skip this, the default ImGui font is used automatically.
     ImGuiIO& io = ImGui::GetIO();
     io.Fonts->Clear();
-    io.Fonts->AddFontFromFileTTF("DroidSansMono.ttf", 16.0f);
+    io.Fonts->AddFontFromFileTTF(std::format("{}/DroidSansMono.ttf", dataDir).c_str(), 16.0f);
     auto _ = ImGui::SFML::UpdateFontTexture();
 
     // Disable creation of imgui.ini (enable by removing this line if you want
@@ -208,7 +208,6 @@ Status Dialog::build()
             // still open, or not open at all
             break;
     }
-
     return rc;
 }
 

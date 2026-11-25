@@ -1,7 +1,7 @@
 #pragma once
 
 // Class to completely contain all imgui-sfml code.
-// Imgui-sfml is used to provide menus and other UI widgets.
+// Imgui-sfml is used to provide menus and other UI widgets
 
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Window/Event.hpp>
@@ -54,7 +54,7 @@ private:
 
 class Dialog {
 public:
-    explicit Dialog(sf::RenderWindow& window);
+    explicit Dialog(sf::RenderWindow& window, const std::string& dataDir);
     ~Dialog() noexcept;
     // Note: this should be the only place that polls for sf::Events.
     // any events not handled by imgui are then passed back in a vector
