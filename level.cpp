@@ -32,6 +32,25 @@ QPen hairline(QColor colour)
 
 const QColor BOUNDARY_COLOUR { 128, 128, 0 };
 
+// The ship's outline and colour, as in amaze (see ShipModel's constructor),
+// pointing up with its centre at the origin
+const QPolygonF SHIP_OUTLINE({ { 0, -20 },
+                               { 6, -11 },
+                               { 6, 1 },
+                               { 12, 7 },
+                               { 12, 19 },
+                               { 6, 13 },
+                               { 2, 13 },
+                               { 6, 16 },
+                               { -6, 16 },
+                               { -2, 13 },
+                               { -6, 13 },
+                               { -12, 19 },
+                               { -12, 7 },
+                               { -6, 1 },
+                               { -6, -11 } });
+const QColor SHIP_COLOUR { 192, 192, 255 };
+
 } // namespace
 
 void Level::load(const std::string& filename)
@@ -426,10 +445,14 @@ void Level::drawObjects(QPainter& painter) const
         painter.save();
         painter.translate(m_startPosition.value().x, m_startPosition.value().y);
         painter.rotate(360.0 - m_startPosition.value().r);
-        painter.setPen(Qt::NoPen);
-        painter.setBrush(Qt::green);
-        const QPolygonF ship({ { 0, -20 }, { 10, 20 }, { -10, 20 } });
-        painter.drawPolygon(ship);
+        painter.setRenderHint(QPainter::Antialiasing);
+        // In the game the ship's lines are a little thicker than the walls'
+        QPen pen = hairline(SHIP_COLOUR);
+        pen.setWidthF(1.5);
+        pen.setJoinStyle(Qt::RoundJoin);
+        painter.setPen(pen);
+        painter.setBrush(Qt::NoBrush);
+        painter.drawPolygon(SHIP_OUTLINE);
         painter.restore();
     }
     if (m_exitPosition.has_value()) {

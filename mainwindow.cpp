@@ -29,6 +29,8 @@ namespace {
 
 constexpr const char* WINDOW_GEOMETRY = "window/geometry";
 constexpr const char* LAST_DIRECTORY = "files/lastDirectory";
+constexpr const char* RECENT_FILES = "files/recent";
+constexpr qsizetype MAX_RECENT_FILES = 10;
 
 #ifdef Q_OS_MACOS
 constexpr const char* CMD = "Cmd";
@@ -151,7 +153,7 @@ void MainWindow::createMenus()
         action->setMenuRole(QAction::NoRole);
         connect(action, &QAction::triggered, this, [this, fn = std::move(fn)] {
             fn();
-            m_canvas->update();
+            m_canvas->viewport()->update();
             updateUi();
         });
         return action;
@@ -161,6 +163,8 @@ void MainWindow::createMenus()
     QMenu* fileMenu = menuBar()->addMenu("&File");
     add(fileMenu, "&New", { QKeySequence::New }, [this] { newLevel(); });
     add(fileMenu, "&Open...", { QKeySequence::Open }, [this] { open(); });
+    m_recentFilesMenu = fileMenu->addMenu("Open &Recent");
+    updateRecentFilesMenu();
     fileMenu->addSeparator();
     add(fileMenu, "&Save", { QKeySequence::Save }, [this] { save(); });
     add(fileMenu, "Save &As...", { QKeySequence::SaveAs }, [this] { saveAs(); });
@@ -328,7 +332,10 @@ bool MainWindow::loadFile(const QString& fileName)
     level.changeMode(m_level.mode() == Mode::POLYGON_RADIUS ? Mode::POLYGON_CENTRE : m_level.mode());
     m_level = std::move(level);
     QSettings().setValue(LAST_DIRECTORY, QFileInfo(path).absolutePath());
-    m_canvas->update();
+    if (QFileInfo::exists(path)) { // else it's a new file, to be created on save
+        addRecentFile(path);
+    }
+    m_canvas->viewport()->update();
     updateUi();
     return true;
 }
@@ -380,6 +387,70 @@ void MainWindow::open()
     }
 }
 
+void MainWindow::openRecentFile(const QString& fileName)
+{
+    if (!maybeSave()) {
+        return;
+    }
+    if (!QFileInfo::exists(fileName)) {
+        QMessageBox::warning(
+            this, "Open Recent", QString("%1 no longer exists.").arg(fileName));
+        QStringList files = QSettings().value(RECENT_FILES).toStringList();
+        files.removeAll(fileName);
+        QSettings().setValue(RECENT_FILES, files);
+        updateRecentFilesMenu();
+        return;
+    }
+    loadFile(fileName);
+}
+
+void MainWindow::addRecentFile(const QString& fileName)
+{
+    QSettings settings;
+    QStringList files = settings.value(RECENT_FILES).toStringList();
+    files.removeAll(fileName);
+    files.prepend(fileName);
+    while (files.size() > MAX_RECENT_FILES) {
+        files.removeLast();
+    }
+    settings.setValue(RECENT_FILES, files);
+    updateRecentFilesMenu();
+}
+
+void MainWindow::updateRecentFilesMenu()
+{
+    m_recentFilesMenu->clear();
+    const QStringList files = QSettings().value(RECENT_FILES).toStringList();
+    const QString home = QDir::homePath();
+    for (const QString& file : files) {
+        const QFileInfo info(file);
+        // Show the name, then where it is, abbreviating the home directory
+        QString dir = QDir::toNativeSeparators(info.absolutePath());
+        if (dir.startsWith(home)) {
+            dir = "~" + dir.mid(home.size());
+        }
+        QString text = QString("%1 \u2014 %2").arg(info.fileName(), dir);
+        text.replace("&", "&&"); // else taken as a shortcut marker
+        QAction* action = m_recentFilesMenu->addAction(text);
+        action->setMenuRole(QAction::NoRole); // see createMenus()
+        connect(action, &QAction::triggered, this, [this, file] {
+            openRecentFile(file);
+            updateUi();
+        });
+    }
+    if (files.isEmpty()) {
+        m_recentFilesMenu->addAction("No Recent Files")->setEnabled(false);
+    }
+    m_recentFilesMenu->addSeparator();
+    QAction* clear = m_recentFilesMenu->addAction("Clear Menu");
+    clear->setMenuRole(QAction::NoRole);
+    clear->setEnabled(!files.isEmpty());
+    connect(clear, &QAction::triggered, this, [this] {
+        QSettings().remove(RECENT_FILES);
+        updateRecentFilesMenu();
+    });
+}
+
 bool MainWindow::save()
 {
     if (m_level.fileName().empty()) {
@@ -416,6 +487,7 @@ bool MainWindow::saveTo(const QString& fileName)
         return false;
     }
     Log::info("Saved {}", fileName.toStdString());
+    addRecentFile(QFileInfo(fileName).absoluteFilePath());
     QSettings().setValue(LAST_DIRECTORY, QFileInfo(fileName).absolutePath());
     statusBar()->showMessage("Saved " + fileName, 3000);
     updateUi();
@@ -529,7 +601,7 @@ void MainWindow::editMovingObject(int focusField)
             (*object).*fields[i].member = static_cast<float>(spinBoxes[i]->value());
         }
         m_level.setSelectedMovingObjectMotion(*object);
-        m_canvas->update();
+        m_canvas->viewport()->update();
     }
 }
 

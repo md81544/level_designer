@@ -11,6 +11,7 @@
 
 class QAction;
 class QLabel;
+class QMenu;
 
 namespace mgo {
 
@@ -39,6 +40,10 @@ private:
     bool maybeSave();
     void newLevel();
     void open();
+    void openRecentFile(const QString& fileName);
+    // Recently opened / saved files, most recent first, are kept in the settings
+    void addRecentFile(const QString& fileName);
+    void updateRecentFilesMenu();
     bool save();
     bool saveAs();
     bool saveTo(const QString& fileName);
@@ -57,6 +62,7 @@ private:
     QLabel* m_modeLabel;
     QLabel* m_snapLabel;
     QLabel* m_positionLabel;
+    QMenu* m_recentFilesMenu { nullptr };
 
     std::map<Mode, QAction*> m_modeActions;
     std::map<SnapMode, QAction*> m_snapActions;
