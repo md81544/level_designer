@@ -5,6 +5,8 @@
 #include <QMouseEvent>
 #include <QNativeGestureEvent>
 #include <QPainter>
+#include <QProxyStyle>
+#include <QResizeEvent>
 #include <QScrollBar>
 #include <QWheelEvent>
 
@@ -27,6 +29,24 @@ constexpr double WHEEL_ZOOM_STEP = 1.1;
 // Pixels scrolled per scroll bar arrow click; a mouse wheel notch scrolls three times this
 constexpr int SCROLL_STEP = 20;
 
+// The application's style, but with permanently visible scroll bars. On
+// macOS, scroll bars are by default "transient" overlays which only appear
+// while scrolling, and are almost invisible over our black background.
+class PermanentScrollBarStyle final : public QProxyStyle {
+public:
+    int styleHint(
+        StyleHint hint,
+        const QStyleOption* option,
+        const QWidget* widget,
+        QStyleHintReturn* returnData) const override
+    {
+        if (hint == SH_ScrollBar_Transient) {
+            return 0;
+        }
+        return QProxyStyle::styleHint(hint, option, widget, returnData);
+    }
+};
+
 } // namespace
 
 LevelWidget::LevelWidget(Level& level, QWidget* parent)
@@ -35,6 +55,13 @@ LevelWidget::LevelWidget(Level& level, QWidget* parent)
 {
     setFocusPolicy(Qt::StrongFocus);
     setFrameShape(QFrame::NoFrame);
+    // Both the scroll area and its scroll bars check whether scroll bars are
+    // transient. Setting a widget's style doesn't affect its children.
+    auto* scrollBarStyle = new PermanentScrollBarStyle;
+    scrollBarStyle->setParent(this);
+    setStyle(scrollBarStyle);
+    horizontalScrollBar()->setStyle(scrollBarStyle);
+    verticalScrollBar()->setStyle(scrollBarStyle);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     viewport()->setMouseTracking(true); // so we get mouse moves without a button pressed
@@ -218,6 +245,11 @@ void LevelWidget::paintEvent(QPaintEvent*)
 void LevelWidget::resizeEvent(QResizeEvent* event)
 {
     QAbstractScrollArea::resizeEvent(event);
+    // Keep the top left of the view in the same place (rather than the centre)
+    if (event->oldSize().isValid()) {
+        const QSizeF change = QSizeF(event->size() - event->oldSize()) / 2.0;
+        m_centre += QPointF(change.width(), change.height()) * m_zoom;
+    }
     if (m_updatingScrollBars) {
         // A scroll bar has been shown or hidden; updateScrollBars() will go round again
         m_resizedWhileUpdatingScrollBars = true;
