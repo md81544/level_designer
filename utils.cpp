@@ -186,11 +186,11 @@ std::vector<Line> getRegularPolygon(
         double currentAngle = startAngle + i * angleIncrement;
         double currentX = centreX + radius * cos(currentAngle);
         double currentY = centreY + radius * sin(currentAngle);
-        vec.emplace_back(prevX, prevY, currentX, currentY, 0, 255, 0, 1, false, false);
+        vec.emplace_back(prevX, prevY, currentX, currentY, 0, 255, 0, 0, false, false);
         prevX = currentX;
         prevY = currentY;
     }
-    vec.emplace_back(prevX, prevY, firstX, firstY, 0, 255, 0, 1, false, false);
+    vec.emplace_back(prevX, prevY, firstX, firstY, 0, 255, 0, 0, false, false);
     return vec;
 }
 

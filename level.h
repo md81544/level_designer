@@ -2,6 +2,7 @@
 
 #include <QPointF>
 #include <QRectF>
+#include <QSizeF>
 
 #include <cstdint>
 #include <optional>
@@ -44,25 +45,41 @@ struct Line {
     uint8_t r { 0 };
     uint8_t g { 0 };
     uint8_t b { 0 };
-    uint8_t thickness { 1 }; // unused currently
+    double thickness { 0 }; // 0 means the default for the line's type
     bool inactive { false }; // lines don't get deleted, just deactivated, avoids index invalidation
     bool breakable { false };
+    // Breakable lines with the same group break together (0 for other lines)
+    unsigned breakableGroup { 0 };
 };
 
 struct StartPosition {
     unsigned x;
     unsigned y;
-    unsigned r;
+    unsigned r; // degrees anticlockwise
+};
+
+struct ExitPosition {
+    unsigned x;
+    unsigned y;
+    unsigned r { 0 }; // degrees anticlockwise
+    double thickness { 0 }; // 0 means the default
+};
+
+struct FuelPosition {
+    unsigned x;
+    unsigned y;
+    double thickness { 0 }; // 0 means the default
 };
 
 struct MovingObject {
-    float xDelta { 0.f };
-    float xMaxDifference { 0.f };
-    float yDelta { 0.f };
-    float yMaxDifference { 0.f };
-    float rotationDelta { 0.f }; // rotation just continues around so no max
-    float gravity { 0.f };
+    double xDelta { 0 };
+    double xMaxDifference { 0 };
+    double yDelta { 0 };
+    double yMaxDifference { 0 };
+    double rotationDelta { 0 }; // rotation just continues around so no max
+    double gravity { 0 };
     std::vector<Line> lines {};
+    std::optional<std::string> name {};
 };
 
 struct CurrentPolygon {
@@ -80,12 +97,12 @@ class Level {
 public:
     static constexpr float MAP_SIZE = 2000.f;
 
-    // Loads a level file, adding its contents to this level. If the file
-    // doesn't exist, just remembers the name, so it will be created on save.
-    // Throws on failure.
+    // Loads a level file (in either format: see LEVEL_FORMAT.md), adding its
+    // contents to this level. If the file doesn't exist, just remembers the
+    // name, so it will be created on save. Throws on failure.
     void load(const std::string& filename);
-    // Saves to the given file, which becomes the level's file name. Throws on
-    // failure.
+    // Saves to the given file (in JSON), which becomes the level's file name.
+    // Throws on failure.
     void save(const std::string& filename);
     const std::string& fileName() const;
     const std::string& description() const;
@@ -181,6 +198,8 @@ private:
         std::size_t index { 0 }; // for FUEL, LINE and MOVING_OBJECT
     };
     std::optional<Item> itemAt(QPointF pos, float zoomLevel) const;
+    // Half the size of the box the (rotated) exit fits in
+    QSizeF exitHalfSize() const;
     bool isSelected(const Item& item) const;
     void select(const Item& item, bool includeConnectedLines);
     void deselect(const Item& item);
@@ -199,8 +218,8 @@ private:
         std::string description;
         std::vector<Line> lines;
         std::optional<StartPosition> startPosition;
-        std::optional<std::pair<unsigned, unsigned>> exitPosition;
-        std::vector<std::pair<unsigned, unsigned>> fuelObjects;
+        std::optional<ExitPosition> exitPosition;
+        std::vector<FuelPosition> fuelObjects;
         std::vector<MovingObject> movingObjects;
         MovingObject currentMovingObject;
     };
@@ -223,8 +242,10 @@ private:
     std::string m_levelDescription;
     std::vector<Line> m_lines;
     std::optional<StartPosition> m_startPosition;
-    std::optional<std::pair<unsigned, unsigned>> m_exitPosition;
-    std::vector<std::pair<unsigned, unsigned>> m_fuelObjects;
+    std::optional<ExitPosition> m_exitPosition;
+    std::vector<FuelPosition> m_fuelObjects;
+    // For assigning a new breakable line's group (see Line::breakableGroup)
+    unsigned m_nextBreakableGroup { 1 };
     std::vector<MovingObject> m_movingObjects;
 
     std::vector<Snapshot> m_undoStack;
@@ -248,7 +269,7 @@ private:
     double m_lastValidRotation { 0.0 };
 
     std::optional<std::tuple<unsigned, unsigned>> m_currentNearestSnapPoint { std::nullopt };
-    Line m_currentInsertionLine { 0, 0, 0, 0, 255, 0, 0, 1, true };
+    Line m_currentInsertionLine { 0, 0, 0, 0, 255, 0, 0, 0, true };
     MovingObject m_currentMovingObject;
     Mode m_currentMode { Mode::LINE };
     SnapMode m_snapMode { SnapMode::AUTO };

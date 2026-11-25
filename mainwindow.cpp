@@ -567,7 +567,7 @@ void MainWindow::editMovingObject(int focusField)
     }
     struct Field {
         const char* label;
-        float MovingObject::* member;
+        double MovingObject::* member;
         double min;
         double max;
     };
@@ -603,7 +603,7 @@ void MainWindow::editMovingObject(int focusField)
 
     if (dialog.exec() == QDialog::Accepted) {
         for (std::size_t i = 0; i < fields.size(); ++i) {
-            (*object).*fields[i].member = static_cast<float>(spinBoxes[i]->value());
+            (*object).*fields[i].member = spinBoxes[i]->value();
         }
         m_level.setSelectedMovingObjectMotion(*object);
         m_canvas->viewport()->update();

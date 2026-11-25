@@ -18,9 +18,11 @@ When drawing lines, click to place each point and keep clicking to keep making l
 
 The mouse wheel or trackpad scrolls (Shift + wheel scrolls sideways), Ctrl/Cmd + wheel or a trackpad pinch zooms, and Shift + mouse move also scrolls the view. Keyboard shortcuts are shown in the menus, and **Help > Mouse and Keyboard** summarises the rest.
 
+Levels are saved in the JSON format described in [LEVEL_FORMAT.md](LEVEL_FORMAT.md). Levels in the old line-based format can still be opened, and are saved in the new format.
+
 ### Requirements
 
-A C++23 compiler, CMake and Qt 6.5 or later. For mac, `brew install qt`. Then `make` (debug) or `make release` (which also bundles Qt into the app).
+A C++23 compiler, CMake and Qt 6.5 or later. For mac, `brew install qt`. Then `make` (debug) or `make release` (which also bundles Qt into the app). If Catch2 is installed (`brew install catch2`), `make test` runs the unit tests; some of these check amaze's levels, if amaze is checked out alongside this repo.
 
 ### Platforms Supported
 Currently as this is for my own use I've only bothered testing on **MacOS**. I will probably test on Linux and Windows eventually.

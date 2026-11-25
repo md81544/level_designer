@@ -197,8 +197,7 @@ Converting from the old format:
   as neutral), but no levels use them. They aren't part of version 1, and can
   be added later as new optional fields.
 
-## Open questions
+## File names
 
-- **File extension:** keep `.lvl`, so amaze's level lists and existing names
-  keep working (the contents say which format a file is in), or change to
-  `.json`?
+Level files keep the `.lvl` extension, whichever format they're in: their
+contents say which format a file is in.

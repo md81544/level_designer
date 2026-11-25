@@ -3,6 +3,7 @@
 # Usage:
 #   make          -> debug build
 #   make release  -> release build
+#   make test     -> debug build + run tests
 #   make clean    -> remove all build directories and symlink
 
 APP_NAME := level_designer
@@ -42,6 +43,13 @@ release: $(BUILD_DIR_RELEASE)/Makefile
 $(BUILD_DIR_RELEASE)/Makefile:
 	@mkdir -p $(BUILD_DIR_RELEASE)
 	$(CMAKE) -S . -B $(BUILD_DIR_RELEASE) -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DCMAKE_BUILD_TYPE=Release $(CMAKE_FLAGS)
+
+# ---------------------------------------------------------------------------
+# Test (debug build + run)
+# ---------------------------------------------------------------------------
+test: $(BUILD_DIR_DEBUG)/Makefile
+	$(CMAKE) --build $(BUILD_DIR_DEBUG) --target $(APP_NAME)_tests -- -j$(JOBS)
+	@$(BUILD_DIR_DEBUG)/$(APP_NAME)_tests --reporter console
 
 # ---------------------------------------------------------------------------
 # Clean

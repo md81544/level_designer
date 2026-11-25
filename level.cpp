@@ -1,4 +1,5 @@
 #include "level.h"
+#include "levelfile.h"
 #include "log.h"
 #include "utils.h"
 
@@ -14,6 +15,7 @@
 #include <fstream>
 #include <ios>
 #include <limits>
+#include <map>
 #include <numbers>
 #include <stdexcept>
 #include <string>
@@ -63,182 +65,133 @@ constexpr double EXIT_HALF_HEIGHT = 14.0;
 
 void Level::load(const std::string& filename)
 {
-    // Note, this is likely to break if the format of the file is incorrect, there's
-    // no checking for size of vectors below currently. Which is reasonable as this
-    // program should be creating the files being imported.
     m_fileName = filename;
     if (!std::filesystem::exists(filename)) {
         // file doesn't exist, so we save the name and will write to it when we save
         return;
     }
+    const levelfile::LevelData data = levelfile::read(filename);
 
-    std::ifstream in(filename);
-    if (!in) {
-        throw(std::runtime_error("Failed to load Level file " + filename));
-    }
-    std::string currentLine;
-    enum class ObjectType {
-        OBSTRUCTION,
-        EXIT,
-        FUEL,
-        BREAKABLE,
-        MOVING
+    auto coord = [](double v) { return static_cast<unsigned>(std::lround(std::max(v, 0.0))); };
+    auto angle = [](double degrees) {
+        const long a = std::lround(degrees) % 360;
+        return static_cast<unsigned>(a < 0 ? a + 360 : a);
     };
-    ObjectType currentObject = ObjectType::OBSTRUCTION;
-    while (!in.eof()) {
-        getline(in, currentLine);
-        const std::vector<std::string> vec = utils::split(currentLine, '~');
-        if (vec.size() == 0) {
-            continue;
+    auto addLines = [&](const levelfile::Polyline& polyline, Line line, std::vector<Line>& lines) {
+        for (const auto& segment : levelfile::toSegments(polyline)) {
+            line.x0 = coord(segment.start.x);
+            line.y0 = coord(segment.start.y);
+            line.x1 = coord(segment.end.x);
+            line.y1 = coord(segment.end.y);
+            line.thickness = segment.thickness.value_or(0);
+            lines.push_back(line);
         }
-        // When we get here, vec is a vector of all the items on the current line.
-        const char c = vec[0][0];
-        switch (c) {
-            case '!': // timelimit (unused), fuel (unused) , ship x, ship y, angle, description
-                if (vec.size() < 7) {
-                    throw std::runtime_error("Invalid first line of level file");
-                }
-                m_startPosition = { static_cast<unsigned>(stoi(vec[3])),
-                                    static_cast<unsigned>(stoi(vec[4])),
-                                    static_cast<unsigned>(stoi(vec[5])) };
-                m_levelDescription = vec[6];
-                break;
-            case 'N': // New object, parameter 1 is type, parameter 2 appears unused
-                if (vec[1] == "OBSTRUCTION") {
-                    currentObject = ObjectType::OBSTRUCTION;
-                } else if (vec[1] == "EXIT") {
-                    currentObject = ObjectType::EXIT;
-                } else if (vec[1] == "FUEL") {
-                    currentObject = ObjectType::FUEL;
-                } else if (vec[1] == "BREAKABLE") {
-                    currentObject = ObjectType::BREAKABLE;
-                } else if (vec[1] == "MOVING") {
-                    currentObject = ObjectType::MOVING;
-                    if (m_currentMovingObject.lines.size() > 0) {
-                        m_movingObjects.push_back(m_currentMovingObject);
-                        m_currentMovingObject.lines.clear();
-                    }
-                    m_currentMovingObject.xDelta = std::stof(vec[3]);
-                    m_currentMovingObject.xMaxDifference = std::stof(vec[4]);
-                    m_currentMovingObject.yDelta = std::stof(vec[5]);
-                    m_currentMovingObject.yMaxDifference = std::stof(vec[6]);
-                    m_currentMovingObject.rotationDelta = std::stof(vec[7]);
-                    if (vec.size() > 8) {
-                        m_currentMovingObject.gravity = std::stof(vec[8]);
-                    }
-                } else {
-                    Log::warn("Unrecognised object type '{}' in file", vec[1]);
-                }
-                break;
-            case 'L':
-                {
-                    const unsigned x0 = std::stoi(vec[1]);
-                    const unsigned y0 = std::stoi(vec[2]);
-                    const unsigned x1 = std::stoi(vec[3]);
-                    const unsigned y1 = std::stoi(vec[4]);
-                    const uint8_t r = std::stoi(vec[5]);
-                    const uint8_t g = std::stoi(vec[6]);
-                    const uint8_t b = std::stoi(vec[7]);
-                    if (currentObject == ObjectType::OBSTRUCTION) {
-                        m_lines.push_back({ x0, y0, x1, y1, r, g, b, 1, false, false });
-                    } else if (currentObject == ObjectType::BREAKABLE) {
-                        m_lines.push_back({ x0, y0, x1, y1, r, g, b, 1, false, true });
-                    } else if (currentObject == ObjectType::MOVING) {
-                        m_currentMovingObject.lines.push_back(
-                            { x0, y0, x1, y1, r, g, b, 1, false });
-                    }
-                    break;
-                }
-            case 'P': // position
-                if (currentObject == ObjectType::EXIT) {
-                    m_exitPosition = std::make_pair(stoi(vec[1]), stoi(vec[2]));
-                }
-                if (currentObject == ObjectType::FUEL) {
-                    m_fuelObjects.push_back(std::make_pair(stoi(vec[1]), stoi(vec[2])));
-                }
-                break;
-            case 'T': // text
-                break;
-            default:
-                break;
+    };
+
+    m_levelDescription = data.title;
+    if (data.ship.has_value()) {
+        m_startPosition = { coord(data.ship->x), coord(data.ship->y), angle(data.ship->rotation) };
+    }
+    if (data.exit.has_value()) {
+        m_exitPosition = { coord(data.exit->x),
+                           coord(data.exit->y),
+                           angle(data.exit->rotation),
+                           data.exit->thickness.value_or(0) };
+    }
+    for (const auto& f : data.fuel) {
+        m_fuelObjects.push_back({ coord(f.x), coord(f.y), f.thickness.value_or(0) });
+    }
+    for (const auto& polyline : data.walls) {
+        addLines(polyline, { 0, 0, 0, 0, 255, 0, 0 }, m_lines);
+    }
+    for (const auto& breakable : data.breakables) {
+        const unsigned group = m_nextBreakableGroup++;
+        for (const auto& polyline : breakable.lines) {
+            addLines(polyline, { 0, 0, 0, 0, 255, 150, 50, 0, false, true, group }, m_lines);
         }
-        currentLine.clear();
     }
-    if (m_currentMovingObject.lines.size() > 0) {
-        m_movingObjects.push_back(m_currentMovingObject);
-        m_currentMovingObject.lines.clear();
+    for (const auto& m : data.movingObjects) {
+        MovingObject obj;
+        obj.xDelta = m.speedX;
+        obj.xMaxDifference = m.rangeX;
+        obj.yDelta = m.speedY;
+        obj.yMaxDifference = m.rangeY;
+        obj.rotationDelta = m.spin;
+        obj.gravity = m.gravity;
+        obj.name = m.name;
+        for (const auto& polyline : m.lines) {
+            addLines(polyline, { 0, 0, 0, 0, 255, 172, 163 }, obj.lines);
+        }
+        m_movingObjects.push_back(std::move(obj));
     }
-    in.close();
 }
 
 void Level::save(const std::string& filename)
 {
-    std::ofstream outfile(filename, std::ios::trunc);
-    if (!outfile) {
-        throw std::runtime_error("Could not open " + filename + " for writing");
-    }
-    // Header
-    // time limit, fuel, startX, startY, angle, title
-    unsigned startX = 0;
-    unsigned startY = 0;
-    unsigned rotation = 0;
+    auto segment = [](const Line& l) {
+        return levelfile::Segment { { static_cast<double>(l.x0), static_cast<double>(l.y0) },
+                                    { static_cast<double>(l.x1), static_cast<double>(l.y1) },
+                                    l.thickness > 0 ? std::optional(l.thickness) : std::nullopt };
+    };
+    auto optionalThickness
+        = [](double thickness) { return thickness > 0 ? std::optional(thickness) : std::nullopt; };
+
+    levelfile::LevelData data;
+    data.title = m_levelDescription;
     if (m_startPosition.has_value()) {
-        startX = m_startPosition.value().x;
-        startY = m_startPosition.value().y;
-        rotation = m_startPosition.value().r;
-    }
-    outfile << "!~0~0~" << startX << "~" << startY << "~" << rotation << "~"
-            << m_levelDescription << "\n";
-    outfile << "N~OBSTRUCTION~obstruction\n";
-    for (const auto& l : m_lines) {
-        if (!l.inactive && !l.breakable) {
-            outfile << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1
-                    << "~255~0~0~2\n";
-        }
-    }
-    // Each breakable line is its own object
-    for (const auto& l : m_lines) {
-        if (!l.inactive && l.breakable) {
-            outfile << "N~BREAKABLE~breakable\n";
-            outfile << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1
-                    << "~255~150~50~6\n";
-        }
+        data.ship = levelfile::Ship { static_cast<double>(m_startPosition->x),
+                                      static_cast<double>(m_startPosition->y),
+                                      static_cast<double>(m_startPosition->r) };
     }
     if (m_exitPosition.has_value()) {
-        outfile << "N~EXIT~exit\n"
-                   "T~EXIT~52~213~235~6\n"
-                   "P~"
-                << m_exitPosition.value().first << "~" << m_exitPosition.value().second << "\n";
+        data.exit = levelfile::Exit { static_cast<double>(m_exitPosition->x),
+                                      static_cast<double>(m_exitPosition->y),
+                                      static_cast<double>(m_exitPosition->r),
+                                      optionalThickness(m_exitPosition->thickness) };
     }
-    for (const auto& p : m_fuelObjects) {
-        outfile << "N~FUEL~fuel\n"
-                   "T~*~255~255~0~12\n"
-                   "P~"
-                << p.first << "~" << p.second << "\n";
+    for (const auto& f : m_fuelObjects) {
+        data.fuel.push_back({ static_cast<double>(f.x),
+                              static_cast<double>(f.y),
+                              optionalThickness(f.thickness) });
     }
-    auto writeMovingObject = [&outfile](const MovingObject& m, std::size_t counter) {
-        outfile << "N~MOVING~moving_" << counter;
-        outfile << "~" << m.xDelta << "~" << m.xMaxDifference << "~" << m.yDelta << "~"
-                << m.yMaxDifference << "~" << m.rotationDelta << "~" << m.gravity << "\n";
-        for (const auto& l : m.lines) {
-            outfile << "L~" << l.x0 << "~" << l.y0 << "~" << l.x1 << "~" << l.y1 << "~"
-                    << static_cast<int>(l.r) << "~" << static_cast<int>(l.g) << "~"
-                    << static_cast<int>(l.b) << "~6\n";
+    std::vector<levelfile::Segment> walls;
+    std::map<unsigned, std::vector<levelfile::Segment>> breakables; // by group
+    for (const auto& l : m_lines) {
+        if (l.inactive) {
+            continue;
         }
+        if (l.breakable) {
+            breakables[l.breakableGroup].push_back(segment(l));
+        } else {
+            walls.push_back(segment(l));
+        }
+    }
+    data.walls = levelfile::toPolylines(walls);
+    for (const auto& [group, segments] : breakables) {
+        data.breakables.push_back({ levelfile::toPolylines(segments) });
+    }
+    auto addMovingObject = [&](const MovingObject& m) {
+        std::vector<levelfile::Segment> segments;
+        for (const auto& l : m.lines) {
+            segments.push_back(segment(l));
+        }
+        data.movingObjects.push_back({ levelfile::toPolylines(segments),
+                                       m.xDelta,
+                                       m.xMaxDifference,
+                                       m.yDelta,
+                                       m.yMaxDifference,
+                                       m.rotationDelta,
+                                       m.gravity,
+                                       m.name });
     };
-    std::size_t counter = 0;
     for (const auto& m : m_movingObjects) {
-        writeMovingObject(m, counter);
-        ++counter;
+        addMovingObject(m);
     }
     // Is there a moving object in progress?
-    if (m_currentMovingObject.lines.size() > 0) {
-        writeMovingObject(m_currentMovingObject, counter);
+    if (!m_currentMovingObject.lines.empty()) {
+        addMovingObject(m_currentMovingObject);
     }
-    outfile.close();
-    if (!outfile) {
-        throw std::runtime_error("Failed writing to " + filename);
-    }
+    levelfile::write(filename, data);
     m_fileName = filename;
     m_savedStateId = m_stateId;
 }
@@ -467,11 +420,14 @@ void Level::drawObjects(QPainter& painter) const
         font.setPixelSize(26);
         painter.setFont(font);
         painter.setPen(m_exitSelected ? SELECTED_COLOUR : QColor(52, 213, 235));
-        const QPointF centre(m_exitPosition.value().first, m_exitPosition.value().second);
-        painter.drawText(QRectF(centre - QPointF(100, 50), QSizeF(200, 100)), Qt::AlignCenter, "EXIT");
+        painter.save();
+        painter.translate(m_exitPosition->x, m_exitPosition->y);
+        painter.rotate(360.0 - m_exitPosition->r);
+        painter.drawText(QRectF(-100, -50, 200, 100), Qt::AlignCenter, "EXIT");
+        painter.restore();
     }
     for (std::size_t i = 0; i < m_fuelObjects.size(); ++i) {
-        const QPointF centre(m_fuelObjects[i].first, m_fuelObjects[i].second);
+        const QPointF centre(m_fuelObjects[i].x, m_fuelObjects[i].y);
         painter.setPen(Qt::NoPen);
         painter.setBrush(Qt::yellow);
         painter.drawEllipse(centre, FUEL_RADIUS, FUEL_RADIUS);
@@ -673,6 +629,9 @@ void Level::leftClicked(QPointF w, float zoomLevel, bool extendSelection, bool s
                             || m_currentInsertionLine.y0 != m_currentInsertionLine.y1) {
                             checkpoint();
                             m_currentInsertionLine.breakable = m_currentMode != Mode::LINE;
+                            // Each breakable line drawn breaks separately
+                            m_currentInsertionLine.breakableGroup
+                                = m_currentMode == Mode::BREAKABLE ? m_nextBreakableGroup++ : 0;
                             if (m_currentMode == Mode::MOVING) {
                                 Line l = m_currentInsertionLine;
                                 l.r = 255;
@@ -738,7 +697,12 @@ void Level::leftClicked(QPointF w, float zoomLevel, bool extendSelection, bool s
             {
                 // As for the ship
                 checkpoint();
-                m_exitPosition = std::make_pair(w.x(), w.y());
+                ExitPosition exit { static_cast<unsigned>(w.x()), static_cast<unsigned>(w.y()) };
+                if (m_exitPosition.has_value()) {
+                    exit.r = m_exitPosition->r;
+                    exit.thickness = m_exitPosition->thickness;
+                }
+                m_exitPosition = exit;
                 changeMode(Mode::EDIT);
                 clearSelection();
                 m_exitSelected = true;
@@ -753,8 +717,8 @@ void Level::leftClicked(QPointF w, float zoomLevel, bool extendSelection, bool s
                 std::size_t idx = 0;
                 bool erased { false };
                 for (const auto& f : m_fuelObjects) {
-                    if ((f.first > w.x() - r && f.first < w.x() + r)
-                        && (f.second > w.y() - r && f.second < w.y() + r)) {
+                    if ((f.x > w.x() - r && f.x < w.x() + r)
+                        && (f.y > w.y() - r && f.y < w.y() + r)) {
                         m_fuelObjects.erase(m_fuelObjects.begin() + idx);
                         erased = true;
                         break;
@@ -762,7 +726,8 @@ void Level::leftClicked(QPointF w, float zoomLevel, bool extendSelection, bool s
                     ++idx;
                 }
                 if (!erased) {
-                    m_fuelObjects.push_back(std::make_pair(w.x(), w.y()));
+                    m_fuelObjects.push_back(
+                        { static_cast<unsigned>(w.x()), static_cast<unsigned>(w.y()) });
                 }
                 break;
             }
@@ -814,11 +779,11 @@ std::optional<Level::Item> Level::itemAt(QPointF w, float zoomLevel) const
     }
     if (m_exitPosition.has_value()
         && near(
-            m_exitPosition->first, m_exitPosition->second, EXIT_HALF_WIDTH, EXIT_HALF_HEIGHT)) {
+            m_exitPosition->x, m_exitPosition->y, exitHalfSize().width(), exitHalfSize().height())) {
         return Item { Item::Type::EXIT };
     }
     for (std::size_t i = 0; i < m_fuelObjects.size(); ++i) {
-        if (near(m_fuelObjects[i].first, m_fuelObjects[i].second, FUEL_RADIUS, FUEL_RADIUS)) {
+        if (near(m_fuelObjects[i].x, m_fuelObjects[i].y, FUEL_RADIUS, FUEL_RADIUS)) {
             return Item { Item::Type::FUEL, i };
         }
     }
@@ -829,6 +794,15 @@ std::optional<Level::Item> Level::itemAt(QPointF w, float zoomLevel) const
         return Item { Item::Type::MOVING_OBJECT, *movingObject };
     }
     return std::nullopt;
+}
+
+QSizeF Level::exitHalfSize() const
+{
+    // The exit's text, rotated, fits in this box
+    const double radians = (m_exitPosition.has_value() ? m_exitPosition->r : 0) * std::numbers::pi / 180.0;
+    const double c = std::abs(std::cos(radians));
+    const double s = std::abs(std::sin(radians));
+    return { EXIT_HALF_WIDTH * c + EXIT_HALF_HEIGHT * s, EXIT_HALF_WIDTH * s + EXIT_HALF_HEIGHT * c };
 }
 
 bool Level::isSelected(const Item& item) const
@@ -934,13 +908,13 @@ void Level::selectInRect(const QRectF& rect, bool extendSelection)
         }
     }
     for (std::size_t i = 0; i < m_fuelObjects.size(); ++i) {
-        if (inside(m_fuelObjects[i].first, m_fuelObjects[i].second, FUEL_RADIUS, FUEL_RADIUS)) {
+        if (inside(m_fuelObjects[i].x, m_fuelObjects[i].y, FUEL_RADIUS, FUEL_RADIUS)) {
             m_selectedFuel.insert(i);
         }
     }
     if (m_exitPosition.has_value()
         && inside(
-            m_exitPosition->first, m_exitPosition->second, EXIT_HALF_WIDTH, EXIT_HALF_HEIGHT)) {
+            m_exitPosition->x, m_exitPosition->y, exitHalfSize().width(), exitHalfSize().height())) {
         m_exitSelected = true;
     }
     if (m_startPosition.has_value()
@@ -1003,10 +977,10 @@ std::optional<QRectF> Level::selectionBounds() const
         std::ranges::for_each(m_movingObjects[i].lines, addLine);
     }
     for (std::size_t i : m_selectedFuel) {
-        add(m_fuelObjects[i].first, m_fuelObjects[i].second, FUEL_RADIUS, FUEL_RADIUS);
+        add(m_fuelObjects[i].x, m_fuelObjects[i].y, FUEL_RADIUS, FUEL_RADIUS);
     }
     if (m_exitSelected && m_exitPosition.has_value()) {
-        add(m_exitPosition->first, m_exitPosition->second, EXIT_HALF_WIDTH, EXIT_HALF_HEIGHT);
+        add(m_exitPosition->x, m_exitPosition->y, exitHalfSize().width(), exitHalfSize().height());
     }
     if (m_shipSelected && m_startPosition.has_value()) {
         add(m_startPosition->x, m_startPosition->y, SHIP_RADIUS, SHIP_RADIUS);
@@ -1030,10 +1004,10 @@ template <typename Fn> void Level::forEachSelectedPoint(Fn fn)
         }
     }
     for (std::size_t i : m_selectedFuel) {
-        fn(m_fuelObjects[i].first, m_fuelObjects[i].second);
+        fn(m_fuelObjects[i].x, m_fuelObjects[i].y);
     }
     if (m_exitSelected && m_exitPosition.has_value()) {
-        fn(m_exitPosition->first, m_exitPosition->second);
+        fn(m_exitPosition->x, m_exitPosition->y);
     }
     if (m_shipSelected && m_startPosition.has_value()) {
         fn(m_startPosition->x, m_startPosition->y);
@@ -1163,10 +1137,16 @@ bool Level::applyRotation(double degrees, QPointF centre)
         x = static_cast<unsigned>(p.x());
         y = static_cast<unsigned>(p.y());
     });
+    // The ship's and exit's rotations are anticlockwise
+    auto turn = [degrees](unsigned& rotation) {
+        const long r = std::lround(rotation - degrees) % 360;
+        rotation = static_cast<unsigned>(r < 0 ? r + 360 : r);
+    };
     if (m_shipSelected && m_startPosition.has_value()) {
-        // The ship's rotation is anticlockwise
-        const long r = std::lround(m_startPosition->r - degrees) % 360;
-        m_startPosition->r = static_cast<unsigned>(r < 0 ? r + 360 : r);
+        turn(m_startPosition->r);
+    }
+    if (m_exitSelected && m_exitPosition.has_value()) {
+        turn(m_exitPosition->r);
     }
     return true;
 }

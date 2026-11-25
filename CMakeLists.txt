@@ -9,11 +9,12 @@ project(${APP_NAME})
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets Gui)
 
 add_executable(${APP_NAME}
     configreader.cpp
     level.cpp
+    levelfile.cpp
     levelwidget.cpp
     main.cpp
     mainwindow.cpp
@@ -105,6 +106,32 @@ target_compile_options(${APP_NAME} PRIVATE
     $<$<CONFIG:Release>:-O3>
 )
 target_link_libraries(${APP_NAME} PRIVATE Qt6::Widgets)
+
+# ---------------------------------------------------------------------------
+# Unit tests (built if Catch2 is available; run with "make test")
+# ---------------------------------------------------------------------------
+find_package(Catch2 3 QUIET)
+if(Catch2_FOUND)
+    add_executable(${APP_NAME}_tests
+        tests/levelfile_tests.cpp
+        tests/level_tests.cpp
+        level.cpp
+        levelfile.cpp
+        utils.cpp
+    )
+    target_include_directories(${APP_NAME}_tests PRIVATE ${CMAKE_SOURCE_DIR})
+    target_compile_definitions(${APP_NAME}_tests PRIVATE
+        SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+        # amaze's levels, if amaze is alongside (tests using them are skipped otherwise)
+        AMAZE_DATA_DIR="${CMAKE_SOURCE_DIR}/../amaze/data"
+    )
+    # Tests use brief initialisers, relying on fields' defaults
+    target_compile_options(${APP_NAME}_tests PRIVATE
+        -Wall -Wextra -Werror -Wpedantic -Wno-missing-field-initializers)
+    target_link_libraries(${APP_NAME}_tests PRIVATE Catch2::Catch2WithMain Qt6::Gui)
+else()
+    message(STATUS "Catch2 not found: unit tests won't be built")
+endif()
 
 # Symlink to the app bundle (macOS) or binary (other platforms)
 add_custom_command(
