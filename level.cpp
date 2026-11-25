@@ -1,5 +1,5 @@
 #include "level.h"
-#include "levelfile.h"
+#include "levelformat.h"
 #include "log.h"
 #include "utils.h"
 
@@ -70,15 +70,15 @@ void Level::load(const std::string& filename)
         // file doesn't exist, so we save the name and will write to it when we save
         return;
     }
-    const levelfile::LevelData data = levelfile::read(filename);
+    const levelformat::LevelData data = levelformat::read(filename);
 
     auto coord = [](double v) { return static_cast<unsigned>(std::lround(std::max(v, 0.0))); };
     auto angle = [](double degrees) {
         const long a = std::lround(degrees) % 360;
         return static_cast<unsigned>(a < 0 ? a + 360 : a);
     };
-    auto addLines = [&](const levelfile::Polyline& polyline, Line line, std::vector<Line>& lines) {
-        for (const auto& segment : levelfile::toSegments(polyline)) {
+    auto addLines = [&](const levelformat::Polyline& polyline, Line line, std::vector<Line>& lines) {
+        for (const auto& segment : levelformat::toSegments(polyline)) {
             line.x0 = coord(segment.start.x);
             line.y0 = coord(segment.start.y);
             line.x1 = coord(segment.end.x);
@@ -129,22 +129,22 @@ void Level::load(const std::string& filename)
 void Level::save(const std::string& filename)
 {
     auto segment = [](const Line& l) {
-        return levelfile::Segment { { static_cast<double>(l.x0), static_cast<double>(l.y0) },
+        return levelformat::Segment { { static_cast<double>(l.x0), static_cast<double>(l.y0) },
                                     { static_cast<double>(l.x1), static_cast<double>(l.y1) },
                                     l.thickness > 0 ? std::optional(l.thickness) : std::nullopt };
     };
     auto optionalThickness
         = [](double thickness) { return thickness > 0 ? std::optional(thickness) : std::nullopt; };
 
-    levelfile::LevelData data;
+    levelformat::LevelData data;
     data.title = m_levelDescription;
     if (m_startPosition.has_value()) {
-        data.ship = levelfile::Ship { static_cast<double>(m_startPosition->x),
+        data.ship = levelformat::Ship { static_cast<double>(m_startPosition->x),
                                       static_cast<double>(m_startPosition->y),
                                       static_cast<double>(m_startPosition->r) };
     }
     if (m_exitPosition.has_value()) {
-        data.exit = levelfile::Exit { static_cast<double>(m_exitPosition->x),
+        data.exit = levelformat::Exit { static_cast<double>(m_exitPosition->x),
                                       static_cast<double>(m_exitPosition->y),
                                       static_cast<double>(m_exitPosition->r),
                                       optionalThickness(m_exitPosition->thickness) };
@@ -154,8 +154,8 @@ void Level::save(const std::string& filename)
                               static_cast<double>(f.y),
                               optionalThickness(f.thickness) });
     }
-    std::vector<levelfile::Segment> walls;
-    std::map<unsigned, std::vector<levelfile::Segment>> breakables; // by group
+    std::vector<levelformat::Segment> walls;
+    std::map<unsigned, std::vector<levelformat::Segment>> breakables; // by group
     for (const auto& l : m_lines) {
         if (l.inactive) {
             continue;
@@ -166,16 +166,16 @@ void Level::save(const std::string& filename)
             walls.push_back(segment(l));
         }
     }
-    data.walls = levelfile::toPolylines(walls);
+    data.walls = levelformat::toPolylines(walls);
     for (const auto& [group, segments] : breakables) {
-        data.breakables.push_back({ levelfile::toPolylines(segments) });
+        data.breakables.push_back({ levelformat::toPolylines(segments) });
     }
     auto addMovingObject = [&](const MovingObject& m) {
-        std::vector<levelfile::Segment> segments;
+        std::vector<levelformat::Segment> segments;
         for (const auto& l : m.lines) {
             segments.push_back(segment(l));
         }
-        data.movingObjects.push_back({ levelfile::toPolylines(segments),
+        data.movingObjects.push_back({ levelformat::toPolylines(segments),
                                        m.xDelta,
                                        m.xMaxDifference,
                                        m.yDelta,
@@ -191,7 +191,7 @@ void Level::save(const std::string& filename)
     if (!m_currentMovingObject.lines.empty()) {
         addMovingObject(m_currentMovingObject);
     }
-    levelfile::write(filename, data);
+    levelformat::write(filename, data);
     m_fileName = filename;
     m_savedStateId = m_stateId;
 }

@@ -3,10 +3,12 @@
 Levels for amaze are designed with level_designer. This document defines the
 file format both programs use.
 
-**This file exists in both repos (amaze and level_designer), and each program
-has its own reader and writer. They must be kept in line:** any change to the
-format is made to this document, and to both programs, together, with
-round-trip tests on both sides.
+**This file exists in both repos (amaze and level_designer), as do the code
+which reads and writes the format (`levelformat.h` / `levelformat.cpp`) and
+its tests (`tests/levelformat_tests.cpp`, `tests/levelformat_test_utils.h`).
+The copies must be kept identical:** any change to the format is made to this
+document and the code, in both repos, together. (`diff` between the repos
+should show no differences in these files.)
 
 ## Overview
 
@@ -166,7 +168,7 @@ line, which makes files very long, so writers will need their own formatting
 
 ## The old format, and migration
 
-The old format, as described in amaze's `levelfile.h`, is a line-based text
+The old format, as described in amaze's `levelformat.h`, is a line-based text
 format with `~`-separated fields, starting with a `!` header line.
 
 During migration:

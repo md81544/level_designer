@@ -1,8 +1,11 @@
 #pragma once
 
-// Helpers shared by the tests
+// Helpers for the level format tests
+//
+// NB this file is copied, unchanged, in both amaze and level_designer: see
+// levelformat.h.
 
-#include "levelfile.h"
+#include "levelformat.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -11,6 +14,20 @@
 #include <string>
 #include <tuple>
 #include <vector>
+
+inline std::vector<std::string> splitFields(const std::string& s, char delimiter = '~')
+{
+    std::vector<std::string> fields;
+    std::string field;
+    std::istringstream in(s);
+    while (std::getline(in, field, delimiter)) {
+        fields.push_back(field);
+    }
+    if (!s.empty() && s.back() == delimiter) {
+        fields.push_back("");
+    }
+    return fields;
+}
 
 inline std::string readFile(const std::filesystem::path& path)
 {
@@ -22,10 +39,10 @@ inline std::string readFile(const std::filesystem::path& path)
 
 // Segments in a canonical form (each with its lower point first, sorted), so
 // sets of segments can be compared regardless of order and direction
-inline std::vector<mgo::levelfile::Segment>
-normalised(std::vector<mgo::levelfile::Segment> segments)
+inline std::vector<mgo::levelformat::Segment>
+normalised(std::vector<mgo::levelformat::Segment> segments)
 {
-    auto key = [](const mgo::levelfile::Point& p) { return std::tie(p.x, p.y); };
+    auto key = [](const mgo::levelformat::Point& p) { return std::tie(p.x, p.y); };
     for (auto& s : segments) {
         if (key(s.end) < key(s.start)) {
             std::swap(s.start, s.end);
@@ -38,12 +55,12 @@ normalised(std::vector<mgo::levelfile::Segment> segments)
     return segments;
 }
 
-inline std::vector<mgo::levelfile::Segment>
-segmentsOf(const std::vector<mgo::levelfile::Polyline>& polylines)
+inline std::vector<mgo::levelformat::Segment>
+segmentsOf(const std::vector<mgo::levelformat::Polyline>& polylines)
 {
-    std::vector<mgo::levelfile::Segment> segments;
+    std::vector<mgo::levelformat::Segment> segments;
     for (const auto& p : polylines) {
-        const auto s = mgo::levelfile::toSegments(p);
+        const auto s = mgo::levelformat::toSegments(p);
         segments.insert(segments.end(), s.begin(), s.end());
     }
     return segments;

@@ -2,8 +2,8 @@
 // changing them
 
 #include "level.h"
-#include "levelfile.h"
-#include "test_utils.h"
+#include "levelformat.h"
+#include "levelformat_test_utils.h"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -37,16 +37,16 @@ private:
 // What matters about a level, ignoring how its lines are split into polylines
 struct Contents {
     std::string title;
-    std::optional<levelfile::Ship> ship;
-    std::optional<levelfile::Exit> exit;
-    std::vector<levelfile::Fuel> fuel;
-    std::vector<levelfile::Segment> walls;
-    std::vector<std::vector<levelfile::Segment>> breakables;
-    std::vector<std::vector<levelfile::Segment>> movingObjectLines;
+    std::optional<levelformat::Ship> ship;
+    std::optional<levelformat::Exit> exit;
+    std::vector<levelformat::Fuel> fuel;
+    std::vector<levelformat::Segment> walls;
+    std::vector<std::vector<levelformat::Segment>> breakables;
+    std::vector<std::vector<levelformat::Segment>> movingObjectLines;
     bool operator==(const Contents&) const = default;
 };
 
-Contents contentsOf(const levelfile::LevelData& level)
+Contents contentsOf(const levelformat::LevelData& level)
 {
     Contents c { level.title, level.ship, level.exit, level.fuel, normalised(segmentsOf(level.walls)) };
     for (const auto& b : level.breakables) {
@@ -63,7 +63,7 @@ Contents contentsOf(const levelfile::LevelData& level)
 void checkLoadAndSave(const std::string& filename)
 {
     INFO(filename);
-    const levelfile::LevelData original = levelfile::read(filename);
+    const levelformat::LevelData original = levelformat::read(filename);
     TempFile first("first.lvl");
     TempFile second("second.lvl");
     {
@@ -72,10 +72,10 @@ void checkLoadAndSave(const std::string& filename)
         level.save(first.path());
         CHECK_FALSE(level.isDirty());
     }
-    const levelfile::LevelData saved = levelfile::read(first.path());
+    const levelformat::LevelData saved = levelformat::read(first.path());
     CHECK(contentsOf(saved) == contentsOf(original));
     for (std::size_t i = 0; i < std::min(saved.movingObjects.size(), original.movingObjects.size()); ++i) {
-        auto motion = [](levelfile::MovingObject m) {
+        auto motion = [](levelformat::MovingObject m) {
             m.lines.clear();
             return m;
         };

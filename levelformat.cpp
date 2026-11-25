@@ -1,5 +1,4 @@
-#include "levelfile.h"
-#include "utils.h"
+#include "levelformat.h"
 
 #include <QByteArray>
 #include <QJsonArray>
@@ -16,9 +15,23 @@
 #include <stdexcept>
 
 namespace mgo {
-namespace levelfile {
+namespace levelformat {
 
 namespace {
+
+std::vector<std::string> split(const std::string& s, char delimiter)
+{
+    std::vector<std::string> result;
+    std::string::size_type start = 0;
+    for (;;) {
+        const auto end = s.find(delimiter, start);
+        result.push_back(s.substr(start, end - start));
+        if (end == std::string::npos) {
+            return result;
+        }
+        start = end + 1;
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Reading JSON
@@ -438,7 +451,7 @@ std::string toJson(const LevelData& level)
 
 LevelData parseOldFormat(const std::string& contents)
 {
-    // See amaze's levelfile.h for the format. Each "N~<type>~..." line starts
+    // See amaze's levelformat.h for the format. Each "N~<type>~..." line starts
     // a new object, to which the following lines apply.
     LevelData level;
     enum class Type {
@@ -503,7 +516,7 @@ LevelData parseOldFormat(const std::string& contents)
         if (line.empty()) {
             continue;
         }
-        const std::vector<std::string> f = utils::split(line, '~');
+        const std::vector<std::string> f = split(line, '~');
         auto num = [&](std::size_t i) { return toDouble(f[i], lineNumber); };
         auto need = [&](std::size_t count) {
             if (f.size() < count) {
@@ -647,5 +660,5 @@ std::vector<Segment> toSegments(const Polyline& polyline)
     return segments;
 }
 
-} // namespace levelfile
+} // namespace levelformat
 } // namespace mgo

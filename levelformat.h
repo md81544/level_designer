@@ -3,18 +3,21 @@
 // Reading and writing level files: see LEVEL_FORMAT.md, which defines the
 // (JSON) format, and how the old line-based format converts to it.
 //
-// NB amaze has its own reader for this format, which must be kept in line
-// with this one: see LEVEL_FORMAT.md.
+// NB this file and levelformat.cpp are copied, unchanged, in both amaze and
+// level_designer, so the two programs read and write levels the same way.
+// Keep the copies identical: make any change in both repos (see
+// LEVEL_FORMAT.md). The same goes for tests/levelformat_tests.cpp and
+// tests/levelformat_test_utils.h.
 //
-// The structures here mirror the format, and are separate from the editor's
-// model (Level), which converts to / from them.
+// The structures here mirror the format, and are separate from each
+// program's own model of a level, which it converts to / from them.
 
 #include <optional>
 #include <string>
 #include <vector>
 
 namespace mgo {
-namespace levelfile {
+namespace levelformat {
 
 constexpr int FORMAT_VERSION = 1;
 
@@ -113,5 +116,5 @@ struct Segment {
 std::vector<Polyline> toPolylines(const std::vector<Segment>& segments);
 std::vector<Segment> toSegments(const Polyline& polyline);
 
-} // namespace levelfile
+} // namespace levelformat
 } // namespace mgo

@@ -14,7 +14,7 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets Gui)
 add_executable(${APP_NAME}
     configreader.cpp
     level.cpp
-    levelfile.cpp
+    levelformat.cpp
     levelwidget.cpp
     main.cpp
     mainwindow.cpp
@@ -113,10 +113,10 @@ target_link_libraries(${APP_NAME} PRIVATE Qt6::Widgets)
 find_package(Catch2 3 QUIET)
 if(Catch2_FOUND)
     add_executable(${APP_NAME}_tests
-        tests/levelfile_tests.cpp
+        tests/levelformat_tests.cpp
         tests/level_tests.cpp
         level.cpp
-        levelfile.cpp
+        levelformat.cpp
         utils.cpp
     )
     target_include_directories(${APP_NAME}_tests PRIVATE ${CMAKE_SOURCE_DIR})

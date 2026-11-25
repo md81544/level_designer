@@ -1,8 +1,10 @@
 // Tests for reading and writing level files (see LEVEL_FORMAT.md)
+//
+// NB this file is copied, unchanged, in both amaze and level_designer: see
+// levelformat.h. AMAZE_DATA_DIR is amaze's data directory.
 
-#include "levelfile.h"
-#include "test_utils.h"
-#include "utils.h"
+#include "levelformat.h"
+#include "levelformat_test_utils.h"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -11,7 +13,7 @@
 #include <fstream>
 #include <sstream>
 
-using namespace mgo::levelfile;
+using namespace mgo::levelformat;
 
 TEST_CASE("Segments which meet end to end are joined into polylines")
 {
@@ -238,7 +240,7 @@ TEST_CASE("All of amaze's levels convert from the old format without losing anyt
         std::istringstream in(contents);
         std::string line;
         while (std::getline(in, line)) {
-            const auto f = mgo::utils::split(line, '~');
+            const auto f = splitFields(line, '~');
             if (line.starts_with("N~")) {
                 type = f[1];
                 breakables += type == "BREAKABLE";
