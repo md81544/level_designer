@@ -66,7 +66,10 @@ TEST_CASE("A level survives being written as JSON and read back")
     moving.spin = 0.5;
     moving.gravity = 50;
     moving.name = "spinner";
-    level.movingObjects = { moving, MovingObject { { { { { 0, 0 }, { 1, 1 } } } } } };
+    MovingObject onPath;
+    onPath.lines = { { { { 0, 0 }, { 1, 1 } } } };
+    onPath.path = Path { { { 200, -150.5 }, { 0, 300 } }, 0.5, true };
+    level.movingObjects = { moving, MovingObject { { { { { 0, 0 }, { 1, 1 } } } } }, onPath };
 
     CHECK(parseJson(toJson(level)) == level);
     CHECK(parse(toJson(level)) == level);
@@ -85,7 +88,11 @@ TEST_CASE("JSON is written in the documented layout, leaving out defaults")
     moving.lines = { { { { 1, 2 }, { 3, 4 } } } };
     moving.speedX = 0.3;
     moving.rangeX = 100;
-    level.movingObjects = { moving };
+    MovingObject onPath;
+    onPath.lines = { { { { 5, 6 }, { 7, 8 } } } };
+    onPath.path = Path { { { 200, -150 } }, 0.5 };
+    onPath.spin = 1;
+    level.movingObjects = { moving, onPath };
 
     CHECK(toJson(level) == R"({
   "formatVersion": 1,
@@ -109,6 +116,13 @@ TEST_CASE("JSON is written in the documented layout, leaving out defaults")
       ],
       "speedX": 0.3,
       "rangeX": 100
+    },
+    {
+      "lines": [
+        { "points": [[5, 6], [7, 8]] }
+      ],
+      "path": { "offsets": [[200, -150]], "speed": 0.5 },
+      "spin": 1
     }
   ]
 }
@@ -155,6 +169,25 @@ TEST_CASE("Invalid level files are rejected with a helpful message")
     CHECK(
         error(R"({ "formatVersion": 1, "movingObjects": [ { "lines": [ { "points": [[0, 0], [1, 1]], "closed": 1 } ] } ] })")
         == "movingObjects[0].lines[0]: \"closed\" must be true or false");
+    const std::string line = R"("lines": [ { "points": [[0, 0], [1, 1]] } ])";
+    auto movingError = [&](const std::string& fields) {
+        return error(R"({ "formatVersion": 1, "movingObjects": [ { )" + line + ", " + fields + " } ] }");
+    };
+    CHECK(
+        movingError(R"("path": { "offsets": [], "speed": 1 })")
+        == "movingObjects[0].path: needs at least one offset");
+    CHECK(
+        movingError(R"("path": { "offsets": [[1, 2, 3]] })")
+        == "movingObjects[0].path: offsets[0] must be [x, y]");
+    CHECK(
+        movingError(R"("path": { "offsets": [[1, 2]], "speed": -1 })")
+        == "movingObjects[0].path: \"speed\" can't be negative");
+    CHECK(
+        movingError(R"("path": { "offsets": [[1, 2]], "loop": 1 })")
+        == "movingObjects[0].path: \"loop\" must be true or false");
+    CHECK(
+        movingError(R"("speedX": 1, "path": { "offsets": [[1, 2]] })")
+        == "movingObjects[0]: can't have both a \"path\" and speedX/rangeX/speedY/rangeY");
     CHECK(error("!~0~0~1~2~x~Title") == "line 1: \"x\" isn't a number");
 }
 

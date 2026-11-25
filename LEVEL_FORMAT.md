@@ -119,8 +119,17 @@ it can be made of several separate pieces which break together (e.g.
 
 ## Moving object
 
-An obstruction which moves back and forth and/or spins. Its lines are given
-at their starting position, in arena coordinates.
+An obstruction which moves and/or spins. Its lines are given at their
+starting position, in arena coordinates. It moves in one of two ways:
+
+- Bouncing within a box: `speedX`, `rangeX`, `speedY` and `rangeY`. Each axis
+  moves back and forth independently, so unless the two take the same time to
+  cover their ranges, it zigzags around the box.
+- Following a `path`: back and forth along a line, or a route of several
+  lines, or round and round a loop.
+
+An object can't have both a `path` and any of `speedX`, `rangeX`, `speedY` or
+`rangeY`.
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
@@ -129,9 +138,26 @@ at their starting position, in arena coordinates.
 | `rangeX` | number | `0` | How far it moves back and forth either side of its starting position, horizontally |
 | `speedY` | number | `0` | As `speedX`, vertically |
 | `rangeY` | number | `0` | As `rangeX`, vertically |
+| `path` | [Path](#path) | none | The path it follows, instead of bouncing within a box |
 | `spin` | number | `0` | Rotation about its centre per game tick, in degrees |
 | `gravity` | number | `0` | Strength of the object's pull on the ship, which acts within `gravity` × 25 units of it. 10 to 100 is a good range. |
 | `name` | string | none | An identifier, e.g. for debugging |
+
+## Path
+
+A moving object starts at the position it's drawn in, and moves (without
+turning) through each of the `offsets` in turn. At the last one, it comes back
+the same way, and so on; or if `loop` is true, it goes straight from the last
+one back to the start, and round again. Each offset is how far the object has
+moved from its drawn position at that point of the path, in arena units, e.g.
+`[[200, -150]]` moves it back and forth between where it's drawn and 200 units
+right and 150 up.
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `offsets` | array of [x, y] | (required) | At least one offset |
+| `speed` | number | `0` | Distance moved along the path per game tick |
+| `loop` | boolean | `false` | Whether to go round and round, rather than back and forth |
 
 ## Appearance (for reference)
 

@@ -97,12 +97,14 @@ private:
     bool m_resizedWhileUpdatingScrollBars { false };
 
     // Dragging with the left button: moving or rotating the selection,
-    // moving a vertex, or dragging out a box to select what's inside it
+    // moving a vertex or a point of a moving object's path, or dragging out a
+    // box to select what's inside it
     enum class Drag {
         None,
         Move,
         Rotate,
         Vertex,
+        PathPoint,
         Box
     };
     Drag m_drag { Drag::None };

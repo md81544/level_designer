@@ -358,6 +358,37 @@ LevelData parseJson(const std::string& contents)
         if (obj.value("name").isString()) {
             m.name = obj.value("name").toString().toStdString();
         }
+        if (obj.contains("path")) {
+            const std::string pathContext = context + ".path";
+            const QJsonObject pathObj = getObject(obj.value("path"), pathContext);
+            Path path;
+            const QJsonArray offsets = getArray(pathObj, "offsets", pathContext);
+            for (qsizetype j = 0; j < offsets.size(); ++j) {
+                const QJsonArray offset = offsets[j].toArray();
+                if (!offsets[j].isArray() || offset.size() != 2 || !offset[0].isDouble()
+                    || !offset[1].isDouble()) {
+                    fail(pathContext, std::format("offsets[{}] must be [x, y]", j));
+                }
+                path.offsets.push_back({ offset[0].toDouble(), offset[1].toDouble() });
+            }
+            if (path.offsets.empty()) {
+                fail(pathContext, "needs at least one offset");
+            }
+            path.speed = getNumber(pathObj, "speed", 0, pathContext);
+            if (path.speed < 0) {
+                fail(pathContext, "\"speed\" can't be negative");
+            }
+            if (pathObj.contains("loop")) {
+                if (!pathObj.value("loop").isBool()) {
+                    fail(pathContext, "\"loop\" must be true or false");
+                }
+                path.loop = pathObj.value("loop").toBool();
+            }
+            if (m.speedX != 0 || m.rangeX != 0 || m.speedY != 0 || m.rangeY != 0) {
+                fail(context, "can't have both a \"path\" and speedX/rangeX/speedY/rangeY");
+            }
+            m.path = std::move(path);
+        }
         level.movingObjects.push_back(std::move(m));
     }
     return level;
@@ -436,6 +467,21 @@ std::string toJson(const LevelData& level)
             field("rangeX", m.rangeX);
             field("speedY", m.speedY);
             field("rangeY", m.rangeY);
+            if (m.path.has_value()) {
+                out << ",\n      \"path\": { \"offsets\": [";
+                for (std::size_t j = 0; j < m.path->offsets.size(); ++j) {
+                    out << std::format(
+                        "{}[{}, {}]",
+                        j == 0 ? "" : ", ",
+                        number(m.path->offsets[j].x),
+                        number(m.path->offsets[j].y));
+                }
+                out << "], \"speed\": " << number(m.path->speed);
+                if (m.path->loop) {
+                    out << ", \"loop\": true";
+                }
+                out << " }";
+            }
             field("spin", m.spin);
             field("gravity", m.gravity);
             if (m.name.has_value()) {

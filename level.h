@@ -73,6 +73,7 @@ struct FuelPosition {
 };
 
 struct MovingObject {
+    // Bouncing within a box (unused if it has a path)
     double xDelta { 0 };
     double xMaxDifference { 0 };
     double yDelta { 0 };
@@ -81,7 +82,16 @@ struct MovingObject {
     double gravity { 0 };
     std::vector<Line> lines {};
     std::optional<std::string> name {};
+    // Following a path (see LEVEL_FORMAT.md): the offsets from the drawn
+    // position of each point along it. Empty if it has no path.
+    std::vector<QPointF> pathOffsets {};
+    double pathSpeed { 0 };
+    bool pathLoops { false };
 };
+
+// The centre of a moving object's lines (of their bounding box), from which
+// its path is drawn
+QPointF movingObjectCentre(const MovingObject& m);
 
 struct CurrentPolygon {
     std::optional<float> centreX { std::nullopt };
@@ -208,6 +218,27 @@ public:
     // supplied object
     void setSelectedMovingObjectMotion(const MovingObject& motion);
 
+    // Editing the selected moving object's path (if exactly one is selected)
+    //
+    // Moves the end of its path (the last point) so the object's centre goes
+    // to pos, giving it a path if it doesn't have one (replacing any bouncing
+    // within a box)
+    void setPathEndAt(QPointF pos);
+    // Adds a point to the end of its path, if it has one
+    void addPathPointAt(QPointF pos);
+    // The point of its path at pos (an index into pathOffsets), if any
+    std::optional<std::size_t> pathPointAt(QPointF pos, float zoomLevel) const;
+    // Removes a point from its path (removing the path if it's the last one)
+    void removePathPoint(std::size_t index);
+    // Where the object's centre is at each point of its path, for drawing
+    // handles on (empty if it has no path)
+    std::vector<QPointF> selectedPathPoints() const;
+    // Dragging a point of its path: call beginPathPointDrag() with the index,
+    // then movePathPoint() with the mouse position (snapped to the grid
+    // according to the snap mode) as the drag progresses, then endTransform()
+    void beginPathPointDrag(std::size_t index);
+    void movePathPoint(QPointF pos);
+
     // Each change to the level's contents can be undone separately (except
     // consecutive nudges, which undo together)
     bool canUndo() const;
@@ -222,6 +253,10 @@ private:
     void drawEdits(QPainter& painter) const;
     void drawObjects(QPainter& painter) const;
     void drawMovingObjectBoundary(QPainter& painter, const MovingObject& m, size_t idx) const;
+    void drawMovingObjectPath(QPainter& painter, const MovingObject& m) const;
+    // The selected moving object, if exactly one is selected
+    MovingObject* singleSelectedMovingObject();
+    const MovingObject* singleSelectedMovingObject() const;
     void drawCircle(QPainter& painter, float maxRadius, float centreX, float centreY) const;
     void drawRoundedRect(QPainter& painter, float x, float y, float w, float h, float r) const;
     // Returns the index (into m_Lines) of the first (of potentially several) lines that are *near*
@@ -321,6 +356,8 @@ private:
     double m_lastValidRotation { 0.0 };
     // The vertex being dragged (see beginVertexDrag())
     std::optional<std::pair<unsigned, unsigned>> m_draggedVertex;
+    // The path point being dragged (see beginPathPointDrag())
+    std::optional<std::size_t> m_draggedPathPoint;
 
     std::optional<std::tuple<unsigned, unsigned>> m_currentNearestSnapPoint { std::nullopt };
     Line m_currentInsertionLine { 0, 0, 0, 0, 255, 0, 0, 0, true };

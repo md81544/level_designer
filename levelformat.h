@@ -68,8 +68,19 @@ struct Breakable {
     bool operator==(const Breakable&) const = default;
 };
 
+// A moving object's path: it moves from where it's drawn through each offset
+// in turn, then back again (or if loop, straight back to the start, and round
+// again)
+struct Path {
+    std::vector<Point> offsets; // from the drawn position; at least one
+    double speed { 0 }; // distance along the path per tick
+    bool loop { false };
+    bool operator==(const Path&) const = default;
+};
+
 struct MovingObject {
     std::vector<Polyline> lines;
+    // Bouncing within a box (each axis independently). Unused if there's a path.
     double speedX { 0 };
     double rangeX { 0 };
     double speedY { 0 };
@@ -77,6 +88,7 @@ struct MovingObject {
     double spin { 0 };
     double gravity { 0 };
     std::optional<std::string> name;
+    std::optional<Path> path;
     bool operator==(const MovingObject&) const = default;
 };
 

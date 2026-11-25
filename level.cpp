@@ -62,6 +62,16 @@ constexpr double EXIT_HALF_WIDTH = 32.0;
 constexpr double EXIT_HALF_HEIGHT = 14.0;
 // How near (in pixels) the mouse must be to a vertex to pick it
 constexpr double VERTEX_HIT_PIXELS = 6.0;
+constexpr double GRID_SPACING = 50.0;
+// The speed given to a new path (distance per tick)
+constexpr double DEFAULT_PATH_SPEED = 0.5;
+const QColor MOVING_OBJECT_GHOST_COLOUR { 255, 172, 163, 80 };
+
+// Offsets are kept to whole units, like positions
+QPointF roundedOffset(QPointF offset)
+{
+    return QPointF(std::round(offset.x()), std::round(offset.y()));
+}
 
 // The point on the line nearest p
 QPointF nearestPointOnLine(QPointF p, const Line& l)
@@ -83,6 +93,21 @@ double distance(QPointF a, QPointF b)
 }
 
 } // namespace
+
+QPointF movingObjectCentre(const MovingObject& m)
+{
+    if (m.lines.empty()) {
+        return {};
+    }
+    double minX = m.lines[0].x0, maxX = minX, minY = m.lines[0].y0, maxY = minY;
+    for (const auto& l : m.lines) {
+        minX = std::min({ minX, double(l.x0), double(l.x1) });
+        maxX = std::max({ maxX, double(l.x0), double(l.x1) });
+        minY = std::min({ minY, double(l.y0), double(l.y1) });
+        maxY = std::max({ maxY, double(l.y0), double(l.y1) });
+    }
+    return QPointF((minX + maxX) / 2, (minY + maxY) / 2);
+}
 
 void Level::load(const std::string& filename)
 {
@@ -140,6 +165,13 @@ void Level::load(const std::string& filename)
         obj.rotationDelta = m.spin;
         obj.gravity = m.gravity;
         obj.name = m.name;
+        if (m.path.has_value()) {
+            for (const auto& offset : m.path->offsets) {
+                obj.pathOffsets.emplace_back(offset.x, offset.y);
+            }
+            obj.pathSpeed = m.path->speed;
+            obj.pathLoops = m.path->loop;
+        }
         for (const auto& polyline : m.lines) {
             addLines(polyline, { 0, 0, 0, 0, 255, 172, 163 }, obj.lines);
         }
@@ -196,6 +228,13 @@ void Level::save(const std::string& filename)
         for (const auto& l : m.lines) {
             segments.push_back(segment(l));
         }
+        std::optional<levelformat::Path> path;
+        if (!m.pathOffsets.empty()) {
+            path = levelformat::Path { {}, m.pathSpeed, m.pathLoops };
+            for (const QPointF& offset : m.pathOffsets) {
+                path->offsets.push_back({ offset.x(), offset.y() });
+            }
+        }
         data.movingObjects.push_back({ levelformat::toPolylines(segments),
                                        m.xDelta,
                                        m.xMaxDifference,
@@ -203,7 +242,8 @@ void Level::save(const std::string& filename)
                                        m.yMaxDifference,
                                        m.rotationDelta,
                                        m.gravity,
-                                       m.name });
+                                       m.name,
+                                       path });
     };
     for (const auto& m : m_movingObjects) {
         addMovingObject(m);
@@ -304,10 +344,6 @@ void Level::drawEdits(QPainter& painter) const
 
 void Level::drawMovingObjectBoundary(QPainter& painter, const MovingObject& m, size_t idx) const
 {
-    unsigned minX { std::numeric_limits<unsigned>::max() };
-    unsigned minY { std::numeric_limits<unsigned>::max() };
-    unsigned maxX { 0 };
-    unsigned maxY { 0 };
     for (auto l : m.lines) {
         if (m_selectedMovingObjects.contains(idx)) {
             l.r = 255;
@@ -315,77 +351,92 @@ void Level::drawMovingObjectBoundary(QPainter& painter, const MovingObject& m, s
             l.b = 255;
         }
         drawLine(painter, l);
-        // Determine bounding box:
-        if (l.x0 < minX) {
-            minX = l.x0 - 1;
-        }
-        if (l.x1 < minX) {
-            minX = l.x1 - 1;
-        }
-        if (l.y0 < minY) {
-            minY = l.y0 - 1;
-        }
-        if (l.y1 < minY) {
-            minY = l.y1 - 1;
-        }
-        if (l.x0 > maxX) {
-            maxX = l.x0 + 1;
-        }
-        if (l.x1 > maxX) {
-            maxX = l.x1 + 1;
-        }
-        if (l.y0 > maxY) {
-            maxY = l.y0 + 1;
-        }
-        if (l.y1 > maxY) {
-            maxY = l.y1 + 1;
-        }
     }
-    if (m.xDelta != 0.f) {
-        minX -= m.xMaxDifference;
-        maxX += m.xMaxDifference;
+    if (m.lines.empty()) {
+        return;
     }
-    if (m.yDelta != 0.f) {
-        minY -= m.yMaxDifference;
-        maxY += m.yMaxDifference;
+    // The furthest any vertex is from the centre, which it can reach when spinning
+    const QPointF centre = movingObjectCentre(m);
+    double maxRadius = 0;
+    for (const auto& l : m.lines) {
+        maxRadius = std::max(
+            { maxRadius,
+              distance(centre, QPointF(l.x0, l.y0)),
+              distance(centre, QPointF(l.x1, l.y1)) });
     }
 
-    if (m.rotationDelta == 0.f) {
+    if (!m.pathOffsets.empty()) {
+        drawMovingObjectPath(painter, m);
+        if (m.rotationDelta != 0) {
+            // Where it can reach while spinning, at each point of the path
+            drawCircle(painter, maxRadius, centre.x(), centre.y());
+            for (const QPointF& offset : m.pathOffsets) {
+                drawCircle(painter, maxRadius, centre.x() + offset.x(), centre.y() + offset.y());
+            }
+        }
+        return;
+    }
+
+    // Bouncing within a box
+    const double rangeX = m.xDelta != 0 ? m.xMaxDifference : 0;
+    const double rangeY = m.yDelta != 0 ? m.yMaxDifference : 0;
+    if (m.rotationDelta == 0) {
+        QRectF bounds;
+        for (const auto& l : m.lines) {
+            bounds |= QRectF(QPointF(l.x0, l.y0), QPointF(l.x1, l.y1)).normalized();
+        }
         painter.setPen(hairline(BOUNDARY_COLOUR));
         painter.setBrush(Qt::NoBrush);
-        painter.drawRect(QRectF(QPointF(minX, minY), QPointF(maxX, maxY)));
+        painter.drawRect(bounds.adjusted(-rangeX - 1, -rangeY - 1, rangeX + 1, rangeY + 1));
+    } else if (rangeX > 0 || rangeY > 0) {
+        // Circumscribe all possible positions
+        drawRoundedRect(
+            painter,
+            centre.x() - rangeX - maxRadius, // top left
+            centre.y() - rangeY - maxRadius,
+            2 * (rangeX + maxRadius),
+            2 * (rangeY + maxRadius),
+            maxRadius);
     } else {
-        // It's rotating, so we calculate the max radius by finding the vertex furthest from the
-        // centre
-        float centreX = minX + (maxX - minX) / 2.f;
-        float centreY = minY + (maxY - minY) / 2.f;
-        float maxRadius { 0.f };
+        // It's just spinning, so a circle around it shows all possible positions
+        drawCircle(painter, maxRadius, centre.x(), centre.y());
+    }
+}
+
+void Level::drawMovingObjectPath(QPainter& painter, const MovingObject& m) const
+{
+    // The object's outline at each point of the path
+    painter.setPen(hairline(MOVING_OBJECT_GHOST_COLOUR));
+    for (const QPointF& offset : m.pathOffsets) {
         for (const auto& l : m.lines) {
-            auto r = std::sqrt(
-                ((l.x0 - centreX) * (l.x0 - centreX)) + ((l.y0 - centreY) * (l.y0 - centreY)));
-            if (r > maxRadius) {
-                maxRadius = r;
-            }
-            r = std::sqrt(
-                ((l.x1 - centreX) * (l.x1 - centreX)) + ((l.y1 - centreY) * (l.y1 - centreY)));
-            if (r > maxRadius) {
-                maxRadius = r;
-            }
+            painter.drawLine(QPointF(l.x0, l.y0) + offset, QPointF(l.x1, l.y1) + offset);
         }
-        if (m.xMaxDifference > 0.f || m.yMaxDifference > 0.f) {
-            // Circumscribe all possible positions
-            drawRoundedRect(
-                painter,
-                centreX - m.xMaxDifference - maxRadius, // top left
-                centreY - m.yMaxDifference - maxRadius,
-                2 * (m.xMaxDifference + maxRadius),
-                2 * (m.yMaxDifference + maxRadius),
-                maxRadius);
-        } else {
-            // It's just rotating, so we can simply draw a circle around it to show all possible
-            // positions
-            drawCircle(painter, maxRadius, centreX, centreY);
-        }
+    }
+    // The route its centre takes
+    const QPointF centre = movingObjectCentre(m);
+    QPolygonF route { centre };
+    for (const QPointF& offset : m.pathOffsets) {
+        route << centre + offset;
+    }
+    QPen pen = hairline(BOUNDARY_COLOUR);
+    pen.setStyle(Qt::DashLine);
+    painter.setPen(pen);
+    painter.setBrush(Qt::NoBrush);
+    if (m.pathLoops) {
+        painter.drawPolygon(route);
+    } else {
+        painter.drawPolyline(route);
+    }
+    // Small arrowheads show which way it goes from the start
+    const QPointF towards = route[1] - route[0];
+    const double length = std::hypot(towards.x(), towards.y());
+    if (length > 0) {
+        const QPointF direction = towards / length;
+        const QPointF normal(-direction.y(), direction.x());
+        const QPointF tip = route[0] + direction * std::min(length / 2, 30.0);
+        painter.setPen(hairline(BOUNDARY_COLOUR));
+        painter.drawLine(tip, tip - direction * 8 + normal * 5);
+        painter.drawLine(tip, tip - direction * 8 - normal * 5);
     }
 }
 
@@ -1195,6 +1246,14 @@ bool Level::applyRotation(double degrees, QPointF centre)
     if (m_exitSelected && m_exitPosition.has_value()) {
         turn(m_exitPosition->r);
     }
+    // Paths turn with their objects
+    for (std::size_t i : m_selectedMovingObjects) {
+        for (QPointF& offset : m_movingObjects[i].pathOffsets) {
+            offset = QPointF(
+                std::round(offset.x() * cosine - offset.y() * sine),
+                std::round(offset.x() * sine + offset.y() * cosine));
+        }
+    }
     return true;
 }
 
@@ -1225,6 +1284,7 @@ void Level::endTransform()
         }
     }
     m_draggedVertex = std::nullopt;
+    m_draggedPathPoint = std::nullopt;
     m_currentNearestSnapPoint = std::nullopt;
     m_transformOrigin = std::nullopt;
 }
@@ -1269,6 +1329,130 @@ void Level::setSelectedMovingObjectMotion(const MovingObject& motion)
     obj.yMaxDifference = motion.yMaxDifference;
     obj.rotationDelta = motion.rotationDelta;
     obj.gravity = motion.gravity;
+    obj.pathOffsets = motion.pathOffsets;
+    obj.pathSpeed = motion.pathSpeed;
+    obj.pathLoops = motion.pathLoops;
+    if (!obj.pathOffsets.empty()) {
+        // A path replaces bouncing within a box
+        obj.xDelta = obj.xMaxDifference = obj.yDelta = obj.yMaxDifference = 0;
+    }
+}
+
+MovingObject* Level::singleSelectedMovingObject()
+{
+    if (m_selectedMovingObjects.size() != 1) {
+        return nullptr;
+    }
+    return &m_movingObjects[*m_selectedMovingObjects.begin()];
+}
+
+const MovingObject* Level::singleSelectedMovingObject() const
+{
+    if (m_selectedMovingObjects.size() != 1) {
+        return nullptr;
+    }
+    return &m_movingObjects[*m_selectedMovingObjects.begin()];
+}
+
+void Level::setPathEndAt(QPointF pos)
+{
+    MovingObject* m = singleSelectedMovingObject();
+    if (m == nullptr) {
+        return;
+    }
+    checkpoint();
+    const QPointF offset = roundedOffset(pos - movingObjectCentre(*m));
+    if (m->pathOffsets.empty()) {
+        m->pathOffsets.push_back(offset);
+        if (m->pathSpeed == 0) {
+            m->pathSpeed = DEFAULT_PATH_SPEED;
+        }
+        m->xDelta = m->xMaxDifference = m->yDelta = m->yMaxDifference = 0;
+    } else {
+        m->pathOffsets.back() = offset;
+    }
+}
+
+void Level::addPathPointAt(QPointF pos)
+{
+    MovingObject* m = singleSelectedMovingObject();
+    if (m == nullptr || m->pathOffsets.empty()) {
+        return;
+    }
+    checkpoint();
+    m->pathOffsets.push_back(roundedOffset(pos - movingObjectCentre(*m)));
+}
+
+std::optional<std::size_t> Level::pathPointAt(QPointF pos, float zoomLevel) const
+{
+    std::optional<std::size_t> nearest;
+    double nearestDistance = VERTEX_HIT_PIXELS * zoomLevel;
+    const auto points = selectedPathPoints();
+    for (std::size_t i = 0; i < points.size(); ++i) {
+        const double d = distance(pos, points[i]);
+        if (d <= nearestDistance) {
+            nearest = i;
+            nearestDistance = d;
+        }
+    }
+    return nearest;
+}
+
+void Level::removePathPoint(std::size_t index)
+{
+    MovingObject* m = singleSelectedMovingObject();
+    if (m == nullptr || index >= m->pathOffsets.size()) {
+        return;
+    }
+    checkpoint();
+    m->pathOffsets.erase(m->pathOffsets.begin() + static_cast<std::ptrdiff_t>(index));
+}
+
+std::vector<QPointF> Level::selectedPathPoints() const
+{
+    const MovingObject* m = singleSelectedMovingObject();
+    if (m == nullptr) {
+        return {};
+    }
+    const QPointF centre = movingObjectCentre(*m);
+    std::vector<QPointF> points;
+    for (const QPointF& offset : m->pathOffsets) {
+        points.push_back(centre + offset);
+    }
+    return points;
+}
+
+void Level::beginPathPointDrag(std::size_t index)
+{
+    beginTransform();
+    m_draggedPathPoint = index;
+}
+
+void Level::movePathPoint(QPointF pos)
+{
+    if (!m_transformOrigin.has_value() || !m_draggedPathPoint.has_value()) {
+        return;
+    }
+    restoreContents(*m_transformOrigin);
+    MovingObject* m = singleSelectedMovingObject();
+    if (m == nullptr || *m_draggedPathPoint >= m->pathOffsets.size()) {
+        return;
+    }
+    QPointF offset = pos - movingObjectCentre(*m);
+    if (m_snapMode == SnapMode::AUTO || m_snapMode == SnapMode::GRID) {
+        // Snap to whole grid squares, so the object lines up with the grid
+        // as it did where it's drawn
+        offset = QPointF(
+            std::round(offset.x() / GRID_SPACING) * GRID_SPACING,
+            std::round(offset.y() / GRID_SPACING) * GRID_SPACING);
+    } else {
+        offset = roundedOffset(offset);
+    }
+    if (offset == m->pathOffsets[*m_draggedPathPoint]) {
+        return;
+    }
+    transformCheckpoint();
+    m->pathOffsets[*m_draggedPathPoint] = offset;
 }
 
 void Level::addConnectedLinesToHighlight(const Line& line)
@@ -1540,6 +1724,7 @@ void Level::restore(const Snapshot& snapshot)
     clearSelection();
     m_transformOrigin = std::nullopt;
     m_draggedVertex = std::nullopt;
+    m_draggedPathPoint = std::nullopt;
     m_currentInsertionLine.inactive = true;
     m_lastChangeWasNudge = false;
 }

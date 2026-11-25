@@ -109,7 +109,9 @@ TEST_CASE("The editor saves what it loads, including rotations and thicknesses")
             { "lines": [ { "points": [[1, 1], [2, 2]] } ] }
           ],
           "movingObjects": [
-            { "lines": [ { "points": [[5, 5], [6, 6]] } ], "speedX": 0.5, "gravity": 20, "name": "m" }
+            { "lines": [ { "points": [[5, 5], [6, 6]] } ], "speedX": 0.5, "gravity": 20, "name": "m" },
+            { "lines": [ { "points": [[5, 5], [6, 6]] } ],
+              "path": { "offsets": [[100, -50], [0, 200]], "speed": 0.75, "loop": true }, "spin": 1 }
           ]
         })";
     }
@@ -273,4 +275,70 @@ TEST_CASE("Items can be placed directly, as from the context menu")
     CHECK(saved.exit->x == 300);
     CHECK(saved.exit->y == 400);
     CHECK(saved.fuel.size() == 2);
+}
+
+TEST_CASE("A moving object's path can be set where clicked, dragged, and turns with the object")
+{
+    TempFile square("path_square.lvl");
+    {
+        // A 100 x 100 square centred on (250, 250)
+        std::ofstream out(square.path());
+        out << R"({ "formatVersion": 1,
+                    "walls": [ { "points": [[200, 200], [300, 200], [300, 300], [200, 300]], "closed": true } ] })";
+    }
+    Level level;
+    level.load(square.path());
+    level.changeMode(Mode::EDIT);
+    level.selectAll();
+    level.convertSelectionToMovingObject();
+    REQUIRE(level.selectedMovingObject().has_value());
+
+    // Bouncing within a box is replaced by the path
+    MovingObject motion = *level.selectedMovingObject();
+    motion.xDelta = 1;
+    motion.xMaxDifference = 50;
+    level.setSelectedMovingObjectMotion(motion);
+    level.setPathEndAt({ 450, 251.4 });
+    auto m = *level.selectedMovingObject();
+    CHECK(m.pathOffsets == std::vector<QPointF> { { 200, 1 } });
+    CHECK(m.pathSpeed > 0);
+    CHECK(m.xDelta == 0);
+    CHECK(m.xMaxDifference == 0);
+    CHECK(level.selectedPathPoints() == std::vector<QPointF> { { 450, 251 } });
+
+    level.addPathPointAt({ 250, 450 });
+    CHECK(level.pathPointAt({ 452, 250 }, 1) == 0);
+    CHECK(level.pathPointAt({ 250, 448 }, 1) == 1);
+    CHECK_FALSE(level.pathPointAt({ 350, 350 }, 1).has_value());
+
+    // Dragging snaps to whole grid squares
+    level.setSnapMode(SnapMode::GRID);
+    level.beginPathPointDrag(0);
+    level.movePathPoint({ 380, 170 });
+    level.endTransform();
+    CHECK(level.selectedMovingObject()->pathOffsets == std::vector<QPointF> { { 150, -100 }, { 0, 200 } });
+
+    // Moving the object leaves its path the same relative to it; turning it turns the path
+    level.nudgeSelection(10, 0);
+    CHECK(level.selectedPathPoints()[0] == QPointF(410, 150));
+    level.beginTransform();
+    level.rotateSelection(90, level.selectionBounds()->center());
+    level.endTransform();
+    CHECK(level.selectedMovingObject()->pathOffsets == std::vector<QPointF> { { 100, 150 }, { -200, 0 } });
+
+    TempFile file("path.lvl");
+    level.save(file.path());
+    const auto saved = levelformat::read(file.path());
+    REQUIRE(saved.movingObjects.size() == 1);
+    REQUIRE(saved.movingObjects[0].path.has_value());
+    CHECK(saved.movingObjects[0].path->offsets == std::vector<levelformat::Point> { { 100, 150 }, { -200, 0 } });
+    CHECK(saved.movingObjects[0].speedX == 0);
+
+    level.removePathPoint(1);
+    level.removePathPoint(0);
+    CHECK(level.selectedMovingObject()->pathOffsets.empty());
+    level.undo();
+    level.selectAll(); // undo clears the selection
+    REQUIRE(level.selectedMovingObject().has_value());
+    CHECK(level.selectedMovingObject()->pathOffsets.size() == 1);
 }

@@ -7,6 +7,8 @@
 #include <QApplication>
 #include <QCloseEvent>
 #include <QDialog>
+#include <QCheckBox>
+#include <QComboBox>
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QDoubleSpinBox>
@@ -22,6 +24,7 @@
 #include <QStatusBar>
 
 #include <array>
+#include <cmath>
 #include <exception>
 
 namespace mgo {
@@ -236,11 +239,13 @@ void MainWindow::createMenus()
         objectMenu,
         "Moving Object &Properties...",
         { QKeySequence(Qt::Key_X) },
-        [this] { editMovingObject(0); });
+        [this] { editMovingObject(MovingField::Motion); });
     // Old shortcuts for editing individual properties, which open the same
     // dialog at the relevant field
-    for (auto [key, field] : std::array<std::pair<Qt::Key, int>, 3> {
-             { { Qt::Key_Y, 2 }, { Qt::Key_R, 4 }, { Qt::Key_G, 5 } } }) {
+    for (auto [key, field] : std::array<std::pair<Qt::Key, MovingField>, 3> {
+             { { Qt::Key_Y, MovingField::YSpeed },
+               { Qt::Key_R, MovingField::Spin },
+               { Qt::Key_G, MovingField::Gravity } } }) {
         auto* action = new QAction(this);
         action->setShortcut(QKeySequence(key));
         connect(action, &QAction::triggered, this, [this, field] {
@@ -586,53 +591,146 @@ void MainWindow::editTitle()
     }
 }
 
-void MainWindow::editMovingObject(int focusField)
+void MainWindow::editMovingObject(MovingField focusField)
 {
     auto object = m_level.selectedMovingObject();
     if (!object.has_value()) {
         return;
     }
-    struct Field {
-        const char* label;
-        double MovingObject::* member;
-        double min;
-        double max;
+    enum Motion {
+        NONE,
+        PATH,
+        BOX
     };
-    const std::array<Field, 6> fields { {
-        { "X delta:", &MovingObject::xDelta, -1000, 1000 },
-        { "X max +/- motion (grid square = 50):", &MovingObject::xMaxDifference, 0, 2000 },
-        { "Y delta:", &MovingObject::yDelta, -1000, 1000 },
-        { "Y max +/- motion (grid square = 50):", &MovingObject::yMaxDifference, 0, 2000 },
-        { "Rotation delta:", &MovingObject::rotationDelta, -360, 360 },
-        { "Gravity (10 to 100 is good):", &MovingObject::gravity, -1000, 1000 },
-    } };
 
     QDialog dialog(this);
     dialog.setWindowTitle("Moving Object Properties");
     auto* form = new QFormLayout(&dialog);
-    std::array<QDoubleSpinBox*, fields.size()> spinBoxes;
-    for (std::size_t i = 0; i < fields.size(); ++i) {
-        auto* spinBox = new QDoubleSpinBox(&dialog);
-        spinBox->setRange(fields[i].min, fields[i].max);
-        spinBox->setDecimals(2);
-        spinBox->setValue((*object).*fields[i].member);
-        form->addRow(fields[i].label, spinBox);
-        spinBoxes[i] = spinBox;
+    auto spinBox = [&](double value, double min, double max) {
+        auto* box = new QDoubleSpinBox(&dialog);
+        box->setRange(min, max);
+        box->setDecimals(2);
+        box->setValue(value);
+        return box;
+    };
+
+    auto* motion = new QComboBox(&dialog);
+    motion->addItems({ "None", "Along a path", "Bouncing within a box" });
+    form->addRow("Motion:", motion);
+
+    // Path. The dialog edits the end of the path; there can be more points,
+    // added from the canvas's context menu.
+    QPointF end(100, 0);
+    double pathSpeed = object->pathSpeed;
+    if (!object->pathOffsets.empty()) {
+        end = object->pathOffsets.back();
+    } else if (object->xMaxDifference != 0 || object->yMaxDifference != 0) {
+        // Start from the box's corner, in the direction it moves initially
+        end = QPointF(
+            std::copysign(object->xMaxDifference, object->xDelta),
+            std::copysign(object->yMaxDifference, object->yDelta));
+        pathSpeed = std::hypot(object->xDelta, object->yDelta);
     }
+    auto* speed = spinBox(pathSpeed > 0 ? pathSpeed : 0.5, 0, 1000);
+    auto* endX = spinBox(end.x(), -2000, 2000);
+    auto* endY = spinBox(end.y(), -2000, 2000);
+    endX->setDecimals(0);
+    endY->setDecimals(0);
+    auto* loop = new QCheckBox("Go round and round (rather than back and forth)", &dialog);
+    loop->setChecked(object->pathLoops);
+    const auto pathRows = { static_cast<QWidget*>(speed), static_cast<QWidget*>(endX),
+                            static_cast<QWidget*>(endY), static_cast<QWidget*>(loop) };
+    form->addRow("Speed (per tick):", speed);
+    form->addRow("Path end, across (grid square = 50):", endX);
+    form->addRow("Path end, down:", endY);
+    form->addRow("", loop);
+
+    // Box
+    auto* xSpeed = spinBox(object->xDelta, -1000, 1000);
+    auto* xRange = spinBox(object->xMaxDifference, 0, 2000);
+    auto* ySpeed = spinBox(object->yDelta, -1000, 1000);
+    auto* yRange = spinBox(object->yMaxDifference, 0, 2000);
+    const auto boxRows = { static_cast<QWidget*>(xSpeed), static_cast<QWidget*>(xRange),
+                           static_cast<QWidget*>(ySpeed), static_cast<QWidget*>(yRange) };
+    form->addRow("X speed (per tick):", xSpeed);
+    form->addRow("X range, +/- (grid square = 50):", xRange);
+    form->addRow("Y speed (per tick):", ySpeed);
+    form->addRow("Y range, +/-:", yRange);
+
+    auto* spin = spinBox(object->rotationDelta, -360, 360);
+    auto* gravity = spinBox(object->gravity, -1000, 1000);
+    form->addRow("Spin (degrees per tick):", spin);
+    form->addRow("Gravity (10 to 100 is good):", gravity);
+
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     form->addRow(buttons);
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
-    if (focusField >= 0 && focusField < static_cast<int>(spinBoxes.size())) {
-        spinBoxes[focusField]->setFocus();
-        spinBoxes[focusField]->selectAll();
+
+    auto showRows = [&](int index) {
+        for (QWidget* w : pathRows) {
+            form->setRowVisible(w, index == PATH);
+        }
+        for (QWidget* w : boxRows) {
+            form->setRowVisible(w, index == BOX);
+        }
+        dialog.adjustSize();
+    };
+    connect(motion, &QComboBox::currentIndexChanged, &dialog, showRows);
+    const bool hasBox = object->xDelta != 0 || object->yDelta != 0 || object->xMaxDifference != 0
+        || object->yMaxDifference != 0;
+    motion->setCurrentIndex(!object->pathOffsets.empty() ? PATH : hasBox ? BOX : NONE);
+    showRows(motion->currentIndex());
+
+    QWidget* focus = motion;
+    switch (focusField) {
+        case MovingField::Motion:
+            break;
+        case MovingField::YSpeed:
+            if (motion->currentIndex() != PATH) {
+                motion->setCurrentIndex(BOX);
+                focus = ySpeed;
+            } else {
+                focus = speed;
+            }
+            break;
+        case MovingField::Spin:
+            focus = spin;
+            break;
+        case MovingField::Gravity:
+            focus = gravity;
+            break;
+    }
+    focus->setFocus();
+    if (auto* box = qobject_cast<QDoubleSpinBox*>(focus)) {
+        box->selectAll();
     }
 
     if (dialog.exec() == QDialog::Accepted) {
-        for (std::size_t i = 0; i < fields.size(); ++i) {
-            (*object).*fields[i].member = spinBoxes[i]->value();
+        MovingObject result = *object;
+        result.xDelta = result.xMaxDifference = result.yDelta = result.yMaxDifference = 0;
+        result.pathOffsets.clear();
+        result.pathSpeed = 0;
+        result.pathLoops = false;
+        if (motion->currentIndex() == PATH) {
+            result.pathOffsets = object->pathOffsets;
+            const QPointF newEnd(endX->value(), endY->value());
+            if (result.pathOffsets.empty()) {
+                result.pathOffsets.push_back(newEnd);
+            } else {
+                result.pathOffsets.back() = newEnd;
+            }
+            result.pathSpeed = speed->value();
+            result.pathLoops = loop->isChecked();
+        } else if (motion->currentIndex() == BOX) {
+            result.xDelta = xSpeed->value();
+            result.xMaxDifference = xRange->value();
+            result.yDelta = ySpeed->value();
+            result.yMaxDifference = yRange->value();
         }
-        m_level.setSelectedMovingObjectMotion(*object);
+        result.rotationDelta = spin->value();
+        result.gravity = gravity->value();
+        m_level.setSelectedMovingObjectMotion(result);
         m_canvas->viewport()->update();
     }
 }
@@ -671,6 +769,11 @@ void MainWindow::showHelp()
                 "<li>To reshape a closed shape, right-click a line and choose <b>Split Line "
                 "Here</b> to add a vertex, then drag it; <b>Join Lines Here</b> on a vertex "
                 "removes it</li>"
+                "<li>To make a moving object follow a path, select it, right-click where it "
+                "should go and choose <b>Move Here and Back</b>. Drag the diamond handle to "
+                "change where the path ends; right-click elsewhere to add points to it, or on a "
+                "diamond to remove it. <b>Moving Object Properties</b> sets its speed, and can "
+                "make it go round a loop.</li>"
                 "<li><b>Esc</b>: clear the selection</li>"
                 "</ul>"
                 "<p>Other keyboard shortcuts are shown in the menus.</p>")

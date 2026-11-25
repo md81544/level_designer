@@ -52,9 +52,14 @@ private:
     void setMode(Mode mode);
     void choosePolygon();
     void editTitle();
-    // Opens the moving object properties dialog, with the given field
-    // (0 = X delta, 2 = Y delta, 4 = rotation, 5 = gravity) focused
-    void editMovingObject(int focusField);
+    // Opens the moving object properties dialog, with the given field focused
+    enum class MovingField {
+        Motion,
+        YSpeed,
+        Spin,
+        Gravity
+    };
+    void editMovingObject(MovingField focusField);
     void showHelp();
 
     Level m_level;

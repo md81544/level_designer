@@ -8,6 +8,7 @@
 #include <QMouseEvent>
 #include <QNativeGestureEvent>
 #include <QPainter>
+#include <QPolygonF>
 #include <QProxyStyle>
 #include <QResizeEvent>
 #include <QScrollBar>
@@ -281,6 +282,13 @@ void LevelWidget::paintEvent(QPaintEvent*)
             const QPointF p = toViewport(vertex);
             painter.drawRect(QRectF(p - half, p + half));
         }
+        // Path points are diamonds, to tell them apart from vertices
+        for (const QPointF& point : m_level.selectedPathPoints()) {
+            const QPointF p = toViewport(point);
+            const double r = VERTEX_HANDLE_HALF_SIZE + 1;
+            painter.drawPolygon(QPolygonF(
+                { p + QPointF(0, -r), p + QPointF(r, 0), p + QPointF(0, r), p + QPointF(-r, 0) }));
+        }
     }
     if (m_contextLine.has_value()) {
         painter.setPen(QPen(HANDLE_COLOUR, 3.0));
@@ -350,9 +358,10 @@ void LevelWidget::updateCursor(QPointF viewportPos)
     if (m_drag == Drag::Move) {
         shape = Qt::ClosedHandCursor;
     } else if (
-        m_drag == Drag::Vertex
+        m_drag == Drag::Vertex || m_drag == Drag::PathPoint
         || (m_drag == Drag::None && m_level.mode() == Mode::EDIT
-            && m_level.vertexAt(toMap(viewportPos), m_zoom, true).has_value())) {
+            && (m_level.vertexAt(toMap(viewportPos), m_zoom, true).has_value()
+                || m_level.pathPointAt(toMap(viewportPos), m_zoom).has_value()))) {
         shape = Qt::SizeAllCursor;
     } else if (m_drag == Drag::Rotate || (m_drag == Drag::None && isOnRotationHandle(viewportPos))) {
         shape = Qt::PointingHandCursor;
@@ -406,6 +415,8 @@ void LevelWidget::mouseMoveEvent(QMouseEvent* event)
             m_level.rotateSelection(degrees, m_rotationCentre);
         } else if (m_drag == Drag::Vertex) {
             m_level.moveVertex(toMap(pos));
+        } else if (m_drag == Drag::PathPoint) {
+            m_level.movePathPoint(toMap(pos));
         }
         changed();
         return;
@@ -452,6 +463,10 @@ void LevelWidget::mousePressEvent(QMouseEvent* event)
             if (isOnRotationHandle(pos)) {
                 m_drag = Drag::Rotate;
                 m_rotationCentre = m_level.selectionBounds()->center();
+            } else if (const auto point = m_level.pathPointAt(mapPos, m_zoom);
+                       point.has_value() && !extendSelection) {
+                m_drag = Drag::PathPoint;
+                m_level.beginPathPointDrag(*point);
             } else if (const auto vertex = m_level.vertexAt(mapPos, m_zoom, true);
                        vertex.has_value() && !extendSelection) {
                 m_drag = Drag::Vertex;
@@ -493,6 +508,7 @@ void LevelWidget::mouseReleaseEvent(QMouseEvent* event)
         case Drag::Move:
         case Drag::Rotate:
         case Drag::Vertex:
+        case Drag::PathPoint:
             m_level.endTransform();
             if (m_drag == Drag::Move && !m_dragMoved && m_pressedOnSelected) {
                 m_level.selectOnlyItemAt(toMap(pos), m_zoom, m_dragSingleLine);
@@ -516,9 +532,14 @@ void LevelWidget::mouseReleaseEvent(QMouseEvent* event)
 void LevelWidget::showContextMenu(QPointF pos)
 {
     const QPointF mapPos = toMap(pos);
-    // As with a click, right-clicking something not selected selects it
-    if (m_level.mode() == Mode::EDIT && !m_level.isSelectedItemAt(mapPos, m_zoom)
-        && !m_level.vertexAt(mapPos, m_zoom, true).has_value()) {
+    // As with a click, right-clicking something not selected selects it.
+    // Right-clicking empty space keeps the selection, so it can be acted on
+    // there (e.g. moving a path's end to where was clicked).
+    const auto pathPoint = m_level.mode() == Mode::EDIT ? m_level.pathPointAt(mapPos, m_zoom)
+                                                        : std::nullopt;
+    if (m_level.mode() == Mode::EDIT && m_level.isItemAt(mapPos, m_zoom)
+        && !m_level.isSelectedItemAt(mapPos, m_zoom)
+        && !m_level.vertexAt(mapPos, m_zoom, true).has_value() && !pathPoint.has_value()) {
         m_level.leftClicked(mapPos, m_zoom, false, false);
     }
     // Brings the main window's actions up to date with the selection
@@ -540,6 +561,20 @@ void LevelWidget::showContextMenu(QPointF pos)
         menu.addAction("Select Line", [&] { m_level.selectLineAt(mapPos, m_zoom, false); });
         menu.addAction(
             "Select Connected Lines", [&] { m_level.selectLineAt(mapPos, m_zoom, true); });
+    }
+    // The selected moving object's path
+    if (const auto moving = m_level.selectedMovingObject()) {
+        menu.addSeparator();
+        if (pathPoint.has_value()) {
+            menu.addAction("Remove Path Point", [&] { m_level.removePathPoint(*pathPoint); });
+        } else {
+            menu.addAction(
+                moving->pathOffsets.empty() ? "Move Here and Back" : "Move Path End Here",
+                [&] { m_level.setPathEndAt(mapPos); });
+            QAction* add
+                = menu.addAction("Add Path Point Here", [&] { m_level.addPathPointAt(mapPos); });
+            add->setEnabled(!moving->pathOffsets.empty());
+        }
     }
     // Placing items where clicked
     menu.addSeparator();
