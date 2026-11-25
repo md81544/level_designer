@@ -39,10 +39,17 @@ if(APPLE)
         MACOSX_PACKAGE_LOCATION "Resources"
     )
 
+    # The resources are copied after the app is linked, so relink it whenever
+    # they change; otherwise the bundle keeps stale copies of them
+    file(GLOB_RECURSE BUNDLED_DATA CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/data/*)
+    set_property(TARGET ${APP_NAME} APPEND PROPERTY
+        LINK_DEPENDS ${BUNDLED_DATA} ${CMAKE_SOURCE_DIR}/level_designer.cfg)
     add_custom_command(TARGET ${APP_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             ${CMAKE_SOURCE_DIR}/level_designer.cfg
             $<TARGET_BUNDLE_CONTENT_DIR:${APP_NAME}>/Resources/level_designer.cfg
+        # Start afresh, so files removed from data don't linger in the bundle
+        COMMAND ${CMAKE_COMMAND} -E rm -rf $<TARGET_BUNDLE_CONTENT_DIR:${APP_NAME}>/Resources/data
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_SOURCE_DIR}/data
             $<TARGET_BUNDLE_CONTENT_DIR:${APP_NAME}>/Resources/data
