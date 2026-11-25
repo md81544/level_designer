@@ -16,7 +16,7 @@ The editor works in "modes", chosen from the **Insert** menu (Line, Breakable Li
 
 When drawing lines, click to place each point and keep clicking to keep making lines. To stop, press Escape (or right click), then click somewhere else to start a new line. Snapping (to the grid, existing lines, both or neither) is set in **View > Snap To**.
 
-Shift + mouse move scrolls the view, and the mouse wheel or trackpad zooms. Keyboard shortcuts are shown in the menus, and **Help > Mouse and Keyboard** summarises the rest.
+The mouse wheel or trackpad scrolls (Shift + wheel scrolls sideways), Ctrl/Cmd + wheel or a trackpad pinch zooms, and Shift + mouse move also scrolls the view. Keyboard shortcuts are shown in the menus, and **Help > Mouse and Keyboard** summarises the rest.
 
 ### Requirements
 

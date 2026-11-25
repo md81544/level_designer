@@ -3,7 +3,9 @@
 
 #include <QKeyEvent>
 #include <QMouseEvent>
+#include <QNativeGestureEvent>
 #include <QPainter>
+#include <QScrollBar>
 #include <QWheelEvent>
 
 #include <algorithm>
@@ -14,20 +16,28 @@ namespace mgo {
 namespace {
 
 // Zoom limits: the most zoomed in view shows MIN_VIEW_WIDTH workspace units
-// across, the most zoomed out shows MAX_ZOOM workspace units per pixel
+// across; the most zoomed out shows MAX_ZOOM workspace units per pixel, or
+// the whole map if that needs more
 constexpr double MIN_VIEW_WIDTH = 100.0;
 constexpr double MAX_ZOOM = 2.0;
 // Zoom factor per step for the menu / keyboard
 constexpr double ZOOM_STEP = 1.25;
+// Zoom factor per mouse wheel notch
+constexpr double WHEEL_ZOOM_STEP = 1.1;
+// Pixels scrolled per scroll bar arrow click; a mouse wheel notch scrolls three times this
+constexpr int SCROLL_STEP = 20;
 
 } // namespace
 
 LevelWidget::LevelWidget(Level& level, QWidget* parent)
-    : QWidget(parent)
+    : QAbstractScrollArea(parent)
     , m_level(level)
 {
     setFocusPolicy(Qt::StrongFocus);
-    setMouseTracking(true); // so we get mouse moves without a button pressed
+    setFrameShape(QFrame::NoFrame);
+    setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    viewport()->setMouseTracking(true); // so we get mouse moves without a button pressed
     setMinimumSize(200, 200);
 }
 
@@ -38,20 +48,25 @@ void LevelWidget::setChangedCallback(std::function<void()> callback)
 
 void LevelWidget::changed()
 {
-    update();
+    viewport()->update();
     if (m_changedCallback) {
         m_changedCallback();
     }
 }
 
-QPointF LevelWidget::toWorkspace(QPointF widgetPos) const
+QPointF LevelWidget::viewportCentre() const
 {
-    return m_centre + (widgetPos - QPointF(width() / 2.0, height() / 2.0)) * m_zoom;
+    return { viewport()->width() / 2.0, viewport()->height() / 2.0 };
 }
 
-QPointF LevelWidget::toMap(QPointF widgetPos) const
+QPointF LevelWidget::toWorkspace(QPointF viewportPos) const
 {
-    const QPointF p = toWorkspace(widgetPos);
+    return m_centre + (viewportPos - viewportCentre()) * m_zoom;
+}
+
+QPointF LevelWidget::toMap(QPointF viewportPos) const
+{
+    const QPointF p = toWorkspace(viewportPos);
     return { std::clamp(p.x(), 0.0, static_cast<double>(Level::MAP_SIZE)),
              std::clamp(p.y(), 0.0, static_cast<double>(Level::MAP_SIZE)) };
 }
@@ -64,11 +79,22 @@ std::optional<QPointF> LevelWidget::cursorPosition() const
     return toWorkspace(*m_lastMousePos);
 }
 
+// ---------------------------------------------------------------------------
+// The view
+// ---------------------------------------------------------------------------
+
+void LevelWidget::viewChanged()
+{
+    clampView();
+    updateScrollBars();
+    viewport()->update();
+}
+
 void LevelWidget::clampView()
 {
     const double mapSize = Level::MAP_SIZE;
-    const double halfWidth = width() * m_zoom / 2.0;
-    const double halfHeight = height() * m_zoom / 2.0;
+    const double halfWidth = viewport()->width() * m_zoom / 2.0;
+    const double halfHeight = viewport()->height() * m_zoom / 2.0;
     double x = std::max(halfWidth, std::min(m_centre.x(), mapSize - halfWidth));
     double y = std::max(halfHeight, std::min(m_centre.y(), mapSize - halfHeight));
     // If the view is larger than the map in either dimension, centre it
@@ -81,31 +107,109 @@ void LevelWidget::clampView()
     m_centre = { x, y };
 }
 
+void LevelWidget::updateScrollBars()
+{
+    // The scroll bars work in pixels: their range is the map's size in pixels
+    // less the viewport's size, and their value is the position of the
+    // viewport's left / top edge on the map.
+    //
+    // Showing or hiding a scroll bar resizes the viewport, which changes the
+    // other scroll bar's range (and may in turn show or hide it), so repeat
+    // until the viewport's size settles.
+    m_updatingScrollBars = true;
+    const double mapPixels = Level::MAP_SIZE / m_zoom;
+    for (int attempt = 0; attempt < 3; ++attempt) {
+        m_resizedWhileUpdatingScrollBars = false;
+        clampView();
+        auto update = [&](QScrollBar* bar, int viewportSize, double centre) {
+            bar->setRange(0, std::max(0, static_cast<int>(std::lround(mapPixels - viewportSize))));
+            bar->setPageStep(viewportSize);
+            bar->setSingleStep(SCROLL_STEP);
+            bar->setValue(static_cast<int>(std::lround(centre / m_zoom - viewportSize / 2.0)));
+        };
+        update(horizontalScrollBar(), viewport()->width(), m_centre.x());
+        update(verticalScrollBar(), viewport()->height(), m_centre.y());
+        if (!m_resizedWhileUpdatingScrollBars) {
+            break;
+        }
+    }
+    m_updatingScrollBars = false;
+}
+
+void LevelWidget::scrollContentsBy(int, int)
+{
+    if (m_updatingScrollBars) {
+        return;
+    }
+    // The user has moved a scroll bar (directly, or via the wheel etc)
+    if (horizontalScrollBar()->maximum() > 0) {
+        m_centre.setX((horizontalScrollBar()->value() + viewport()->width() / 2.0) * m_zoom);
+    }
+    if (verticalScrollBar()->maximum() > 0) {
+        m_centre.setY((verticalScrollBar()->value() + viewport()->height() / 2.0) * m_zoom);
+    }
+    clampView();
+    changed();
+}
+
 void LevelWidget::zoomBy(double factor, QPointF anchor)
 {
     const QPointF anchorOnWorkspace = toWorkspace(anchor);
-    const double minZoom = MIN_VIEW_WIDTH / std::max(width(), 1);
-    m_zoom = std::clamp(m_zoom * factor, minZoom, MAX_ZOOM);
-    m_centre = anchorOnWorkspace - (anchor - QPointF(width() / 2.0, height() / 2.0)) * m_zoom;
-    clampView();
-    update();
+    // Note the viewport is measured without scroll bars, as they will
+    // disappear when the whole map fits
+    const QSize size = maximumViewportSize();
+    const double minZoom = MIN_VIEW_WIDTH / std::max(size.width(), 1);
+    const double maxZoom = std::max(
+        MAX_ZOOM, static_cast<double>(Level::MAP_SIZE) / std::max(std::min(size.width(), size.height()), 1));
+    m_zoom = std::clamp(m_zoom * factor, minZoom, maxZoom);
+    m_centre = anchorOnWorkspace - (anchor - viewportCentre()) * m_zoom;
+    viewChanged();
 }
 
 void LevelWidget::zoomIn()
 {
-    zoomBy(1.0 / ZOOM_STEP, rect().center());
+    zoomBy(1.0 / ZOOM_STEP, viewportCentre());
 }
 
 void LevelWidget::zoomOut()
 {
-    zoomBy(ZOOM_STEP, rect().center());
+    zoomBy(ZOOM_STEP, viewportCentre());
+}
+
+// ---------------------------------------------------------------------------
+// Events
+// ---------------------------------------------------------------------------
+
+bool LevelWidget::viewportEvent(QEvent* event)
+{
+    switch (event->type()) {
+        case QEvent::NativeGesture:
+            {
+                // Trackpad pinch (macOS, and some other platforms)
+                const auto* gesture = static_cast<QNativeGestureEvent*>(event);
+                if (gesture->gestureType() == Qt::ZoomNativeGesture) {
+                    // value() is the change in scale since the last event, e.g. 0.01
+                    zoomBy(1.0 / (1.0 + gesture->value()), gesture->position());
+                    changed();
+                    return true;
+                }
+                break;
+            }
+        case QEvent::Leave:
+            m_lastMousePos = std::nullopt;
+            changed();
+            break;
+        default:
+            break;
+    }
+    return QAbstractScrollArea::viewportEvent(event);
 }
 
 void LevelWidget::paintEvent(QPaintEvent*)
 {
-    QPainter painter(this);
-    painter.fillRect(rect(), Qt::black);
-    painter.translate(width() / 2.0, height() / 2.0);
+    QPainter painter(viewport());
+    painter.fillRect(viewport()->rect(), Qt::black);
+    painter.translate(viewportCentre());
     painter.scale(1.0 / m_zoom, 1.0 / m_zoom);
     painter.translate(-m_centre);
     m_level.draw(painter);
@@ -113,8 +217,13 @@ void LevelWidget::paintEvent(QPaintEvent*)
 
 void LevelWidget::resizeEvent(QResizeEvent* event)
 {
-    QWidget::resizeEvent(event);
-    clampView();
+    QAbstractScrollArea::resizeEvent(event);
+    if (m_updatingScrollBars) {
+        // A scroll bar has been shown or hidden; updateScrollBars() will go round again
+        m_resizedWhileUpdatingScrollBars = true;
+    } else {
+        viewChanged();
+    }
 }
 
 void LevelWidget::mouseMoveEvent(QMouseEvent* event)
@@ -124,7 +233,7 @@ void LevelWidget::mouseMoveEvent(QMouseEvent* event)
         // Pan
         if (m_lastMousePos.has_value()) {
             m_centre += (*m_lastMousePos - pos) * m_zoom;
-            clampView();
+            viewChanged();
         }
     } else {
         m_level.mouseMoved(toMap(pos));
@@ -151,13 +260,34 @@ void LevelWidget::mousePressEvent(QMouseEvent* event)
 
 void LevelWidget::wheelEvent(QWheelEvent* event)
 {
-    // angleDelta is in eighths of a degree; a typical mouse wheel notch is 15
-    // degrees, i.e. 120. Trackpads send many smaller deltas.
-    const double notches = event->angleDelta().y() / 120.0;
-    if (notches != 0.0) {
-        zoomBy(std::pow(1.05, -notches), event->position());
-        changed();
+    // Note that on macOS, ControlModifier is the Command key and MetaModifier
+    // is the Control key; we zoom with either. (Some trackpads, e.g. on
+    // Windows, also send pinches as Ctrl + wheel.)
+    const auto modifiers = event->modifiers();
+    const QPoint angle = event->angleDelta(); // 120 per wheel notch
+    if (modifiers & (Qt::ControlModifier | Qt::MetaModifier)) {
+        const double notches = (angle.y() != 0 ? angle.y() : angle.x()) / 120.0;
+        if (notches != 0.0) {
+            zoomBy(std::pow(WHEEL_ZOOM_STEP, -notches), event->position());
+            changed();
+        }
+        event->accept();
+        return;
     }
+
+    // Scroll. Trackpads supply a pixel delta; otherwise use the wheel's angle.
+    QPoint delta = event->pixelDelta();
+    if (delta.isNull()) {
+        delta = angle * 3 * SCROLL_STEP / 120;
+    }
+    // Shift + vertical wheel scrolls horizontally (macOS already does this
+    // for mice, so we only get a horizontal delta from it)
+    if (modifiers.testFlag(Qt::ShiftModifier) && delta.x() == 0) {
+        delta = { delta.y(), 0 };
+    }
+    horizontalScrollBar()->setValue(horizontalScrollBar()->value() - delta.x());
+    verticalScrollBar()->setValue(verticalScrollBar()->value() - delta.y());
+    event->accept();
 }
 
 void LevelWidget::keyPressEvent(QKeyEvent* event)
@@ -179,16 +309,9 @@ void LevelWidget::keyPressEvent(QKeyEvent* event)
             m_level.nudgeSelection(0, 1);
             break;
         default:
-            QWidget::keyPressEvent(event);
+            QAbstractScrollArea::keyPressEvent(event);
             return;
     }
-    changed();
-}
-
-void LevelWidget::leaveEvent(QEvent* event)
-{
-    QWidget::leaveEvent(event);
-    m_lastMousePos = std::nullopt;
     changed();
 }
 
