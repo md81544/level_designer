@@ -10,14 +10,22 @@
 //
 // In EDIT (select) mode, the selection can be dragged to move it, and has a
 // handle which can be dragged to rotate it; dragging from empty space selects
-// the items inside the box dragged out.
+// the items inside the box dragged out. The ends of selected lines have
+// handles, which can be dragged to move that vertex (and so reshape the
+// lines meeting there).
+//
+// Right-click shows a context menu (or, while drawing, stops drawing).
 
 #include <QAbstractScrollArea>
+#include <QLineF>
+#include <QList>
 #include <QPointF>
 #include <QRectF>
 
 #include <functional>
 #include <optional>
+
+class QAction;
 
 namespace mgo {
 
@@ -28,6 +36,9 @@ public:
     explicit LevelWidget(Level& level, QWidget* parent = nullptr);
     // Called after any input which may have changed the level or its editing state
     void setChangedCallback(std::function<void()> callback);
+
+    // Actions added to the end of the context menu (e.g. operations on the selection)
+    void setContextMenuActions(QList<QAction*> actions);
 
     void zoomIn();
     void zoomOut();
@@ -68,9 +79,15 @@ private:
     std::optional<QPointF> rotationHandle() const;
     bool isOnRotationHandle(QPointF viewportPos) const;
     void updateCursor(QPointF viewportPos);
+    void showContextMenu(QPointF viewportPos);
 
     Level& m_level;
     std::function<void()> m_changedCallback;
+    QList<QAction*> m_contextMenuActions;
+    // What the open context menu applies to, so it can be highlighted
+    // (workspace coordinates)
+    std::optional<QLineF> m_contextLine;
+    std::optional<QPointF> m_contextVertex;
     QPointF m_centre; // workspace coordinates of the centre of the viewport
     double m_zoom { 1.0 }; // workspace units per pixel
     std::optional<QPointF> m_lastMousePos; // viewport coordinates
@@ -79,12 +96,13 @@ private:
     bool m_updatingScrollBars { false };
     bool m_resizedWhileUpdatingScrollBars { false };
 
-    // Dragging with the left button: moving or rotating the selection, or
-    // dragging out a box to select what's inside it
+    // Dragging with the left button: moving or rotating the selection,
+    // moving a vertex, or dragging out a box to select what's inside it
     enum class Drag {
         None,
         Move,
         Rotate,
+        Vertex,
         Box
     };
     Drag m_drag { Drag::None };

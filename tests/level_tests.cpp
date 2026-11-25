@@ -7,6 +7,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <array>
 #include <filesystem>
 #include <fstream>
 
@@ -131,4 +132,121 @@ TEST_CASE("The editor loads and saves amaze's levels without changing them")
 TEST_CASE("The editor's example level loads and saves without changing")
 {
     checkLoadAndSave(SOURCE_DIR "/example.lvl");
+}
+
+namespace {
+
+// A level with a closed square of walls, (100, 100) to (300, 300)
+const char* SQUARE_LEVEL = R"({
+  "formatVersion": 1,
+  "title": "Square",
+  "walls": [ { "points": [[100, 100], [300, 100], [300, 300], [100, 300]], "closed": true } ]
+})";
+
+// The (normalised) wall segments of the level, as saved
+std::vector<levelformat::Segment> wallsOf(Level& level)
+{
+    TempFile file("walls.lvl");
+    level.save(file.path());
+    return normalised(segmentsOf(levelformat::read(file.path()).walls));
+}
+
+std::vector<levelformat::Segment> segments(std::vector<std::array<int, 4>> lines)
+{
+    std::vector<levelformat::Segment> result;
+    for (const auto& [x0, y0, x1, y1] : lines) {
+        result.push_back({ { double(x0), double(y0) }, { double(x1), double(y1) } });
+    }
+    return normalised(result);
+}
+
+} // namespace
+
+TEST_CASE("Lines in a closed shape can be edited individually")
+{
+    TempFile file("square.lvl");
+    {
+        std::ofstream out(file.path());
+        out << SQUARE_LEVEL;
+    }
+    Level level;
+    level.load(file.path());
+    level.setSnapMode(SnapMode::NONE);
+    const float zoom = 1.0f;
+
+    SECTION("Select is the default mode")
+    {
+        CHECK(level.mode() == Mode::EDIT);
+    }
+
+    SECTION("Deleting one line leaves the others")
+    {
+        level.deleteLineAt({ 200, 101 }, zoom);
+        CHECK(wallsOf(level)
+              == segments({ { 300, 100, 300, 300 }, { 300, 300, 100, 300 }, { 100, 300, 100, 100 } }));
+        level.undo();
+        CHECK(wallsOf(level).size() == 4);
+    }
+
+    SECTION("Splitting a line adds a vertex, which can be dragged")
+    {
+        REQUIRE(level.canSplitLineAt({ 200, 102 }, zoom));
+        level.splitLineAt({ 200, 102 }, zoom);
+        CHECK(wallsOf(level)
+              == segments({ { 100, 100, 200, 100 },
+                            { 200, 100, 300, 100 },
+                            { 300, 100, 300, 300 },
+                            { 300, 300, 100, 300 },
+                            { 100, 300, 100, 100 } }));
+        // Can't split at a vertex
+        CHECK_FALSE(level.canSplitLineAt({ 200, 100 }, zoom));
+
+        const auto vertex = level.vertexAt({ 201, 101 }, zoom, false);
+        REQUIRE(vertex.has_value());
+        CHECK(*vertex == QPointF(200, 100));
+        level.beginVertexDrag(*vertex);
+        level.moveVertex({ 210, 50 });
+        level.moveVertex({ 200, 40 });
+        level.endTransform();
+        CHECK(wallsOf(level)
+              == segments({ { 100, 100, 200, 40 },
+                            { 200, 40, 300, 100 },
+                            { 300, 100, 300, 300 },
+                            { 300, 300, 100, 300 },
+                            { 100, 300, 100, 100 } }));
+        // The drag undoes in one go
+        level.undo();
+        CHECK(wallsOf(level).size() == 5);
+        CHECK(level.vertexAt({ 200, 100 }, zoom, false).has_value());
+
+        SECTION("Joining the lines at a vertex removes it")
+        {
+            REQUIRE(level.canJoinLinesAt({ 200, 100 }, zoom));
+            level.joinLinesAt({ 200, 100 }, zoom);
+            CHECK(wallsOf(level) == segments({ { 100, 100, 300, 100 },
+                                               { 300, 100, 300, 300 },
+                                               { 300, 300, 100, 300 },
+                                               { 100, 300, 100, 100 } }));
+        }
+    }
+
+    SECTION("Dragging a vertex onto its neighbour removes the line between them")
+    {
+        level.beginVertexDrag({ 300, 100 });
+        level.moveVertex({ 300, 300 });
+        level.endTransform();
+        CHECK(wallsOf(level)
+              == segments({ { 100, 100, 300, 300 }, { 300, 300, 100, 300 }, { 100, 300, 100, 100 } }));
+    }
+
+    SECTION("Lines can't be joined where more than two meet")
+    {
+        level.changeMode(Mode::LINE);
+        level.leftClicked({ 100, 100 }, zoom, false, false);
+        level.mouseMoved({ 200, 200 });
+        level.leftClicked({ 200, 200 }, zoom, false, false);
+        level.finishCurrentLine();
+        CHECK_FALSE(level.canJoinLinesAt({ 100, 100 }, zoom));
+        CHECK(level.canJoinLinesAt({ 300, 300 }, zoom));
+    }
 }

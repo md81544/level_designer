@@ -1,7 +1,9 @@
 #include "levelwidget.h"
 #include "level.h"
 
+#include <QAction>
 #include <QKeyEvent>
+#include <QMenu>
 #include <QLineF>
 #include <QMouseEvent>
 #include <QNativeGestureEvent>
@@ -41,6 +43,8 @@ constexpr int DRAG_THRESHOLD = 3;
 constexpr double ROTATION_STEP = 15.0;
 const QColor SELECTION_BOX_COLOUR { 255, 255, 255, 160 };
 const QColor HANDLE_COLOUR { 80, 160, 255 };
+// Half the size of the square handles on the selected lines' vertices (pixels)
+constexpr double VERTEX_HANDLE_HALF_SIZE = 3.0;
 
 // The application's style, but with permanently visible scroll bars. On
 // macOS, scroll bars are by default "transient" overlays which only appear
@@ -84,6 +88,11 @@ LevelWidget::LevelWidget(Level& level, QWidget* parent)
 void LevelWidget::setChangedCallback(std::function<void()> callback)
 {
     m_changedCallback = std::move(callback);
+}
+
+void LevelWidget::setContextMenuActions(QList<QAction*> actions)
+{
+    m_contextMenuActions = std::move(actions);
 }
 
 void LevelWidget::changed()
@@ -264,6 +273,24 @@ void LevelWidget::paintEvent(QPaintEvent*)
     painter.resetTransform();
     painter.setRenderHint(QPainter::Antialiasing);
     QPen dashed(SELECTION_BOX_COLOUR, 1.0, Qt::DashLine);
+    if (m_level.mode() == Mode::EDIT && m_drag != Drag::Rotate && m_drag != Drag::Move) {
+        painter.setPen(QPen(Qt::white, 1.0));
+        painter.setBrush(HANDLE_COLOUR);
+        const QPointF half(VERTEX_HANDLE_HALF_SIZE, VERTEX_HANDLE_HALF_SIZE);
+        for (const QPointF& vertex : m_level.selectedLineVertices()) {
+            const QPointF p = toViewport(vertex);
+            painter.drawRect(QRectF(p - half, p + half));
+        }
+    }
+    if (m_contextLine.has_value()) {
+        painter.setPen(QPen(HANDLE_COLOUR, 3.0));
+        painter.drawLine(toViewport(m_contextLine->p1()), toViewport(m_contextLine->p2()));
+    }
+    if (m_contextVertex.has_value()) {
+        painter.setPen(QPen(HANDLE_COLOUR, 2.0));
+        painter.setBrush(Qt::NoBrush);
+        painter.drawEllipse(toViewport(*m_contextVertex), 6.0, 6.0);
+    }
     if (m_drag == Drag::Box && m_dragMoved) {
         painter.setPen(dashed);
         painter.setBrush(QColor(255, 255, 255, 30));
@@ -322,6 +349,11 @@ void LevelWidget::updateCursor(QPointF viewportPos)
     Qt::CursorShape shape = Qt::ArrowCursor;
     if (m_drag == Drag::Move) {
         shape = Qt::ClosedHandCursor;
+    } else if (
+        m_drag == Drag::Vertex
+        || (m_drag == Drag::None && m_level.mode() == Mode::EDIT
+            && m_level.vertexAt(toMap(viewportPos), m_zoom, true).has_value())) {
+        shape = Qt::SizeAllCursor;
     } else if (m_drag == Drag::Rotate || (m_drag == Drag::None && isOnRotationHandle(viewportPos))) {
         shape = Qt::PointingHandCursor;
     } else if (
@@ -372,6 +404,8 @@ void LevelWidget::mouseMoveEvent(QMouseEvent* event)
                 degrees = std::round(degrees / ROTATION_STEP) * ROTATION_STEP;
             }
             m_level.rotateSelection(degrees, m_rotationCentre);
+        } else if (m_drag == Drag::Vertex) {
+            m_level.moveVertex(toMap(pos));
         }
         changed();
         return;
@@ -398,7 +432,15 @@ void LevelWidget::mousePressEvent(QMouseEvent* event)
     const bool extendSelection = event->modifiers().testFlag(Qt::ControlModifier);
     const bool singleLine = event->modifiers().testFlag(Qt::AltModifier);
     if (event->button() == Qt::RightButton) {
-        m_level.finishCurrentLine();
+        if (m_drag != Drag::None) {
+            return; // ignore it during a drag
+        }
+        if (m_level.isDrawing()) {
+            m_level.finishCurrentLine();
+        } else {
+            showContextMenu(pos);
+            return;
+        }
     } else if (event->button() == Qt::LeftButton) {
         const QPointF mapPos = toMap(pos);
         m_drag = Drag::None;
@@ -410,6 +452,10 @@ void LevelWidget::mousePressEvent(QMouseEvent* event)
             if (isOnRotationHandle(pos)) {
                 m_drag = Drag::Rotate;
                 m_rotationCentre = m_level.selectionBounds()->center();
+            } else if (const auto vertex = m_level.vertexAt(mapPos, m_zoom, true);
+                       vertex.has_value() && !extendSelection) {
+                m_drag = Drag::Vertex;
+                m_level.beginVertexDrag(*vertex);
             } else if (!extendSelection && m_level.isSelectedItemAt(mapPos, m_zoom)) {
                 // Drag the selection, or if there's no drag, select just this item
                 m_drag = Drag::Move;
@@ -446,6 +492,7 @@ void LevelWidget::mouseReleaseEvent(QMouseEvent* event)
     switch (m_drag) {
         case Drag::Move:
         case Drag::Rotate:
+        case Drag::Vertex:
             m_level.endTransform();
             if (m_drag == Drag::Move && !m_dragMoved && m_pressedOnSelected) {
                 m_level.selectOnlyItemAt(toMap(pos), m_zoom, m_dragSingleLine);
@@ -462,6 +509,46 @@ void LevelWidget::mouseReleaseEvent(QMouseEvent* event)
             break;
     }
     m_drag = Drag::None;
+    updateCursor(pos);
+    changed();
+}
+
+void LevelWidget::showContextMenu(QPointF pos)
+{
+    const QPointF mapPos = toMap(pos);
+    // As with a click, right-clicking something not selected selects it
+    if (m_level.mode() == Mode::EDIT && !m_level.isSelectedItemAt(mapPos, m_zoom)
+        && !m_level.vertexAt(mapPos, m_zoom, true).has_value()) {
+        m_level.leftClicked(mapPos, m_zoom, false, false);
+    }
+    // Brings the main window's actions up to date with the selection
+    changed();
+
+    QMenu menu(this);
+    // A vertex takes precedence over the lines meeting there
+    m_contextVertex = m_level.vertexAt(mapPos, m_zoom, false);
+    if (m_contextVertex.has_value()) {
+        QAction* join
+            = menu.addAction("Join Lines Here", [&] { m_level.joinLinesAt(mapPos, m_zoom); });
+        join->setEnabled(m_level.canJoinLinesAt(mapPos, m_zoom));
+    } else if ((m_contextLine = m_level.lineAt(mapPos, m_zoom))) {
+        menu.addAction("Delete Line", [&] { m_level.deleteLineAt(mapPos, m_zoom); });
+        QAction* split
+            = menu.addAction("Split Line Here", [&] { m_level.splitLineAt(mapPos, m_zoom); });
+        split->setEnabled(m_level.canSplitLineAt(mapPos, m_zoom));
+        menu.addSeparator();
+        menu.addAction("Select Line", [&] { m_level.selectLineAt(mapPos, m_zoom, false); });
+        menu.addAction(
+            "Select Connected Lines", [&] { m_level.selectLineAt(mapPos, m_zoom, true); });
+    }
+    if (!m_contextMenuActions.isEmpty()) {
+        menu.addSeparator();
+        menu.addActions(m_contextMenuActions);
+    }
+    viewport()->update();
+    menu.exec(viewport()->mapToGlobal(pos.toPoint()));
+    m_contextLine = std::nullopt;
+    m_contextVertex = std::nullopt;
     updateCursor(pos);
     changed();
 }

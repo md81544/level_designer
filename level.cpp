@@ -60,6 +60,27 @@ constexpr double SHIP_RADIUS = 20.0;
 constexpr double FUEL_RADIUS = 10.0;
 constexpr double EXIT_HALF_WIDTH = 32.0;
 constexpr double EXIT_HALF_HEIGHT = 14.0;
+// How near (in pixels) the mouse must be to a vertex to pick it
+constexpr double VERTEX_HIT_PIXELS = 6.0;
+
+// The point on the line nearest p
+QPointF nearestPointOnLine(QPointF p, const Line& l)
+{
+    const QPointF a(l.x0, l.y0);
+    const QPointF b(l.x1, l.y1);
+    const QPointF ab = b - a;
+    const double lengthSquared = QPointF::dotProduct(ab, ab);
+    if (lengthSquared == 0.0) {
+        return a;
+    }
+    const double t = std::clamp(QPointF::dotProduct(p - a, ab) / lengthSquared, 0.0, 1.0);
+    return a + ab * t;
+}
+
+double distance(QPointF a, QPointF b)
+{
+    return std::hypot(a.x() - b.x(), a.y() - b.y());
+}
 
 } // namespace
 
@@ -540,10 +561,15 @@ void Level::highlightGridVertex(QPointF w)
     }
 }
 
-void Level::highlightNearestLinePoint(QPointF w)
+void Level::highlightNearestLinePoint(QPointF w, std::optional<std::pair<unsigned, unsigned>> exclude)
 {
     auto check = [&](const Line& l) {
         if (l.inactive) {
+            return false;
+        }
+        if (exclude.has_value()
+            && ((l.x0 == exclude->first && l.y0 == exclude->second)
+                || (l.x1 == exclude->first && l.y1 == exclude->second))) {
             return false;
         }
         auto nearest = utils::closestPointOnLine(l.x0, l.y0, l.x1, l.y1, w.x(), w.y(), 5);
@@ -577,19 +603,24 @@ void Level::highlightNearestLinePoint(QPointF w)
 // Input
 // ---------------------------------------------------------------------------
 
+void Level::updateSnapPoint(QPointF w, std::optional<std::pair<unsigned, unsigned>> exclude)
+{
+    // Snap to whatever's near enough (lines take precedence over grid
+    // points); if there's nothing, points go exactly where the mouse is
+    m_currentNearestSnapPoint = std::nullopt;
+    if (m_snapMode == SnapMode::AUTO || m_snapMode == SnapMode::GRID) {
+        highlightGridVertex(w);
+    }
+    if (m_snapMode == SnapMode::AUTO || m_snapMode == SnapMode::LINE) {
+        highlightNearestLinePoint(w, exclude);
+    }
+}
+
 void Level::mouseMoved(QPointF w)
 {
     if (m_currentMode == Mode::LINE || m_currentMode == Mode::BREAKABLE
         || m_currentMode == Mode::MOVING) {
-        // Snap to whatever's near enough (lines take precedence over grid
-        // points); if there's nothing, points go exactly where the mouse is
-        m_currentNearestSnapPoint = std::nullopt;
-        if (m_snapMode == SnapMode::AUTO || m_snapMode == SnapMode::GRID) {
-            highlightGridVertex(w);
-        }
-        if (m_snapMode == SnapMode::AUTO || m_snapMode == SnapMode::LINE) {
-            highlightNearestLinePoint(w);
-        }
+        updateSnapPoint(w);
         if (m_currentInsertionLine.inactive == false) {
             if (m_currentNearestSnapPoint.has_value()) {
                 m_currentInsertionLine.x1 = std::get<0>(m_currentNearestSnapPoint.value());
@@ -762,6 +793,12 @@ void Level::finishCurrentLine()
 {
     m_currentInsertionLine.inactive = true;
     finishCurrentMovingObject();
+}
+
+bool Level::isDrawing() const
+{
+    return !m_currentInsertionLine.inactive || m_currentMode == Mode::POLYGON_RADIUS
+        || !m_currentMovingObject.lines.empty();
 }
 
 // ---------------------------------------------------------------------------
@@ -1167,6 +1204,18 @@ void Level::rotateSelection(double degrees, QPointF centre)
 
 void Level::endTransform()
 {
+    if (m_draggedVertex.has_value() && m_transformCheckpointed) {
+        // Remove any lines the drag has reduced to nothing
+        for (std::size_t i = 0; i < m_lines.size(); ++i) {
+            Line& l = m_lines[i];
+            if (!l.inactive && l.x0 == l.x1 && l.y0 == l.y1) {
+                l.inactive = true;
+                m_highlightedLineIndices.erase(i);
+            }
+        }
+    }
+    m_draggedVertex = std::nullopt;
+    m_currentNearestSnapPoint = std::nullopt;
     m_transformOrigin = std::nullopt;
 }
 
@@ -1230,6 +1279,234 @@ void Level::addConnectedLinesToHighlight(const Line& line)
 }
 
 // ---------------------------------------------------------------------------
+// Editing individual lines
+// ---------------------------------------------------------------------------
+
+std::optional<std::size_t> Level::nearestLine(QPointF pos, float zoomLevel) const
+{
+    // As near as lineUnderCursor() requires
+    const double maxDistance = 1 + 4 * zoomLevel;
+    std::optional<std::size_t> nearest;
+    double nearestDistance = maxDistance;
+    for (std::size_t i = 0; i < m_lines.size(); ++i) {
+        if (!m_lines[i].inactive) {
+            const double d = distance(pos, nearestPointOnLine(pos, m_lines[i]));
+            if (d <= nearestDistance) {
+                nearest = i;
+                nearestDistance = d;
+            }
+        }
+    }
+    return nearest;
+}
+
+std::vector<std::size_t> Level::linesWithEndAt(unsigned x, unsigned y) const
+{
+    std::vector<std::size_t> result;
+    for (std::size_t i = 0; i < m_lines.size(); ++i) {
+        const Line& l = m_lines[i];
+        if (!l.inactive && ((l.x0 == x && l.y0 == y) || (l.x1 == x && l.y1 == y))) {
+            result.push_back(i);
+        }
+    }
+    return result;
+}
+
+std::optional<QLineF> Level::lineAt(QPointF pos, float zoomLevel) const
+{
+    const auto i = nearestLine(pos, zoomLevel);
+    if (!i.has_value()) {
+        return std::nullopt;
+    }
+    const Line& l = m_lines[*i];
+    return QLineF(l.x0, l.y0, l.x1, l.y1);
+}
+
+std::optional<QPointF> Level::vertexAt(QPointF pos, float zoomLevel, bool selectedOnly) const
+{
+    std::optional<QPointF> nearest;
+    double nearestDistance = VERTEX_HIT_PIXELS * zoomLevel;
+    auto check = [&](QPointF p) {
+        const double d = distance(pos, p);
+        if (d <= nearestDistance) {
+            nearest = p;
+            nearestDistance = d;
+        }
+    };
+    for (std::size_t i = 0; i < m_lines.size(); ++i) {
+        const Line& l = m_lines[i];
+        if (!l.inactive && (!selectedOnly || m_highlightedLineIndices.contains(i))) {
+            check(QPointF(l.x0, l.y0));
+            check(QPointF(l.x1, l.y1));
+        }
+    }
+    return nearest;
+}
+
+std::vector<QPointF> Level::selectedLineVertices() const
+{
+    std::set<std::pair<unsigned, unsigned>> vertices;
+    for (std::size_t i : m_highlightedLineIndices) {
+        vertices.insert({ m_lines[i].x0, m_lines[i].y0 });
+        vertices.insert({ m_lines[i].x1, m_lines[i].y1 });
+    }
+    std::vector<QPointF> result;
+    for (const auto& [x, y] : vertices) {
+        result.emplace_back(x, y);
+    }
+    return result;
+}
+
+void Level::deleteLineAt(QPointF pos, float zoomLevel)
+{
+    const auto i = nearestLine(pos, zoomLevel);
+    if (!i.has_value()) {
+        return;
+    }
+    checkpoint();
+    m_lines[*i].inactive = true;
+    m_highlightedLineIndices.erase(*i);
+}
+
+bool Level::canSplitLineAt(QPointF pos, float zoomLevel) const
+{
+    const auto i = nearestLine(pos, zoomLevel);
+    if (!i.has_value()) {
+        return false;
+    }
+    const Line& l = m_lines[*i];
+    const QPointF p = nearestPointOnLine(pos, l);
+    const unsigned x = static_cast<unsigned>(std::lround(p.x()));
+    const unsigned y = static_cast<unsigned>(std::lround(p.y()));
+    return !(x == l.x0 && y == l.y0) && !(x == l.x1 && y == l.y1);
+}
+
+void Level::splitLineAt(QPointF pos, float zoomLevel)
+{
+    if (!canSplitLineAt(pos, zoomLevel)) {
+        return;
+    }
+    checkpoint();
+    const std::size_t i = *nearestLine(pos, zoomLevel);
+    const QPointF p = nearestPointOnLine(pos, m_lines[i]);
+    const unsigned x = static_cast<unsigned>(std::lround(p.x()));
+    const unsigned y = static_cast<unsigned>(std::lround(p.y()));
+    // The new line is the second half, with the same properties
+    Line second = m_lines[i];
+    second.x0 = x;
+    second.y0 = y;
+    m_lines[i].x1 = x;
+    m_lines[i].y1 = y;
+    m_lines.push_back(second);
+    if (m_highlightedLineIndices.contains(i)) {
+        m_highlightedLineIndices.insert(m_lines.size() - 1);
+    }
+}
+
+bool Level::canJoinLinesAt(QPointF pos, float zoomLevel) const
+{
+    const auto vertex = vertexAt(pos, zoomLevel, false);
+    if (!vertex.has_value()) {
+        return false;
+    }
+    const auto lines = linesWithEndAt(vertex->x(), vertex->y());
+    if (lines.size() != 2) {
+        return false;
+    }
+    const Line& a = m_lines[lines[0]];
+    const Line& b = m_lines[lines[1]];
+    // The far ends must differ, else joining would leave nothing
+    auto farEnd = [&vertex](const Line& l) {
+        return l.x0 == vertex->x() && l.y0 == vertex->y() ? std::pair(l.x1, l.y1)
+                                                          : std::pair(l.x0, l.y0);
+    };
+    return a.breakable == b.breakable && a.breakableGroup == b.breakableGroup
+        && farEnd(a) != farEnd(b);
+}
+
+void Level::joinLinesAt(QPointF pos, float zoomLevel)
+{
+    if (!canJoinLinesAt(pos, zoomLevel)) {
+        return;
+    }
+    checkpoint();
+    const QPointF vertex = *vertexAt(pos, zoomLevel, false);
+    const auto lines = linesWithEndAt(vertex.x(), vertex.y());
+    Line& a = m_lines[lines[0]];
+    Line& b = m_lines[lines[1]];
+    // Make a run from its far end to the vertex, and b from the vertex to its
+    // far end, so a can then run from its far end to b's
+    if (a.x0 == vertex.x() && a.y0 == vertex.y()) {
+        std::swap(a.x0, a.x1);
+        std::swap(a.y0, a.y1);
+    }
+    if (b.x1 == vertex.x() && b.y1 == vertex.y()) {
+        std::swap(b.x0, b.x1);
+        std::swap(b.y0, b.y1);
+    }
+    a.x1 = b.x1;
+    a.y1 = b.y1;
+    b.inactive = true;
+    if (m_highlightedLineIndices.erase(lines[1]) > 0) {
+        m_highlightedLineIndices.insert(lines[0]);
+    }
+}
+
+void Level::selectLineAt(QPointF pos, float zoomLevel, bool includeConnectedLines)
+{
+    const auto i = nearestLine(pos, zoomLevel);
+    if (!i.has_value()) {
+        return;
+    }
+    if (m_currentMode != Mode::EDIT) {
+        changeMode(Mode::EDIT);
+    }
+    clearSelection();
+    select(Item { Item::Type::LINE, *i }, includeConnectedLines);
+}
+
+void Level::beginVertexDrag(QPointF vertex)
+{
+    beginTransform();
+    m_draggedVertex = { static_cast<unsigned>(std::lround(vertex.x())),
+                        static_cast<unsigned>(std::lround(vertex.y())) };
+}
+
+void Level::moveVertex(QPointF pos)
+{
+    if (!m_transformOrigin.has_value() || !m_draggedVertex.has_value()) {
+        return;
+    }
+    restoreContents(*m_transformOrigin);
+    // Snap as when drawing, but not to the lines being moved
+    updateSnapPoint(pos, m_draggedVertex);
+    const auto [fromX, fromY] = *m_draggedVertex;
+    unsigned toX;
+    unsigned toY;
+    if (m_currentNearestSnapPoint.has_value()) {
+        std::tie(toX, toY) = *m_currentNearestSnapPoint;
+    } else {
+        toX = static_cast<unsigned>(std::lround(std::clamp(pos.x(), 0.0, double(MAP_SIZE))));
+        toY = static_cast<unsigned>(std::lround(std::clamp(pos.y(), 0.0, double(MAP_SIZE))));
+    }
+    if (toX == fromX && toY == fromY) {
+        return;
+    }
+    transformCheckpoint();
+    for (std::size_t i : linesWithEndAt(fromX, fromY)) {
+        Line& l = m_lines[i];
+        if (l.x0 == fromX && l.y0 == fromY) {
+            l.x0 = toX;
+            l.y0 = toY;
+        }
+        if (l.x1 == fromX && l.y1 == fromY) {
+            l.x1 = toX;
+            l.y1 = toY;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Undo / redo
 // ---------------------------------------------------------------------------
 
@@ -1252,6 +1529,7 @@ void Level::restore(const Snapshot& snapshot)
     // longer exist
     clearSelection();
     m_transformOrigin = std::nullopt;
+    m_draggedVertex = std::nullopt;
     m_currentInsertionLine.inactive = true;
     m_lastChangeWasNudge = false;
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QLineF>
 #include <QPointF>
 #include <QRectF>
 #include <QSizeF>
@@ -130,6 +131,8 @@ public:
     void leftClicked(QPointF pos, float zoomLevel, bool extendSelection, bool singleLine);
     // Stops drawing the current line (and finishes any moving object being drawn)
     void finishCurrentLine();
+    // Whether a line or polygon is being drawn
+    bool isDrawing() const;
 
     // Selection (in EDIT mode). Any number of lines, moving objects and fuel,
     // the exit and the ship can be selected.
@@ -160,6 +163,37 @@ public:
     void rotateSelection(double degrees, QPointF centre);
     void endTransform();
     void convertSelectionToMovingObject();
+
+    // Editing individual lines (walls and breakable lines, not moving
+    // objects'), at a position. A vertex is a point where lines meet (or a
+    // line's free end).
+    //
+    // The line at pos, if any
+    std::optional<QLineF> lineAt(QPointF pos, float zoomLevel) const;
+    // The vertex at pos, if any; if selectedOnly, only the ends of selected lines
+    std::optional<QPointF> vertexAt(QPointF pos, float zoomLevel, bool selectedOnly) const;
+    // The ends of the selected lines (each once), for drawing handles on
+    std::vector<QPointF> selectedLineVertices() const;
+    void deleteLineAt(QPointF pos, float zoomLevel);
+    // Splits the line at pos into two, with a new vertex at the nearest point
+    // on the line to pos. Returns false if there's no line there, or pos is
+    // too near either end.
+    bool canSplitLineAt(QPointF pos, float zoomLevel) const;
+    void splitLineAt(QPointF pos, float zoomLevel);
+    // Replaces the two lines meeting at the vertex at pos with one straight
+    // line. Only possible if exactly two lines (of the same type) meet there.
+    bool canJoinLinesAt(QPointF pos, float zoomLevel) const;
+    void joinLinesAt(QPointF pos, float zoomLevel);
+    // Selects the line at pos, and if includeConnectedLines, all the lines
+    // connected to it (switching to EDIT mode)
+    void selectLineAt(QPointF pos, float zoomLevel, bool includeConnectedLines);
+    // Dragging a vertex: all the lines meeting at it move with it. Call
+    // beginVertexDrag() with the vertex (from vertexAt()), then
+    // moveVertex() with the mouse position (which is snapped, as when
+    // drawing) as the drag progresses, then endTransform(). Lines reduced to
+    // nothing are removed.
+    void beginVertexDrag(QPointF vertex);
+    void moveVertex(QPointF pos);
     // The selected moving object, if exactly one is selected
     std::optional<MovingObject> selectedMovingObject() const;
     // Sets the selected moving object's motion (not its lines) from the
@@ -211,7 +245,17 @@ private:
     // off the map, in which case it returns false without changing anything
     bool applyRotation(double degrees, QPointF centre);
     void highlightGridVertex(QPointF pos);
-    void highlightNearestLinePoint(QPointF pos);
+    // Ignores lines with an end at exclude (if given)
+    void highlightNearestLinePoint(
+        QPointF pos, std::optional<std::pair<unsigned, unsigned>> exclude = std::nullopt);
+    // Sets m_currentNearestSnapPoint to what pos snaps to, according to the snap mode
+    void updateSnapPoint(
+        QPointF pos, std::optional<std::pair<unsigned, unsigned>> exclude = std::nullopt);
+    // Index of the line nearest pos, if within hit testing distance; unlike
+    // lineUnderCursor(), this is the nearest rather than the first
+    std::optional<std::size_t> nearestLine(QPointF pos, float zoomLevel) const;
+    // Indices of the (active) lines with an end at the point
+    std::vector<std::size_t> linesWithEndAt(unsigned x, unsigned y) const;
     // The level's contents, for undo / redo
     struct Snapshot {
         unsigned long stateId;
@@ -267,11 +311,13 @@ private:
     std::optional<Snapshot> m_transformOrigin;
     bool m_transformCheckpointed { false };
     double m_lastValidRotation { 0.0 };
+    // The vertex being dragged (see beginVertexDrag())
+    std::optional<std::pair<unsigned, unsigned>> m_draggedVertex;
 
     std::optional<std::tuple<unsigned, unsigned>> m_currentNearestSnapPoint { std::nullopt };
     Line m_currentInsertionLine { 0, 0, 0, 0, 255, 0, 0, 0, true };
     MovingObject m_currentMovingObject;
-    Mode m_currentMode { Mode::LINE };
+    Mode m_currentMode { Mode::EDIT };
     SnapMode m_snapMode { SnapMode::AUTO };
     std::string m_fileName;
     CurrentPolygon m_currentPolygon;

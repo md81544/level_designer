@@ -77,8 +77,8 @@ QString modeHint(Mode mode)
                    "finishes the object.";
         case Mode::EDIT:
             return QString("Click or drag a box to select (%1 adds to the selection). Drag the "
-                           "selection to move it, or its handle to rotate it (Shift: 15\u00b0 "
-                           "steps).")
+                           "selection to move it, its handle to rotate it (Shift: 15\u00b0 "
+                           "steps), or a vertex to reshape. Right-click for more.")
                 .arg(CMD);
         case Mode::START:
             return "Click to place the ship; it's then selected, so it can be moved or rotated.";
@@ -185,7 +185,7 @@ void MainWindow::createMenus()
     editMenu->addSeparator();
     m_deleteAction = add(
         editMenu,
-        "&Delete",
+        "&Delete Selection",
         { QKeySequence(Qt::Key_Delete), QKeySequence(Qt::Key_Backspace) },
         [this] { m_level.deleteSelection(); });
     editMenu->addSeparator();
@@ -201,7 +201,7 @@ void MainWindow::createMenus()
     };
     editMenu->addSeparator();
     addMode(editMenu, "&Select", QKeySequence(Qt::SHIFT | Qt::Key_E), Mode::EDIT);
-    add(editMenu, "Select &All", { QKeySequence::SelectAll }, [this] {
+    QAction* selectAllAction = add(editMenu, "Select &All", { QKeySequence::SelectAll }, [this] {
         m_level.changeMode(Mode::EDIT);
         m_level.selectAll();
     });
@@ -248,6 +248,11 @@ void MainWindow::createMenus()
         });
         addAction(action);
     }
+
+    auto* separator = new QAction(this);
+    separator->setSeparator(true);
+    m_canvas->setContextMenuActions(
+        { m_deleteAction, m_makeMovingAction, m_movingPropertiesAction, separator, selectAllAction });
 
     // View
     QMenu* viewMenu = menuBar()->addMenu("&View");
@@ -624,6 +629,8 @@ void MainWindow::showHelp()
                 "<li><b>%1 + wheel</b> or <b>pinch</b>: zoom</li>"
                 "<li><b>Shift + move mouse</b>: scroll the view</li>"
                 "<li><b>Right-click / Esc</b>: stop drawing the current line</li>"
+                "<li><b>Right-click</b> (when not drawing): menu of things to do with the line or "
+                "vertex clicked, and the selection</li>"
                 "</ul>"
                 "<p>When selecting (<b>Edit &gt; Select</b>):</p>"
                 "<ul>"
@@ -636,6 +643,12 @@ void MainWindow::showHelp()
                 "<li><b>Drag the selection</b>, or use the <b>arrow keys</b>: move it</li>"
                 "<li><b>Drag the round handle</b> above the selection: rotate it (hold "
                 "<b>Shift</b> for 15&deg; steps)</li>"
+                "<li><b>Drag a square handle</b> at the end of a selected line: move that "
+                "vertex, and the ends of all the lines meeting there (snapping as when "
+                "drawing)</li>"
+                "<li>To reshape a closed shape, right-click a line and choose <b>Split Line "
+                "Here</b> to add a vertex, then drag it; <b>Join Lines Here</b> on a vertex "
+                "removes it</li>"
                 "<li><b>Esc</b>: clear the selection</li>"
                 "</ul>"
                 "<p>Other keyboard shortcuts are shown in the menus.</p>")
