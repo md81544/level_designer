@@ -612,6 +612,9 @@ void Level::mouseMoved(QPointF w)
 {
     if (m_currentMode == Mode::LINE || m_currentMode == Mode::BREAKABLE
         || m_currentMode == Mode::MOVING) {
+        // Snap to whatever's near enough (lines take precedence over grid
+        // points); if there's nothing, points go exactly where the mouse is
+        m_currentNearestSnapPoint = std::nullopt;
         if (m_snapMode == SnapMode::AUTO || m_snapMode == SnapMode::GRID) {
             highlightGridVertex(w);
         }
@@ -649,7 +652,7 @@ void Level::leftClicked(QPointF w, float zoomLevel, bool extendSelection, bool s
         case Mode::MOVING:
             {
                 // Insert a new line
-                if (m_currentNearestSnapPoint.has_value() || m_snapMode == SnapMode::NONE) {
+                {
                     // Are we in the middle of drawing a line? If so, add the current
                     // insertion line into the vector
                     if (!m_currentInsertionLine.inactive) {

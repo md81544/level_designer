@@ -254,8 +254,8 @@ void MainWindow::createMenus()
         "Zoom &Out",
         { QKeySequence::ZoomOut, QKeySequence(Qt::Key_Minus) },
         [this] { m_canvas->zoomOut(); });
-    viewMenu->addSeparator();
-    QMenu* snapMenu = viewMenu->addMenu("&Snap To");
+    editMenu->addSeparator();
+    QMenu* snapMenu = editMenu->addMenu("S&nap To");
     auto* snapGroup = new QActionGroup(this);
     for (SnapMode snapMode : { SnapMode::AUTO, SnapMode::GRID, SnapMode::LINE, SnapMode::NONE }) {
         QString text = snapMode == SnapMode::AUTO ? "Grid and Lines" : snapName(snapMode);
