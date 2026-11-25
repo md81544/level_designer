@@ -329,3 +329,5 @@ level_designer
 build/
 .cache/
 compile_commands.json
+# Symlink to the built app bundle, updated by each build
+level_designer.app

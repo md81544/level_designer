@@ -10,22 +10,17 @@ I experimented with other SVG programs, both local and web-based, and none fitte
 This is the result. Three days' worth of initial effort and I had an graphical editor I could use. It's a bit quick-and-dirty (it sorely requires refactoring), but it's functional.
 
 ### Usage
-Existing level files can be loaded by specifying the file name on the command line. There is an example.lvl file included.
+Open an existing level with **File > Open**, or pass its file name on the command line (if the file doesn't exist, it's created when you save). There is an example.lvl file included.
 
-The editor uses the concept of "modes" for editing. Currently there are five, switchable by the "M" key - "LINE" (for line generation) and "EDIT" for selecting existing lines and deleting them (press 'X' or delete or backspace). The other modes, "START","EXIT", and "FUEL" allow placement of those items specifically.
+The editor works in "modes", chosen from the **Insert** menu (Line, Breakable Line, Moving Object, Polygon, Fuel, Start Position, Exit), plus **Edit > Select** for selecting existing items to delete, nudge (arrow keys) or turn into moving objects (see the **Object** menu). The status bar shows the current mode and a reminder of how to use it.
 
-When in "LINE" mode, click to place a line and keep clicking to keep making lines. If you don't want to connect a line to the last one, just press escape (or right click) then click somewhere else to start a new line. Line snapping is controlled
-by the "S" key - "AUTO" will snap to grid vertices or existing lines, "GRID" is vertices only, "LINE" is line only, and "NONE" is no snapping.
+When drawing lines, click to place each point and keep clicking to keep making lines. To stop, press Escape (or right click), then click somewhere else to start a new line. Snapping (to the grid, existing lines, both or neither) is set in **View > Snap To**.
 
-Press Cmd-S to 'save' (it currently just outputs to stdout, which is fine for either copy/pasting or piping from the terminal).
-
-Press "Q" to quit (or just close the window). Currently "Q" has a confirmation dialog, but closing the window does not.
-
-* Confirmation dialog on window close
+Shift + mouse move scrolls the view, and the mouse wheel or trackpad zooms. Keyboard shortcuts are shown in the menus, and **Help > Mouse and Keyboard** summarises the rest.
 
 ### Requirements
 
-Assuming you have a working clang++, just sfml 3.x. For mac, `brew install sfml`
+A C++23 compiler, CMake and Qt 6.5 or later. For mac, `brew install qt`. Then `make` (debug) or `make release` (which also bundles Qt into the app).
 
 ### Platforms Supported
 Currently as this is for my own use I've only bothered testing on **MacOS**. I will probably test on Linux and Windows eventually.

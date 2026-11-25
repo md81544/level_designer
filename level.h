@@ -1,13 +1,16 @@
 #pragma once
-#include "imgui_dialog.h"
-#include <SFML/Graphics.hpp>
-#include <functional>
+
+#include <QPointF>
+
+#include <cstdint>
 #include <optional>
 #include <set>
 #include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
+
+class QPainter;
 
 // As this application is a bit quick-and-dirty, this class holds pretty much everything in it
 
@@ -75,75 +78,90 @@ struct MovingObject {
 struct CurrentPolygon {
     std::optional<float> centreX { std::nullopt };
     std::optional<float> centreY { std::nullopt };
-    unsigned sides { 0 };
+    unsigned sides { 12 };
     std::vector<Line> lines {};
 };
 
+// The level being edited, plus the editing state (current mode, selection
+// etc). It knows nothing about windows: positions passed in are workspace
+// coordinates (0 to MAP_SIZE in each direction), and drawing is done with a
+// QPainter already transformed to workspace coordinates.
 class Level {
 public:
-    Level(
-        sf::Window& window,
-        unsigned windowWidth,
-        unsigned windowHeight,
-        const std::string& dataDir);
+    static constexpr float MAP_SIZE = 2000.f;
+
+    // Loads a level file, adding its contents to this level. If the file
+    // doesn't exist, just remembers the name, so it will be created on save.
+    // Throws on failure.
     void load(const std::string& filename);
-    void save();
-    void draw(sf::RenderWindow& window);
-    void drawMovingObjectBoundary(const mgo::MovingObject& m, size_t idx, sf::RenderWindow& window);
-    void drawCircle(float maxRadius, float centreX, float centreY, sf::RenderWindow& window);
-    void drawRoundedRect(
-        sf::RenderWindow& window,
-        float x,
-        float y,
-        float w,
-        float h,
-        float r,
-        uint8_t red,
-        uint8_t green,
-        uint8_t blue);
-    void drawDialog(sf::RenderWindow& window);
-    void drawLine(
-        sf::RenderWindow& window,
-        const Line& line,
-        std::optional<std::size_t> idx = std::nullopt);
-    void drawGridLines(sf::RenderWindow& window);
-    // Returns the index (into m_Lines) of the first (of potentially several) lines that are *near*
-    // the cursor or no value if no lines are nearby.
-    std::optional<std::size_t>
-    lineUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsigned mouseY);
-    std::optional<std::size_t>
-    movingObjectUnderCursor(sf::RenderWindow& window, unsigned mouseX, unsigned mouseY);
-    void processEvent(sf::RenderWindow& window, const sf::Event& event);
-    void processMenuInput(const imgui::Status& status);
-    void quit(sf::RenderWindow& window);
-    void zoomOut();
-    void zoomIn();
-    bool msgbox(
-        const std::string& title,
-        const std::string& message,
-        std::function<void(bool, const std::string&)> callback);
-    void drawModes(sf::RenderWindow& window);
-    void highlightGridVertex(sf::RenderWindow& window, unsigned mouseX, unsigned mouseY);
-    void highlightNearestLinePoint(sf::RenderWindow& window, unsigned mouseX, unsigned mouseY);
-    void drawObjects(sf::RenderWindow& window);
-    sf::View& getView();
-    sf::View& getFixedView();
-    void clampViewport();
+    // Saves to the given file, which becomes the level's file name. Throws on
+    // failure.
+    void save(const std::string& filename);
+    const std::string& fileName() const;
+    const std::string& description() const;
+    void setDescription(const std::string& description);
+    bool isDirty() const;
+
+    Mode mode() const;
+    void changeMode(Mode mode);
+    SnapMode snapMode() const;
+    void setSnapMode(SnapMode snapMode);
+    void cycleSnapMode();
+    // Number of sides for polygons subsequently inserted (3 to 64)
+    unsigned polygonSides() const;
+    void setPolygonSides(unsigned sides);
+
+    // Draws everything, including the grid and in-progress edits
+    void draw(QPainter& painter) const;
+
+    // Input, in workspace coordinates. zoomLevel is workspace units per pixel.
+    void mouseMoved(QPointF pos);
+    // extendSelection adds to (rather than replaces) the selection; singleLine
+    // selects only the line clicked rather than all lines connected to it
+    void leftClicked(QPointF pos, float zoomLevel, bool extendSelection, bool singleLine);
+    // Stops drawing the current line (and finishes any moving object being drawn)
+    void finishCurrentLine();
+
+    // Operations on the selection
+    bool hasSelection() const;
+    bool hasSelectedLines() const;
+    void deleteSelection();
+    void nudgeSelection(int x, int y);
+    void convertSelectionToMovingObject();
+    // The selected moving object, if any
+    std::optional<MovingObject> selectedMovingObject() const;
+    // Sets the selected moving object's motion (not its lines) from the
+    // supplied object
+    void setSelectedMovingObjectMotion(const MovingObject& motion);
+
     void revert();
     void undo();
-    void replay();
     void redo();
-    void addReplayItem(const Action& action);
-    void finishCurrentMovingObject();
 
 private:
+    void drawLine(QPainter& painter, const Line& line, std::optional<std::size_t> idx = std::nullopt)
+        const;
+    void drawGridLines(QPainter& painter) const;
+    void drawEdits(QPainter& painter) const;
+    void drawObjects(QPainter& painter) const;
+    void drawMovingObjectBoundary(QPainter& painter, const MovingObject& m, size_t idx) const;
+    void drawCircle(QPainter& painter, float maxRadius, float centreX, float centreY) const;
+    void drawRoundedRect(QPainter& painter, float x, float y, float w, float h, float r) const;
+    // Returns the index (into m_Lines) of the first (of potentially several) lines that are *near*
+    // the cursor or no value if no lines are nearby.
+    std::optional<std::size_t> lineUnderCursor(QPointF pos, float zoomLevel) const;
+    std::optional<std::size_t> movingObjectUnderCursor(QPointF pos) const;
+    void highlightGridVertex(QPointF pos);
+    void highlightNearestLinePoint(QPointF pos);
+    void replay();
+    void addReplayItem(const Action& action);
+    void finishCurrentMovingObject();
     void addOrRemoveHighlightedLine(std::optional<size_t>& lineIdx, bool includeConnectedLines);
     void addConnectedLinesToHighlight(const Line& line);
     void moveMovingObject(std::size_t movingObjectIdx, int x, int y);
     void moveLines(int x, int y);
-    sf::Window& m_window;
+
     std::string m_levelDescription;
-    sf::Font m_font;
     std::vector<Line> m_lines;
     std::optional<StartPosition> m_startPosition;
     std::optional<std::pair<unsigned, unsigned>> m_exitPosition;
@@ -153,28 +171,15 @@ private:
     std::vector<Action> m_replay; // this is used for undo/redo
     long m_replayIndex { 0 };
 
-    bool m_isDialogActive { false };
-    sf::RectangleShape m_dialog;
-    sf::Text m_dialogTitle;
-    sf::Text m_dialogText;
-    std::function<void(bool, std::string)> m_dialogCallback { [](bool, const std::string&) { } };
-    sf::Text m_editModeText;
     std::set<std::size_t> m_highlightedLineIndices;
     std::optional<std::size_t> m_highlightedMovingObjectIdx;
     std::optional<std::tuple<unsigned, unsigned>> m_currentNearestSnapPoint { std::nullopt };
-    Line m_currentInsertionLine;
+    Line m_currentInsertionLine { 0, 0, 0, 0, 255, 0, 0, 1, true };
     MovingObject m_currentMovingObject;
     Mode m_currentMode { Mode::LINE };
     SnapMode m_snapMode { SnapMode::AUTO };
-    void changeMode(Mode mode);
-    void changeSnapMode();
-    sf::View m_view;
-    float m_viewZoomLevel { 1.f };
-    sf::View m_fixedView; // for non-moving elements, e.g. dialog
     std::string m_fileName;
     bool m_dirty { false };
-    std::optional<int> m_oldMouseX;
-    std::optional<int> m_oldMouseY;
     CurrentPolygon m_currentPolygon;
 };
 

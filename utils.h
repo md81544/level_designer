@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <sstream>
+#include <string>
 #include <vector>
 
 namespace mgo {
@@ -17,6 +18,9 @@ template <typename T> std::string to_string_with_precision(const T a_value, cons
     out << std::fixed << a_value;
     return std::move(out).str();
 }
+
+// Splits a string at each occurrence of the delimiter
+std::vector<std::string> split(const std::string& s, char delimiter);
 
 bool doLinesIntersect(long x1, long y1, long x2, long y2, long x3, long y3, long x4, long y4);
 

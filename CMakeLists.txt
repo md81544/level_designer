@@ -1,48 +1,22 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.20)
+
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
+endif()
 
 set(APP_NAME level_designer)
 project(${APP_NAME})
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(SDL3 REQUIRED)
-find_package(SFML COMPONENTS Graphics Window System Audio REQUIRED)
-
-include(FetchContent)
-find_package(SFML 3.0 COMPONENTS System Window Graphics REQUIRED)
-FetchContent_Declare(ImGui
-    GIT_REPOSITORY https://github.com/ocornut/imgui
-    GIT_TAG v1.91.1
-    GIT_SHALLOW ON
-    EXCLUDE_FROM_ALL
-    SYSTEM)
-FetchContent_MakeAvailable(ImGui)
-FetchContent_GetProperties(ImGui SOURCE_DIR IMGUI_DIR)
-set(IMGUI_SFML_FIND_SFML OFF)
-
-FetchContent_Declare(ImGui-SFML
-    GIT_REPOSITORY https://github.com/SFML/imgui-sfml
-    GIT_TAG v3.0
-    GIT_SHALLOW ON
-    EXCLUDE_FROM_ALL
-    SYSTEM)
-FetchContent_MakeAvailable(ImGui-SFML)
-
-# Silence warnings produced while compiling the fetched dependencies themselves.
-# SYSTEM (above) only suppresses warnings when *we* include their headers;
-# it doesn't touch the compilation of their own .cpp files.
-foreach(dep_target IN ITEMS imgui ImGui-SFML)
-    if(TARGET ${dep_target})
-        target_compile_options(${dep_target} PRIVATE -w)
-    endif()
-endforeach()
+find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets)
 
 add_executable(${APP_NAME}
     configreader.cpp
-    dialog.cpp
-    imgui_dialog.cpp
     level.cpp
+    levelwidget.cpp
     main.cpp
+    mainwindow.cpp
     utils.cpp
 )
 
@@ -50,8 +24,6 @@ add_executable(${APP_NAME}
 # macOS app bundle (Darwin only)
 # ---------------------------------------------------------------------------
 if(APPLE)
-    find_program(DYLIBBUNDLER dylibbundler REQUIRED)
-
     set_target_properties(${APP_NAME} PROPERTIES
         MACOSX_BUNDLE                      TRUE
         MACOSX_BUNDLE_BUNDLE_NAME          "${APP_NAME}"
@@ -66,19 +38,6 @@ if(APPLE)
         MACOSX_PACKAGE_LOCATION "Resources"
     )
 
-    # Write a quiet wrapper for dylibbundler at configure time
-    file(WRITE "${CMAKE_BINARY_DIR}/dylibbundler.cmake" "
-        execute_process(
-            COMMAND ${DYLIBBUNDLER}
-                -od -b
-                -x \${BINARY}
-                -d \${FRAMEWORKS}
-                -p @executable_path/../Frameworks
-            OUTPUT_QUIET
-            ERROR_QUIET
-        )
-    ")
-
     add_custom_command(TARGET ${APP_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             ${CMAKE_SOURCE_DIR}/level_designer.cfg
@@ -86,37 +45,66 @@ if(APPLE)
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_SOURCE_DIR}/data
             $<TARGET_BUNDLE_CONTENT_DIR:${APP_NAME}>/Resources/data
-        COMMAND ${CMAKE_COMMAND}
-            -DBINARY=$<TARGET_FILE:${APP_NAME}>
-            -DFRAMEWORKS=$<TARGET_BUNDLE_CONTENT_DIR:${APP_NAME}>/Frameworks
-            -P "${CMAKE_BINARY_DIR}/dylibbundler.cmake"
-        COMMENT "Bundling app"
+        COMMENT "Copying resources into app bundle"
     )
+
+    # macdeployqt copies Qt and other dylibs into the bundle. It's slow, so
+    # only do it for release builds; debug builds run against the installed
+    # libraries.
+    #
+    # By default macdeployqt copies every plugin for the Qt modules used, many
+    # of which we don't need, so we copy in just the plugins we need, and have
+    # macdeployqt deploy their dependencies too.
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+        find_program(MACDEPLOYQT macdeployqt REQUIRED
+            HINTS "${Qt6_DIR}/../../../bin")
+        # Pairs of plugin type (directory) and plugin target
+        set(BUNDLED_QT_PLUGINS
+            platforms Qt6::QCocoaIntegrationPlugin
+            styles Qt6::QMacStylePlugin
+        )
+        set(PLUGINS_DIR $<TARGET_BUNDLE_CONTENT_DIR:${APP_NAME}>/PlugIns)
+        set(COPY_PLUGINS)
+        set(DEPLOY_PLUGINS)
+        list(LENGTH BUNDLED_QT_PLUGINS count)
+        math(EXPR last "${count} - 1")
+        foreach(i RANGE 0 ${last} 2)
+            math(EXPR j "${i} + 1")
+            list(GET BUNDLED_QT_PLUGINS ${i} type)
+            list(GET BUNDLED_QT_PLUGINS ${j} plugin)
+            list(APPEND COPY_PLUGINS
+                COMMAND ${CMAKE_COMMAND} -E make_directory ${PLUGINS_DIR}/${type}
+                COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${plugin}> ${PLUGINS_DIR}/${type}/
+            )
+            list(APPEND DEPLOY_PLUGINS
+                -executable=${PLUGINS_DIR}/${type}/$<TARGET_FILE_NAME:${plugin}>
+            )
+        endforeach()
+        add_custom_command(TARGET ${APP_NAME} POST_BUILD
+            # Start afresh, so nothing is left over from a previous deployment
+            COMMAND ${CMAKE_COMMAND} -E rm -rf
+                ${PLUGINS_DIR} $<TARGET_BUNDLE_CONTENT_DIR:${APP_NAME}>/Frameworks
+            ${COPY_PLUGINS}
+            COMMAND ${MACDEPLOYQT} $<TARGET_BUNDLE_DIR:${APP_NAME}> -no-plugins ${DEPLOY_PLUGINS}
+            # macdeployqt's own (ad hoc) signing leaves libbrotlicommon
+            # unsigned (see the rpath note above), and macOS kills the app at
+            # launch if any of its code has an invalid signature, so re-sign
+            # the whole bundle
+            COMMAND codesign --force --deep --sign - $<TARGET_BUNDLE_DIR:${APP_NAME}>
+            COMMENT "Bundling app"
+        )
+    endif()
 endif()
 
-target_link_libraries(${APP_NAME} PRIVATE
-    SFML::Graphics
-    SFML::Window
-    SFML::System
-    SFML::Audio
-    SDL3::SDL3
-    ImGui-SFML::ImGui-SFML
+target_compile_options(${APP_NAME} PRIVATE
+    -Wall
+    -Wextra
+    -Werror
+    -Wpedantic
+    $<$<CONFIG:Debug>:-g -O0>
+    $<$<CONFIG:Release>:-O3>
 )
-
-target_compile_options(${APP_NAME} PRIVATE -std=c++23 -Wall -Wextra -Werror -Wpedantic)
-
-
-ADD_CUSTOM_TARGET(debug
-    COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Debug ${CMAKE_SOURCE_DIR}
-    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target all
-    COMMENT "Switch CMAKE_BUILD_TYPE to Debug"
-)
-
-ADD_CUSTOM_TARGET(release
-    COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Release ${CMAKE_SOURCE_DIR}
-    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target all
-    COMMENT "Switch CMAKE_BUILD_TYPE to Release"
-)
+target_link_libraries(${APP_NAME} PRIVATE Qt6::Widgets)
 
 # Symlink to the app bundle (macOS) or binary (other platforms)
 add_custom_command(

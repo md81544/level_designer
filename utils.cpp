@@ -27,6 +27,20 @@ calculatePolarParams(double centreX, double centreY, double startX, double start
 namespace mgo {
 namespace utils {
 
+std::vector<std::string> split(const std::string& s, char delimiter)
+{
+    std::vector<std::string> result;
+    std::string::size_type start = 0;
+    for (;;) {
+        const auto end = s.find(delimiter, start);
+        result.push_back(s.substr(start, end - start));
+        if (end == std::string::npos) {
+            return result;
+        }
+        start = end + 1;
+    }
+}
+
 bool doLinesIntersect(long x1, long y1, long x2, long y2, long x3, long y3, long x4, long y4)
 {
 
