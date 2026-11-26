@@ -340,6 +340,7 @@ LevelData parseJson(const std::string& contents)
         }
         level.breakables.push_back(std::move(breakable));
     }
+    level.decorations = readPolylines(root, "decorations", "");
     const QJsonArray movingObjects = getArray(root, "movingObjects", "");
     for (qsizetype i = 0; i < movingObjects.size(); ++i) {
         const std::string context = std::format("movingObjects[{}]", i);
@@ -446,6 +447,12 @@ std::string toJson(const LevelData& level)
         items.push_back(item + "] }");
     }
     writeList(out, "  ", "breakables", items, first);
+
+    items.clear();
+    for (const Polyline& p : level.decorations) {
+        items.push_back(polylineJson(p));
+    }
+    writeList(out, "  ", "decorations", items, first);
 
     if (!level.movingObjects.empty()) {
         out << ",\n  \"movingObjects\": [\n";

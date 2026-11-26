@@ -65,6 +65,8 @@ constexpr double VERTEX_HIT_PIXELS = 6.0;
 constexpr double GRID_SPACING = 50.0;
 // The speed given to a new path (distance per tick)
 constexpr double DEFAULT_PATH_SPEED = 0.5;
+// Brighter than in amaze (see LEVEL_FORMAT.md), to show up against our brighter grid
+const QColor DECORATION_COLOUR { 0, 170, 0 };
 const QColor MOVING_OBJECT_GHOST_COLOUR { 255, 172, 163, 80 };
 
 // Offsets are kept to whole units, like positions
@@ -156,6 +158,14 @@ void Level::load(const std::string& filename)
             addLines(polyline, { 0, 0, 0, 0, 255, 150, 50, 0, false, true, group }, m_lines);
         }
     }
+    for (const auto& polyline : data.decorations) {
+        Line line { 0, 0, 0, 0 };
+        line.r = DECORATION_COLOUR.red();
+        line.g = DECORATION_COLOUR.green();
+        line.b = DECORATION_COLOUR.blue();
+        line.decoration = true;
+        addLines(polyline, line, m_lines);
+    }
     for (const auto& m : data.movingObjects) {
         MovingObject obj;
         obj.xDelta = m.speedX;
@@ -209,12 +219,15 @@ void Level::save(const std::string& filename)
     }
     std::vector<levelformat::Segment> walls;
     std::map<unsigned, std::vector<levelformat::Segment>> breakables; // by group
+    std::vector<levelformat::Segment> decorations;
     for (const auto& l : m_lines) {
         if (l.inactive) {
             continue;
         }
         if (l.breakable) {
             breakables[l.breakableGroup].push_back(segment(l));
+        } else if (l.decoration) {
+            decorations.push_back(segment(l));
         } else {
             walls.push_back(segment(l));
         }
@@ -223,6 +236,7 @@ void Level::save(const std::string& filename)
     for (const auto& [group, segments] : breakables) {
         data.breakables.push_back({ levelformat::toPolylines(segments) });
     }
+    data.decorations = levelformat::toPolylines(decorations);
     auto addMovingObject = [&](const MovingObject& m) {
         std::vector<levelformat::Segment> segments;
         for (const auto& l : m.lines) {
@@ -670,7 +684,7 @@ void Level::updateSnapPoint(QPointF w, std::optional<std::pair<unsigned, unsigne
 void Level::mouseMoved(QPointF w)
 {
     if (m_currentMode == Mode::LINE || m_currentMode == Mode::BREAKABLE
-        || m_currentMode == Mode::MOVING) {
+        || m_currentMode == Mode::DECORATION || m_currentMode == Mode::MOVING) {
         updateSnapPoint(w);
         if (m_currentInsertionLine.inactive == false) {
             if (m_currentNearestSnapPoint.has_value()) {
@@ -700,6 +714,7 @@ void Level::leftClicked(QPointF w, float zoomLevel, bool extendSelection, bool s
     switch (m_currentMode) {
         case Mode::LINE:
         case Mode::BREAKABLE:
+        case Mode::DECORATION:
         case Mode::MOVING:
             {
                 // Insert a new line
@@ -710,7 +725,8 @@ void Level::leftClicked(QPointF w, float zoomLevel, bool extendSelection, bool s
                         if (m_currentInsertionLine.x0 != m_currentInsertionLine.x1
                             || m_currentInsertionLine.y0 != m_currentInsertionLine.y1) {
                             checkpoint();
-                            m_currentInsertionLine.breakable = m_currentMode != Mode::LINE;
+                            m_currentInsertionLine.breakable = m_currentMode == Mode::BREAKABLE;
+                            m_currentInsertionLine.decoration = m_currentMode == Mode::DECORATION;
                             // Each breakable line drawn breaks separately
                             m_currentInsertionLine.breakableGroup
                                 = m_currentMode == Mode::BREAKABLE ? m_nextBreakableGroup++ : 0;
@@ -1300,6 +1316,8 @@ void Level::convertSelectionToMovingObject()
         m_lines[i].r = 255;
         m_lines[i].g = 172;
         m_lines[i].b = 163;
+        m_lines[i].breakable = false;
+        m_lines[i].decoration = false;
         m.lines.push_back(m_lines[i]);
         m_lines[i].inactive = true;
     }
@@ -1615,6 +1633,7 @@ bool Level::canJoinLinesAt(QPointF pos, float zoomLevel) const
                                                           : std::pair(l.x0, l.y0);
     };
     return a.breakable == b.breakable && a.breakableGroup == b.breakableGroup
+        && a.decoration == b.decoration
         && farEnd(a) != farEnd(b);
 }
 
@@ -1823,6 +1842,10 @@ void Level::changeMode(Mode mode)
         m_currentInsertionLine.r = 255;
         m_currentInsertionLine.g = 150;
         m_currentInsertionLine.b = 50;
+    } else if (m_currentMode == Mode::DECORATION) {
+        m_currentInsertionLine.r = DECORATION_COLOUR.red();
+        m_currentInsertionLine.g = DECORATION_COLOUR.green();
+        m_currentInsertionLine.b = DECORATION_COLOUR.blue();
     } else if (m_currentMode == Mode::MOVING) {
         m_currentInsertionLine.r = 255;
         m_currentInsertionLine.g = 172;

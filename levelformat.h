@@ -24,6 +24,7 @@ constexpr int FORMAT_VERSION = 1;
 // Default thicknesses (as in the game); fields left unset take these
 constexpr double DEFAULT_WALL_THICKNESS = 2;
 constexpr double DEFAULT_BREAKABLE_THICKNESS = 6;
+constexpr double DEFAULT_DECORATION_THICKNESS = 2;
 constexpr double DEFAULT_MOVING_OBJECT_THICKNESS = 6;
 constexpr double DEFAULT_EXIT_THICKNESS = 6;
 constexpr double DEFAULT_FUEL_THICKNESS = 12;
@@ -99,6 +100,7 @@ struct LevelData {
     std::vector<Fuel> fuel;
     std::vector<Polyline> walls;
     std::vector<Breakable> breakables;
+    std::vector<Polyline> decorations; // drawn, but the ship passes over them
     std::vector<MovingObject> movingObjects;
     bool operator==(const LevelData&) const = default;
 };

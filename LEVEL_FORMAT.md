@@ -31,6 +31,9 @@ A level file is a UTF-8 JSON object. For example:
   "breakables": [
     { "lines": [{ "points": [[1000, 975], [1000, 1050]] }] }
   ],
+  "decorations": [
+    { "points": [[700, 1300], [1400, 1300]] }
+  ],
   "movingObjects": [
     {
       "lines": [
@@ -73,6 +76,7 @@ A level file is a UTF-8 JSON object. For example:
 | `fuel` | array of [Fuel](#fuel) | `[]` | Fuel to collect |
 | `walls` | array of [Polyline](#polyline) | `[]` | Obstructions |
 | `breakables` | array of [Breakable](#breakable) | `[]` | Walls which the ship's exhaust breaks |
+| `decorations` | array of [Polyline](#polyline) | `[]` | Lines which are only drawn: the ship passes over them. (Older programs, which don't know about them, ignore them.) |
 | `movingObjects` | array of [Moving object](#moving-object) | `[]` | Obstructions which move |
 
 ## Ship
@@ -168,6 +172,7 @@ because level_designer draws items the same way.
 |---|---|---|
 | Walls | 255, 0, 0 | 2 |
 | Breakables | 255, 150, 50 | 6 |
+| Decorations | 0, 90, 0 (slightly lighter than amaze's background grid, which is 0, 32, 0); level_designer, whose grid is brighter (0, 100, 0), draws them in 0, 170, 0 | 2 |
 | Moving objects | 255, 172, 163 | 6 |
 | Exit (text "EXIT") | 52, 213, 235 | 6 |
 | Fuel (text "\*") | 255, 255, 0 | 12 |

@@ -20,6 +20,7 @@ class QPainter;
 enum class Mode {
     LINE,
     BREAKABLE,
+    DECORATION, // lines which are only drawn: the ship passes over them
     EDIT,
     EXIT,
     START,
@@ -51,6 +52,7 @@ struct Line {
     bool breakable { false };
     // Breakable lines with the same group break together (0 for other lines)
     unsigned breakableGroup { 0 };
+    bool decoration { false }; // drawn, but not collided with
 };
 
 struct StartPosition {
@@ -182,7 +184,7 @@ public:
     void endTransform();
     void convertSelectionToMovingObject();
 
-    // Editing individual lines (walls and breakable lines, not moving
+    // Editing individual lines (walls, breakable lines and decorations, not moving
     // objects'), at a position. A vertex is a point where lines meet (or a
     // line's free end).
     //

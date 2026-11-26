@@ -51,6 +51,8 @@ QString modeName(Mode mode)
             return "Line";
         case Mode::BREAKABLE:
             return "Breakable Line";
+        case Mode::DECORATION:
+            return "Decoration";
         case Mode::EDIT:
             return "Select";
         case Mode::START:
@@ -74,6 +76,7 @@ QString modeHint(Mode mode)
     switch (mode) {
         case Mode::LINE:
         case Mode::BREAKABLE:
+        case Mode::DECORATION:
             return "Click to start a line, then click to add each point. Right-click or Esc to "
                    "finish.";
         case Mode::MOVING:
@@ -213,6 +216,7 @@ void MainWindow::createMenus()
     QMenu* insertMenu = menuBar()->addMenu("&Insert");
     addMode(insertMenu, "&Line", QKeySequence(Qt::SHIFT | Qt::Key_L), Mode::LINE);
     addMode(insertMenu, "&Breakable Line", QKeySequence(Qt::SHIFT | Qt::Key_B), Mode::BREAKABLE);
+    addMode(insertMenu, "&Decoration", QKeySequence(Qt::SHIFT | Qt::Key_D), Mode::DECORATION);
     addMode(insertMenu, "&Moving Object", QKeySequence(Qt::SHIFT | Qt::Key_V), Mode::MOVING);
     // Polygon asks for the number of sides first, so isn't a plain mode change
     QAction* polygonAction = add(
@@ -266,6 +270,7 @@ void MainWindow::createMenus()
     contextInsertMenu->addActions(
         { m_modeActions.at(Mode::LINE),
           m_modeActions.at(Mode::BREAKABLE),
+          m_modeActions.at(Mode::DECORATION),
           m_modeActions.at(Mode::MOVING),
           m_modeActions.at(Mode::POLYGON_CENTRE),
           separator(),

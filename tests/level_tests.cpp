@@ -43,6 +43,7 @@ struct Contents {
     std::vector<levelformat::Fuel> fuel;
     std::vector<levelformat::Segment> walls;
     std::vector<std::vector<levelformat::Segment>> breakables;
+    std::vector<levelformat::Segment> decorations;
     std::vector<std::vector<levelformat::Segment>> movingObjectLines;
     bool operator==(const Contents&) const = default;
 };
@@ -53,6 +54,7 @@ Contents contentsOf(const levelformat::LevelData& level)
     for (const auto& b : level.breakables) {
         c.breakables.push_back(normalised(segmentsOf(b.lines)));
     }
+    c.decorations = normalised(segmentsOf(level.decorations));
     for (const auto& m : level.movingObjects) {
         c.movingObjectLines.push_back(normalised(segmentsOf(m.lines)));
     }
@@ -108,6 +110,7 @@ TEST_CASE("The editor saves what it loads, including rotations and thicknesses")
             { "lines": [ { "points": [[700, 550], [700, 650]] }, { "points": [[900, 550], [900, 650]] } ] },
             { "lines": [ { "points": [[1, 1], [2, 2]] } ] }
           ],
+          "decorations": [ { "points": [[50, 50], [60, 50], [60, 60]], "thickness": 3 } ],
           "movingObjects": [
             { "lines": [ { "points": [[5, 5], [6, 6]] } ], "speedX": 0.5, "gravity": 20, "name": "m" },
             { "lines": [ { "points": [[5, 5], [6, 6]] } ],

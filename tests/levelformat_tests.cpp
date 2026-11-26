@@ -57,6 +57,7 @@ TEST_CASE("A level survives being written as JSON and read back")
         { { { 750, 700 }, { 1350, 700 } }, false, 3 },
     };
     level.breakables = { { { { { { 700, 550 }, { 700, 650 } } }, { { { 900, 550 }, { 900, 650 } } } } } };
+    level.decorations = { { { { 100, 100 }, { 200, 100 }, { 200, 200 } }, true, 4 } };
     MovingObject moving;
     moving.lines = { { { { 1, 2 }, { 3, 4 }, { 5, 6 } }, true } };
     moving.speedX = 0.3;
@@ -84,6 +85,7 @@ TEST_CASE("JSON is written in the documented layout, leaving out defaults")
     level.fuel = { { 500, 500 }, { 650, 820, 4 } };
     level.walls = { { { { 0, 0 }, { 10, 0 }, { 10, 10 } }, true } };
     level.breakables = { { { { { { 1, 2 }, { 3, 4 } } } } } };
+    level.decorations = { { { { 20, 20 }, { 30, 30 } } } };
     MovingObject moving;
     moving.lines = { { { { 1, 2 }, { 3, 4 } } } };
     moving.speedX = 0.3;
@@ -108,6 +110,9 @@ TEST_CASE("JSON is written in the documented layout, leaving out defaults")
   ],
   "breakables": [
     { "lines": [{ "points": [[1, 2], [3, 4]] }] }
+  ],
+  "decorations": [
+    { "points": [[20, 20], [30, 30]] }
   ],
   "movingObjects": [
     {
