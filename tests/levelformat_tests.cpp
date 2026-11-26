@@ -53,19 +53,19 @@ TEST_CASE("A level survives being written as JSON and read back")
     };
     level.breakables = { { { { { { 700, 550 }, { 700, 650 } } }, { { { 900, 550 }, { 900, 650 } } } } } };
     level.decorations = { { { { 100, 100 }, { 200, 100 }, { 200, 200 } }, true, 4 } };
-    MovingObject moving;
-    moving.lines = { { { { 1, 2 }, { 3, 4 }, { 5, 6 } }, true } };
-    moving.speedX = 0.3;
-    moving.rangeX = 100;
-    moving.speedY = -1;
-    moving.rangeY = 200;
-    moving.spin = 0.5;
-    moving.gravity = 50;
-    moving.name = "spinner";
-    MovingObject onPath;
+    SpecialObject bouncing;
+    bouncing.lines = { { { { 1, 2 }, { 3, 4 }, { 5, 6 } }, true } };
+    bouncing.speedX = 0.3;
+    bouncing.rangeX = 100;
+    bouncing.speedY = -1;
+    bouncing.rangeY = 200;
+    bouncing.spin = 0.5;
+    bouncing.gravity = 50;
+    bouncing.name = "spinner";
+    SpecialObject onPath;
     onPath.lines = { { { { 0, 0 }, { 1, 1 } } } };
     onPath.path = Path { { { 200, -150.5 }, { 0, 300 } }, 0.5, true };
-    level.movingObjects = { moving, MovingObject { { { { { 0, 0 }, { 1, 1 } } } } }, onPath };
+    level.specialObjects = { bouncing, SpecialObject { { { { { 0, 0 }, { 1, 1 } } } } }, onPath };
 
     CHECK(parseJson(toJson(level)) == level);
     CHECK(parse(toJson(level)) == level);
@@ -81,18 +81,18 @@ TEST_CASE("JSON is written in the documented layout, leaving out defaults")
     level.walls = { { { { 0, 0 }, { 10, 0 }, { 10, 10 } }, true } };
     level.breakables = { { { { { { 1, 2 }, { 3, 4 } } } } } };
     level.decorations = { { { { 20, 20 }, { 30, 30 } } } };
-    MovingObject moving;
-    moving.lines = { { { { 1, 2 }, { 3, 4 } } } };
-    moving.speedX = 0.3;
-    moving.rangeX = 100;
-    MovingObject onPath;
+    SpecialObject bouncing;
+    bouncing.lines = { { { { 1, 2 }, { 3, 4 } } } };
+    bouncing.speedX = 0.3;
+    bouncing.rangeX = 100;
+    SpecialObject onPath;
     onPath.lines = { { { { 5, 6 }, { 7, 8 } } } };
     onPath.path = Path { { { 200, -150 } }, 0.5 };
     onPath.spin = 1;
-    level.movingObjects = { moving, onPath };
+    level.specialObjects = { bouncing, onPath };
 
     CHECK(toJson(level) == R"({
-  "formatVersion": 1,
+  "formatVersion": 2,
   "title": "Test",
   "ship": { "x": 706, "y": 904 },
   "exit": { "x": 1200, "y": 300 },
@@ -109,7 +109,7 @@ TEST_CASE("JSON is written in the documented layout, leaving out defaults")
   "decorations": [
     { "points": [[20, 20], [30, 30]] }
   ],
-  "movingObjects": [
+  "specialObjects": [
     {
       "lines": [
         { "points": [[1, 2], [3, 4]] }
@@ -127,21 +127,31 @@ TEST_CASE("JSON is written in the documented layout, leaving out defaults")
   ]
 }
 )");
-    CHECK(toJson(LevelData {}) == "{\n  \"formatVersion\": 1\n}\n");
+    CHECK(toJson(LevelData {}) == "{\n  \"formatVersion\": 2\n}\n");
 }
 
 TEST_CASE("Optional fields take their defaults, and unknown fields are ignored")
 {
     const LevelData level = parseJson(R"({
-        "formatVersion": 1,
+        "formatVersion": 2,
         "someFutureField": { "anything": [1, 2, 3] },
         "ship": { "x": 1, "y": 2, "colour": "red" },
-        "movingObjects": [ { "lines": [ { "points": [[0, 0], [1, 1]] } ] } ]
+        "specialObjects": [ { "lines": [ { "points": [[0, 0], [1, 1]] } ] } ]
     })");
     LevelData expected;
     expected.ship = Ship { 1, 2, 0 };
-    expected.movingObjects = { MovingObject { { { { { 0, 0 }, { 1, 1 } } } } } };
+    expected.specialObjects = { SpecialObject { { { { { 0, 0 }, { 1, 1 } } } } } };
     CHECK(level == expected);
+}
+
+TEST_CASE("Version 1 files' special objects are read from \"movingObjects\"")
+{
+    const std::string objects = R"([ { "lines": [ { "points": [[0, 0], [1, 1]] } ], "spin": 1 } ])";
+    const LevelData v1 = parseJson(R"({ "formatVersion": 1, "movingObjects": )" + objects + " }");
+    REQUIRE(v1.specialObjects.size() == 1);
+    CHECK(v1.specialObjects[0].spin == 1);
+    // From version 2, "movingObjects" is just an unknown field
+    CHECK(parseJson(R"({ "formatVersion": 2, "movingObjects": )" + objects + " }").specialObjects.empty());
 }
 
 TEST_CASE("Invalid level files are rejected with a helpful message")
@@ -156,38 +166,38 @@ TEST_CASE("Invalid level files are rejected with a helpful message")
     };
     CHECK(error("") == "This isn't a level file (or it's empty)");
     CHECK(error("hello") == "This isn't a level file (or it's empty)");
-    CHECK(error("{ \"formatVersion\": 1, ").starts_with("Invalid JSON"));
+    CHECK(error("{ \"formatVersion\": 2, ").starts_with("Invalid JSON"));
     CHECK(error("{}") == "Missing \"formatVersion\"");
-    CHECK(error("{ \"formatVersion\": 2 }").starts_with("This level is in a newer format (version 2)"));
-    CHECK(error(R"({ "formatVersion": 1, "ship": { "x": 1 } })") == "ship: missing \"y\"");
+    CHECK(error("{ \"formatVersion\": 3 }").starts_with("This level is in a newer format (version 3)"));
+    CHECK(error(R"({ "formatVersion": 2, "ship": { "x": 1 } })") == "ship: missing \"y\"");
     CHECK(
-        error(R"({ "formatVersion": 1, "walls": [ { "points": [[0, 0], [1]] } ] })")
+        error(R"({ "formatVersion": 2, "walls": [ { "points": [[0, 0], [1]] } ] })")
         == "walls[0]: points[1] must be [x, y]");
     CHECK(
-        error(R"({ "formatVersion": 1, "walls": [ { "points": [[0, 0]] } ] })")
+        error(R"({ "formatVersion": 2, "walls": [ { "points": [[0, 0]] } ] })")
         == "walls[0]: a polyline needs at least two points");
     CHECK(
-        error(R"({ "formatVersion": 1, "movingObjects": [ { "lines": [ { "points": [[0, 0], [1, 1]], "closed": 1 } ] } ] })")
-        == "movingObjects[0].lines[0]: \"closed\" must be true or false");
+        error(R"({ "formatVersion": 2, "specialObjects": [ { "lines": [ { "points": [[0, 0], [1, 1]], "closed": 1 } ] } ] })")
+        == "specialObjects[0].lines[0]: \"closed\" must be true or false");
     const std::string line = R"("lines": [ { "points": [[0, 0], [1, 1]] } ])";
-    auto movingError = [&](const std::string& fields) {
-        return error(R"({ "formatVersion": 1, "movingObjects": [ { )" + line + ", " + fields + " } ] }");
+    auto specialError = [&](const std::string& fields) {
+        return error(R"({ "formatVersion": 2, "specialObjects": [ { )" + line + ", " + fields + " } ] }");
     };
     CHECK(
-        movingError(R"("path": { "offsets": [], "speed": 1 })")
-        == "movingObjects[0].path: needs at least one offset");
+        specialError(R"("path": { "offsets": [], "speed": 1 })")
+        == "specialObjects[0].path: needs at least one offset");
     CHECK(
-        movingError(R"("path": { "offsets": [[1, 2, 3]] })")
-        == "movingObjects[0].path: offsets[0] must be [x, y]");
+        specialError(R"("path": { "offsets": [[1, 2, 3]] })")
+        == "specialObjects[0].path: offsets[0] must be [x, y]");
     CHECK(
-        movingError(R"("path": { "offsets": [[1, 2]], "speed": -1 })")
-        == "movingObjects[0].path: \"speed\" can't be negative");
+        specialError(R"("path": { "offsets": [[1, 2]], "speed": -1 })")
+        == "specialObjects[0].path: \"speed\" can't be negative");
     CHECK(
-        movingError(R"("path": { "offsets": [[1, 2]], "loop": 1 })")
-        == "movingObjects[0].path: \"loop\" must be true or false");
+        specialError(R"("path": { "offsets": [[1, 2]], "loop": 1 })")
+        == "specialObjects[0].path: \"loop\" must be true or false");
     CHECK(
-        movingError(R"("speedX": 1, "path": { "offsets": [[1, 2]] })")
-        == "movingObjects[0]: can't have both a \"path\" and speedX/rangeX/speedY/rangeY");
+        specialError(R"("speedX": 1, "path": { "offsets": [[1, 2]] })")
+        == "specialObjects[0]: can't have both a \"path\" and speedX/rangeX/speedY/rangeY");
     CHECK(
         error("!~0~0~1~2~3~Title")
         == "This level file is in the old format, which is no longer supported");

@@ -61,7 +61,7 @@ QString modeName(Mode mode)
             return "Exit";
         case Mode::FUEL:
             return "Fuel";
-        case Mode::MOVING:
+        case Mode::SPECIAL:
             return "Special Object";
         case Mode::POLYGON_CENTRE:
         case Mode::POLYGON_RADIUS:
@@ -79,7 +79,7 @@ QString modeHint(Mode mode)
         case Mode::DECORATION:
             return "Click to start a line, then click to add each point. Right-click to finish; "
                    "Esc to return to Select.";
-        case Mode::MOVING:
+        case Mode::SPECIAL:
             return "Click to start a line, then click to add each point. Right-click finishes "
                    "the object; Esc returns to Select.";
         case Mode::EDIT:
@@ -217,7 +217,7 @@ void MainWindow::createMenus()
     addMode(insertMenu, "&Line", QKeySequence(Qt::SHIFT | Qt::Key_L), Mode::LINE);
     addMode(insertMenu, "&Breakable Line", QKeySequence(Qt::SHIFT | Qt::Key_B), Mode::BREAKABLE);
     addMode(insertMenu, "&Decoration", QKeySequence(Qt::SHIFT | Qt::Key_D), Mode::DECORATION);
-    addMode(insertMenu, "Special &Object", QKeySequence(Qt::SHIFT | Qt::Key_V), Mode::MOVING);
+    addMode(insertMenu, "Special &Object", QKeySequence(Qt::SHIFT | Qt::Key_V), Mode::SPECIAL);
     // Polygon asks for the number of sides first, so isn't a plain mode change
     QAction* polygonAction = add(
         insertMenu,
@@ -234,11 +234,11 @@ void MainWindow::createMenus()
 
     // Object: operations on the selection
     QMenu* objectMenu = menuBar()->addMenu("&Object");
-    m_makeMovingAction = add(
+    m_makeSpecialAction = add(
         objectMenu,
         "&Make Special Object from Selection",
         { QKeySequence(Qt::Key_V) },
-        [this] { m_level.convertSelectionToMovingObject(); });
+        [this] { m_level.convertSelectionToSpecialObject(); });
     m_makeDecorationAction = add(
         objectMenu,
         "Make &Decoration from Selection",
@@ -250,21 +250,21 @@ void MainWindow::createMenus()
         {},
         [this] { m_level.convertSelectionToWalls(); });
     objectMenu->addSeparator();
-    m_movingPropertiesAction = add(
+    m_specialPropertiesAction = add(
         objectMenu,
         "Special Object &Properties...",
         { QKeySequence(Qt::Key_X) },
-        [this] { editMovingObject(MovingField::Motion); });
+        [this] { editSpecialObject(SpecialField::Motion); });
     // Old shortcuts for editing individual properties, which open the same
     // dialog at the relevant field
-    for (auto [key, field] : std::array<std::pair<Qt::Key, MovingField>, 3> {
-             { { Qt::Key_Y, MovingField::YSpeed },
-               { Qt::Key_R, MovingField::Spin },
-               { Qt::Key_G, MovingField::Gravity } } }) {
+    for (auto [key, field] : std::array<std::pair<Qt::Key, SpecialField>, 3> {
+             { { Qt::Key_Y, SpecialField::YSpeed },
+               { Qt::Key_R, SpecialField::Spin },
+               { Qt::Key_G, SpecialField::Gravity } } }) {
         auto* action = new QAction(this);
         action->setShortcut(QKeySequence(key));
         connect(action, &QAction::triggered, this, [this, field] {
-            editMovingObject(field);
+            editSpecialObject(field);
             updateUi();
         });
         addAction(action);
@@ -282,17 +282,17 @@ void MainWindow::createMenus()
         { m_modeActions.at(Mode::LINE),
           m_modeActions.at(Mode::BREAKABLE),
           m_modeActions.at(Mode::DECORATION),
-          m_modeActions.at(Mode::MOVING),
+          m_modeActions.at(Mode::SPECIAL),
           m_modeActions.at(Mode::POLYGON_CENTRE),
           separator(),
           m_modeActions.at(Mode::FUEL),
           m_modeActions.at(Mode::START),
           m_modeActions.at(Mode::EXIT) });
     m_canvas->setContextMenuActions({ m_deleteAction,
-                                      m_makeMovingAction,
+                                      m_makeSpecialAction,
                                       m_makeDecorationAction,
                                       m_makeWallsAction,
-                                      m_movingPropertiesAction,
+                                      m_specialPropertiesAction,
                                       separator(),
                                       selectAllAction,
                                       separator(),
@@ -361,10 +361,10 @@ void MainWindow::updateUi()
     m_undoAction->setEnabled(m_level.canUndo());
     m_redoAction->setEnabled(m_level.canRedo());
     m_deleteAction->setEnabled(m_level.hasSelection());
-    m_makeMovingAction->setEnabled(m_level.hasSelectedLines());
+    m_makeSpecialAction->setEnabled(m_level.hasSelectedLines());
     m_makeDecorationAction->setEnabled(m_level.canConvertSelectionToDecoration());
     m_makeWallsAction->setEnabled(m_level.canConvertSelectionToWalls());
-    m_movingPropertiesAction->setEnabled(m_level.selectedMovingObject().has_value());
+    m_specialPropertiesAction->setEnabled(m_level.selectedSpecialObject().has_value());
 }
 
 // ---------------------------------------------------------------------------
@@ -612,9 +612,9 @@ void MainWindow::editTitle()
     }
 }
 
-void MainWindow::editMovingObject(MovingField focusField)
+void MainWindow::editSpecialObject(SpecialField focusField)
 {
-    auto object = m_level.selectedMovingObject();
+    auto object = m_level.selectedSpecialObject();
     if (!object.has_value()) {
         return;
     }
@@ -705,9 +705,9 @@ void MainWindow::editMovingObject(MovingField focusField)
 
     QWidget* focus = motion;
     switch (focusField) {
-        case MovingField::Motion:
+        case SpecialField::Motion:
             break;
-        case MovingField::YSpeed:
+        case SpecialField::YSpeed:
             if (motion->currentIndex() != PATH) {
                 motion->setCurrentIndex(BOX);
                 focus = ySpeed;
@@ -715,10 +715,10 @@ void MainWindow::editMovingObject(MovingField focusField)
                 focus = speed;
             }
             break;
-        case MovingField::Spin:
+        case SpecialField::Spin:
             focus = spin;
             break;
-        case MovingField::Gravity:
+        case SpecialField::Gravity:
             focus = gravity;
             break;
     }
@@ -728,7 +728,7 @@ void MainWindow::editMovingObject(MovingField focusField)
     }
 
     if (dialog.exec() == QDialog::Accepted) {
-        MovingObject result = *object;
+        SpecialObject result = *object;
         result.xDelta = result.xMaxDifference = result.yDelta = result.yMaxDifference = 0;
         result.pathOffsets.clear();
         result.pathSpeed = 0;
@@ -751,7 +751,7 @@ void MainWindow::editMovingObject(MovingField focusField)
         }
         result.rotationDelta = spin->value();
         result.gravity = gravity->value();
-        m_level.setSelectedMovingObjectMotion(result);
+        m_level.setSelectedSpecialObjectMotion(result);
         m_canvas->viewport()->update();
     }
 }

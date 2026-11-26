@@ -19,13 +19,13 @@
 namespace mgo {
 namespace levelformat {
 
-constexpr int FORMAT_VERSION = 1;
+constexpr int FORMAT_VERSION = 2;
 
 // Default thicknesses (as in the game); fields left unset take these
 constexpr double DEFAULT_WALL_THICKNESS = 2;
 constexpr double DEFAULT_BREAKABLE_THICKNESS = 6;
 constexpr double DEFAULT_DECORATION_THICKNESS = 2;
-constexpr double DEFAULT_MOVING_OBJECT_THICKNESS = 6;
+constexpr double DEFAULT_SPECIAL_OBJECT_THICKNESS = 6;
 constexpr double DEFAULT_EXIT_THICKNESS = 6;
 constexpr double DEFAULT_FUEL_THICKNESS = 12;
 
@@ -69,7 +69,7 @@ struct Breakable {
     bool operator==(const Breakable&) const = default;
 };
 
-// A moving object's path: it moves from where it's drawn through each offset
+// A special object's path: it moves from where it's drawn through each offset
 // in turn, then back again (or if loop, straight back to the start, and round
 // again)
 struct Path {
@@ -79,7 +79,7 @@ struct Path {
     bool operator==(const Path&) const = default;
 };
 
-struct MovingObject {
+struct SpecialObject {
     std::vector<Polyline> lines;
     // Bouncing within a box (each axis independently). Unused if there's a path.
     double speedX { 0 };
@@ -90,7 +90,7 @@ struct MovingObject {
     double gravity { 0 };
     std::optional<std::string> name;
     std::optional<Path> path;
-    bool operator==(const MovingObject&) const = default;
+    bool operator==(const SpecialObject&) const = default;
 };
 
 struct LevelData {
@@ -101,7 +101,7 @@ struct LevelData {
     std::vector<Polyline> walls;
     std::vector<Breakable> breakables;
     std::vector<Polyline> decorations; // drawn, but the ship passes over them
-    std::vector<MovingObject> movingObjects;
+    std::vector<SpecialObject> specialObjects;
     bool operator==(const LevelData&) const = default;
 };
 

@@ -44,7 +44,7 @@ struct Contents {
     std::vector<levelformat::Segment> walls;
     std::vector<std::vector<levelformat::Segment>> breakables;
     std::vector<levelformat::Segment> decorations;
-    std::vector<std::vector<levelformat::Segment>> movingObjectLines;
+    std::vector<std::vector<levelformat::Segment>> specialObjectLines;
     bool operator==(const Contents&) const = default;
 };
 
@@ -55,8 +55,8 @@ Contents contentsOf(const levelformat::LevelData& level)
         c.breakables.push_back(normalised(segmentsOf(b.lines)));
     }
     c.decorations = normalised(segmentsOf(level.decorations));
-    for (const auto& m : level.movingObjects) {
-        c.movingObjectLines.push_back(normalised(segmentsOf(m.lines)));
+    for (const auto& m : level.specialObjects) {
+        c.specialObjectLines.push_back(normalised(segmentsOf(m.lines)));
     }
     return c;
 }
@@ -77,12 +77,12 @@ void checkLoadAndSave(const std::string& filename)
     }
     const levelformat::LevelData saved = levelformat::read(first.path());
     CHECK(contentsOf(saved) == contentsOf(original));
-    for (std::size_t i = 0; i < std::min(saved.movingObjects.size(), original.movingObjects.size()); ++i) {
-        auto motion = [](levelformat::MovingObject m) {
+    for (std::size_t i = 0; i < std::min(saved.specialObjects.size(), original.specialObjects.size()); ++i) {
+        auto motion = [](levelformat::SpecialObject m) {
             m.lines.clear();
             return m;
         };
-        CHECK(motion(saved.movingObjects[i]) == motion(original.movingObjects[i]));
+        CHECK(motion(saved.specialObjects[i]) == motion(original.specialObjects[i]));
     }
     {
         Level level;
@@ -100,7 +100,7 @@ TEST_CASE("The editor saves what it loads, including rotations and thicknesses")
     {
         std::ofstream out(file.path());
         out << R"({
-          "formatVersion": 1,
+          "formatVersion": 2,
           "title": "Features",
           "ship": { "x": 100, "y": 200, "rotation": 45 },
           "exit": { "x": 300, "y": 400, "rotation": 30, "thickness": 4 },
@@ -111,7 +111,7 @@ TEST_CASE("The editor saves what it loads, including rotations and thicknesses")
             { "lines": [ { "points": [[1, 1], [2, 2]] } ] }
           ],
           "decorations": [ { "points": [[50, 50], [60, 50], [60, 60]], "thickness": 3 } ],
-          "movingObjects": [
+          "specialObjects": [
             { "lines": [ { "points": [[5, 5], [6, 6]] } ], "speedX": 0.5, "gravity": 20, "name": "m" },
             { "lines": [ { "points": [[5, 5], [6, 6]] } ],
               "path": { "offsets": [[100, -50], [0, 200]], "speed": 0.75, "loop": true }, "spin": 1 }
@@ -143,7 +143,7 @@ namespace {
 
 // A level with a closed square of walls, (100, 100) to (300, 300)
 const char* SQUARE_LEVEL = R"({
-  "formatVersion": 1,
+  "formatVersion": 2,
   "title": "Square",
   "walls": [ { "points": [[100, 100], [300, 100], [300, 300], [100, 300]], "closed": true } ]
 })";
@@ -280,29 +280,29 @@ TEST_CASE("Items can be placed directly, as from the context menu")
     CHECK(saved.fuel.size() == 2);
 }
 
-TEST_CASE("A moving object's path can be set where clicked, dragged, and turns with the object")
+TEST_CASE("A special object's path can be set where clicked, dragged, and turns with the object")
 {
     TempFile square("path_square.lvl");
     {
         // A 100 x 100 square centred on (250, 250)
         std::ofstream out(square.path());
-        out << R"({ "formatVersion": 1,
+        out << R"({ "formatVersion": 2,
                     "walls": [ { "points": [[200, 200], [300, 200], [300, 300], [200, 300]], "closed": true } ] })";
     }
     Level level;
     level.load(square.path());
     level.changeMode(Mode::EDIT);
     level.selectAll();
-    level.convertSelectionToMovingObject();
-    REQUIRE(level.selectedMovingObject().has_value());
+    level.convertSelectionToSpecialObject();
+    REQUIRE(level.selectedSpecialObject().has_value());
 
     // Bouncing within a box is replaced by the path
-    MovingObject motion = *level.selectedMovingObject();
+    SpecialObject motion = *level.selectedSpecialObject();
     motion.xDelta = 1;
     motion.xMaxDifference = 50;
-    level.setSelectedMovingObjectMotion(motion);
+    level.setSelectedSpecialObjectMotion(motion);
     level.setPathEndAt({ 450, 251.4 });
-    auto m = *level.selectedMovingObject();
+    auto m = *level.selectedSpecialObject();
     CHECK(m.pathOffsets == std::vector<QPointF> { { 200, 1 } });
     CHECK(m.pathSpeed > 0);
     CHECK(m.xDelta == 0);
@@ -319,7 +319,7 @@ TEST_CASE("A moving object's path can be set where clicked, dragged, and turns w
     level.beginPathPointDrag(0);
     level.movePathPoint({ 380, 170 });
     level.endTransform();
-    CHECK(level.selectedMovingObject()->pathOffsets == std::vector<QPointF> { { 150, -100 }, { 0, 200 } });
+    CHECK(level.selectedSpecialObject()->pathOffsets == std::vector<QPointF> { { 150, -100 }, { 0, 200 } });
 
     // Moving the object leaves its path the same relative to it; turning it turns the path
     level.nudgeSelection(10, 0);
@@ -327,23 +327,23 @@ TEST_CASE("A moving object's path can be set where clicked, dragged, and turns w
     level.beginTransform();
     level.rotateSelection(90, level.selectionBounds()->center());
     level.endTransform();
-    CHECK(level.selectedMovingObject()->pathOffsets == std::vector<QPointF> { { 100, 150 }, { -200, 0 } });
+    CHECK(level.selectedSpecialObject()->pathOffsets == std::vector<QPointF> { { 100, 150 }, { -200, 0 } });
 
     TempFile file("path.lvl");
     level.save(file.path());
     const auto saved = levelformat::read(file.path());
-    REQUIRE(saved.movingObjects.size() == 1);
-    REQUIRE(saved.movingObjects[0].path.has_value());
-    CHECK(saved.movingObjects[0].path->offsets == std::vector<levelformat::Point> { { 100, 150 }, { -200, 0 } });
-    CHECK(saved.movingObjects[0].speedX == 0);
+    REQUIRE(saved.specialObjects.size() == 1);
+    REQUIRE(saved.specialObjects[0].path.has_value());
+    CHECK(saved.specialObjects[0].path->offsets == std::vector<levelformat::Point> { { 100, 150 }, { -200, 0 } });
+    CHECK(saved.specialObjects[0].speedX == 0);
 
     level.removePathPoint(1);
     level.removePathPoint(0);
-    CHECK(level.selectedMovingObject()->pathOffsets.empty());
+    CHECK(level.selectedSpecialObject()->pathOffsets.empty());
     level.undo();
     level.selectAll(); // undo clears the selection
-    REQUIRE(level.selectedMovingObject().has_value());
-    CHECK(level.selectedMovingObject()->pathOffsets.size() == 1);
+    REQUIRE(level.selectedSpecialObject().has_value());
+    CHECK(level.selectedSpecialObject()->pathOffsets.size() == 1);
 }
 
 TEST_CASE("Selected lines can be made decorations and back again")
@@ -351,7 +351,7 @@ TEST_CASE("Selected lines can be made decorations and back again")
     TempFile square("convert_square.lvl");
     {
         std::ofstream out(square.path());
-        out << R"({ "formatVersion": 1,
+        out << R"({ "formatVersion": 2,
                     "walls": [ { "points": [[200, 200], [300, 200], [300, 300], [200, 300]], "closed": true } ],
                     "breakables": [ { "lines": [ { "points": [[500, 500], [600, 500]] } ] } ] })";
     }

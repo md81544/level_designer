@@ -25,7 +25,7 @@ enum class Mode {
     EXIT,
     START,
     FUEL,
-    MOVING, // objects which have motion
+    SPECIAL, // special objects (which can move, spin and/or have gravity)
     POLYGON_CENTRE,
     POLYGON_RADIUS
 };
@@ -74,7 +74,7 @@ struct FuelPosition {
     double thickness { 0 }; // 0 means the default
 };
 
-struct MovingObject {
+struct SpecialObject {
     // Bouncing within a box (unused if it has a path)
     double xDelta { 0 };
     double xMaxDifference { 0 };
@@ -91,9 +91,9 @@ struct MovingObject {
     bool pathLoops { false };
 };
 
-// The centre of a moving object's lines (of their bounding box), from which
+// The centre of a special object's lines (of their bounding box), from which
 // its path is drawn
-QPointF movingObjectCentre(const MovingObject& m);
+QPointF specialObjectCentre(const SpecialObject& m);
 
 struct CurrentPolygon {
     std::optional<float> centreX { std::nullopt };
@@ -141,7 +141,7 @@ public:
     // singleLine selects only the line clicked rather than all lines
     // connected to it.
     void leftClicked(QPointF pos, float zoomLevel, bool extendSelection, bool singleLine);
-    // Stops drawing the current line (and finishes any moving object being drawn)
+    // Stops drawing the current line (and finishes any special object being drawn)
     void finishCurrentLine();
     // Whether a line or polygon is being drawn
     bool isDrawing() const;
@@ -154,7 +154,7 @@ public:
     void placeExit(QPointF pos);
     void addFuel(QPointF pos);
 
-    // Selection (in EDIT mode). Any number of lines, moving objects and fuel,
+    // Selection (in EDIT mode). Any number of lines, special objects and fuel,
     // the exit and the ship can be selected.
     bool hasSelection() const;
     bool hasSelectedLines() const;
@@ -182,7 +182,7 @@ public:
     // Rotates clockwise (on screen) by degrees about centre
     void rotateSelection(double degrees, QPointF centre);
     void endTransform();
-    void convertSelectionToMovingObject();
+    void convertSelectionToSpecialObject();
     // Changing the type of the selected lines (e.g. to make a polygon a
     // decoration). Whether any selected lines aren't decorations / walls
     // already (breakable lines aren't walls):
@@ -191,7 +191,7 @@ public:
     void convertSelectionToDecoration();
     void convertSelectionToWalls();
 
-    // Editing individual lines (walls, breakable lines and decorations, not moving
+    // Editing individual lines (walls, breakable lines and decorations, not special
     // objects'), at a position. A vertex is a point where lines meet (or a
     // line's free end).
     //
@@ -221,13 +221,13 @@ public:
     // nothing are removed.
     void beginVertexDrag(QPointF vertex);
     void moveVertex(QPointF pos);
-    // The selected moving object, if exactly one is selected
-    std::optional<MovingObject> selectedMovingObject() const;
-    // Sets the selected moving object's motion (not its lines) from the
+    // The selected special object, if exactly one is selected
+    std::optional<SpecialObject> selectedSpecialObject() const;
+    // Sets the selected special object's motion (not its lines) from the
     // supplied object
-    void setSelectedMovingObjectMotion(const MovingObject& motion);
+    void setSelectedSpecialObjectMotion(const SpecialObject& motion);
 
-    // Editing the selected moving object's path (if exactly one is selected)
+    // Editing the selected special object's path (if exactly one is selected)
     //
     // Moves the end of its path (the last point) so the object's centre goes
     // to pos, giving it a path if it doesn't have one (replacing any bouncing
@@ -261,27 +261,27 @@ private:
     void drawGridLines(QPainter& painter) const;
     void drawEdits(QPainter& painter) const;
     void drawObjects(QPainter& painter) const;
-    void drawMovingObjectBoundary(QPainter& painter, const MovingObject& m, size_t idx) const;
-    void drawMovingObjectPath(QPainter& painter, const MovingObject& m) const;
-    // The selected moving object, if exactly one is selected
-    MovingObject* singleSelectedMovingObject();
-    const MovingObject* singleSelectedMovingObject() const;
+    void drawSpecialObjectBoundary(QPainter& painter, const SpecialObject& m, size_t idx) const;
+    void drawSpecialObjectPath(QPainter& painter, const SpecialObject& m) const;
+    // The selected special object, if exactly one is selected
+    SpecialObject* singleSelectedSpecialObject();
+    const SpecialObject* singleSelectedSpecialObject() const;
     void drawCircle(QPainter& painter, float maxRadius, float centreX, float centreY) const;
     void drawRoundedRect(QPainter& painter, float x, float y, float w, float h, float r) const;
     // Returns the index (into m_Lines) of the first (of potentially several) lines that are *near*
     // the cursor or no value if no lines are nearby.
     std::optional<std::size_t> lineUnderCursor(QPointF pos, float zoomLevel) const;
-    std::optional<std::size_t> movingObjectUnderCursor(QPointF pos) const;
+    std::optional<std::size_t> specialObjectUnderCursor(QPointF pos) const;
     struct Item {
         enum class Type {
             SHIP,
             EXIT,
             FUEL,
             LINE,
-            MOVING_OBJECT
+            SPECIAL_OBJECT
         };
         Type type;
-        std::size_t index { 0 }; // for FUEL, LINE and MOVING_OBJECT
+        std::size_t index { 0 }; // for FUEL, LINE and SPECIAL_OBJECT
     };
     std::optional<Item> itemAt(QPointF pos, float zoomLevel) const;
     // Half the size of the box the (rotated) exit fits in
@@ -316,8 +316,8 @@ private:
         std::optional<StartPosition> startPosition;
         std::optional<ExitPosition> exitPosition;
         std::vector<FuelPosition> fuelObjects;
-        std::vector<MovingObject> movingObjects;
-        MovingObject currentMovingObject;
+        std::vector<SpecialObject> specialObjects;
+        SpecialObject currentSpecialObject;
     };
     enum class Change {
         Other,
@@ -330,7 +330,7 @@ private:
     void restoreContents(const Snapshot& snapshot);
     // Must be called before each change to the level's contents, so it can be undone
     void checkpoint(Change change = Change::Other);
-    void finishCurrentMovingObject();
+    void finishCurrentSpecialObject();
     void addConnectedLinesToHighlight(const Line& line);
     // Moves the selection, limiting the movement to keep it on the map
     void translateSelection(int x, int y);
@@ -342,7 +342,7 @@ private:
     std::vector<FuelPosition> m_fuelObjects;
     // For assigning a new breakable line's group (see Line::breakableGroup)
     unsigned m_nextBreakableGroup { 1 };
-    std::vector<MovingObject> m_movingObjects;
+    std::vector<SpecialObject> m_specialObjects;
 
     std::vector<Snapshot> m_undoStack;
     std::vector<Snapshot> m_redoStack;
@@ -355,7 +355,7 @@ private:
 
     // The selection
     std::set<std::size_t> m_highlightedLineIndices;
-    std::set<std::size_t> m_selectedMovingObjects;
+    std::set<std::size_t> m_selectedSpecialObjects;
     std::set<std::size_t> m_selectedFuel;
     bool m_exitSelected { false };
     bool m_shipSelected { false };
@@ -370,7 +370,7 @@ private:
 
     std::optional<std::tuple<unsigned, unsigned>> m_currentNearestSnapPoint { std::nullopt };
     Line m_currentInsertionLine { 0, 0, 0, 0, 255, 0, 0, 0, true };
-    MovingObject m_currentMovingObject;
+    SpecialObject m_currentSpecialObject;
     Mode m_currentMode { Mode::EDIT };
     SnapMode m_snapMode { SnapMode::AUTO };
     std::string m_fileName;

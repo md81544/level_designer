@@ -1,4 +1,4 @@
-# Amaze level file format (JSON), version 1
+# Amaze level file format (JSON), version 2
 
 Levels for amaze are designed with level_designer. This document defines the
 file format both programs use.
@@ -16,7 +16,7 @@ A level file is a UTF-8 JSON object. For example:
 
 ```json
 {
-  "formatVersion": 1,
+  "formatVersion": 2,
   "title": "Rookie Trainer",
   "ship": { "x": 706, "y": 904, "rotation": 0 },
   "exit": { "x": 1200, "y": 300 },
@@ -34,7 +34,7 @@ A level file is a UTF-8 JSON object. For example:
   "decorations": [
     { "points": [[700, 1300], [1400, 1300]] }
   ],
-  "movingObjects": [
+  "specialObjects": [
     {
       "lines": [
         { "points": [[900, 400], [1000, 400], [1000, 450], [900, 450]], "closed": true }
@@ -68,7 +68,7 @@ A level file is a UTF-8 JSON object. For example:
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
-| `formatVersion` | integer | (required) | Always 1 for this version; see [Versions](#versions) |
+| `formatVersion` | integer | (required) | Always 2 for this version; see [Versions](#versions) |
 | `title` | string | `""` | The level's title, shown before it starts |
 | `ship` | [Ship](#ship) | at (0, 0), rotation 0 | The ship's starting position |
 | `exit` | [Exit](#exit) | none | The exit. A level has at most one. |
@@ -76,7 +76,7 @@ A level file is a UTF-8 JSON object. For example:
 | `walls` | array of [Polyline](#polyline) | `[]` | Obstructions |
 | `breakables` | array of [Breakable](#breakable) | `[]` | Walls which the ship's exhaust breaks |
 | `decorations` | array of [Polyline](#polyline) | `[]` | Lines which are only drawn: the ship passes over them. (Older programs, which don't know about them, ignore them.) |
-| `movingObjects` | array of [Moving object](#moving-object) | `[]` | Obstructions which move |
+| `specialObjects` | array of [Special object](#special-object) | `[]` | Obstructions which can move, spin and/or pull the ship with gravity |
 
 ## Ship
 
@@ -120,10 +120,11 @@ it can be made of several separate pieces which break together (e.g.
 |---|---|---|---|
 | `lines` | array of [Polyline](#polyline) | (required) | At least one polyline |
 
-## Moving object
+## Special object
 
-An obstruction which moves and/or spins. Its lines are given at their
-starting position, in arena coordinates. It moves in one of two ways:
+An obstruction which can move, spin and/or pull the ship with gravity (so it
+may be stationary). Its lines are given at their starting position, in arena
+coordinates. It can move in one of two ways:
 
 - Bouncing within a box: `speedX`, `rangeX`, `speedY` and `rangeY`. Each axis
   moves back and forth independently, so unless the two take the same time to
@@ -148,7 +149,7 @@ An object can't have both a `path` and any of `speedX`, `rangeX`, `speedY` or
 
 ## Path
 
-A moving object starts at the position it's drawn in, and moves (without
+A special object starts at the position it's drawn in, and moves (without
 turning) through each of the `offsets` in turn. At the last one, it comes back
 the same way, and so on; or if `loop` is true, it goes straight from the last
 one back to the start, and round again. Each offset is how far the object has
@@ -172,7 +173,7 @@ because level_designer draws items the same way.
 | Walls | 255, 0, 0 | 2 |
 | Breakables | 255, 150, 50 | 6 |
 | Decorations | 0, 90, 0 (slightly lighter than amaze's background grid, which is 0, 32, 0); level_designer, whose grid is brighter (0, 100, 0), draws them in 0, 170, 0 | 2 |
-| Moving objects | 255, 172, 163 | 6 |
+| Special objects | 255, 172, 163 | 6 |
 | Exit (text "EXIT") | 52, 213, 235 | 6 |
 | Fuel (text "\*") | 255, 255, 0 | 12 |
 
@@ -183,6 +184,11 @@ correctly, e.g. a field changing meaning. Adding a new optional field doesn't
 change it, because older programs will simply ignore the field. A reader given
 a file with a higher `formatVersion` than it supports should refuse to load
 it, with a message saying so.
+
+| Version | Change |
+|---|---|
+| 1 | The first JSON version. Special objects were called `movingObjects`. |
+| 2 | `movingObjects` renamed `specialObjects`, as they needn't move. Readers still accept version 1 files, reading `movingObjects` from them. |
 
 ## Writing files
 

@@ -67,7 +67,7 @@ constexpr double GRID_SPACING = 50.0;
 constexpr double DEFAULT_PATH_SPEED = 0.5;
 // Brighter than in amaze (see LEVEL_FORMAT.md), to show up against our brighter grid
 const QColor DECORATION_COLOUR { 0, 170, 0 };
-const QColor MOVING_OBJECT_GHOST_COLOUR { 255, 172, 163, 80 };
+const QColor SPECIAL_OBJECT_GHOST_COLOUR { 255, 172, 163, 80 };
 
 // Offsets are kept to whole units, like positions
 QPointF roundedOffset(QPointF offset)
@@ -96,7 +96,7 @@ double distance(QPointF a, QPointF b)
 
 } // namespace
 
-QPointF movingObjectCentre(const MovingObject& m)
+QPointF specialObjectCentre(const SpecialObject& m)
 {
     if (m.lines.empty()) {
         return {};
@@ -166,8 +166,8 @@ void Level::load(const std::string& filename)
         line.decoration = true;
         addLines(polyline, line, m_lines);
     }
-    for (const auto& m : data.movingObjects) {
-        MovingObject obj;
+    for (const auto& m : data.specialObjects) {
+        SpecialObject obj;
         obj.xDelta = m.speedX;
         obj.xMaxDifference = m.rangeX;
         obj.yDelta = m.speedY;
@@ -185,7 +185,7 @@ void Level::load(const std::string& filename)
         for (const auto& polyline : m.lines) {
             addLines(polyline, { 0, 0, 0, 0, 255, 172, 163 }, obj.lines);
         }
-        m_movingObjects.push_back(std::move(obj));
+        m_specialObjects.push_back(std::move(obj));
     }
 }
 
@@ -237,7 +237,7 @@ void Level::save(const std::string& filename)
         data.breakables.push_back({ levelformat::toPolylines(segments) });
     }
     data.decorations = levelformat::toPolylines(decorations);
-    auto addMovingObject = [&](const MovingObject& m) {
+    auto addSpecialObject = [&](const SpecialObject& m) {
         std::vector<levelformat::Segment> segments;
         for (const auto& l : m.lines) {
             segments.push_back(segment(l));
@@ -249,7 +249,7 @@ void Level::save(const std::string& filename)
                 path->offsets.push_back({ offset.x(), offset.y() });
             }
         }
-        data.movingObjects.push_back({ levelformat::toPolylines(segments),
+        data.specialObjects.push_back({ levelformat::toPolylines(segments),
                                        m.xDelta,
                                        m.xMaxDifference,
                                        m.yDelta,
@@ -259,12 +259,12 @@ void Level::save(const std::string& filename)
                                        m.name,
                                        path });
     };
-    for (const auto& m : m_movingObjects) {
-        addMovingObject(m);
+    for (const auto& m : m_specialObjects) {
+        addSpecialObject(m);
     }
-    // Is there a moving object in progress?
-    if (!m_currentMovingObject.lines.empty()) {
-        addMovingObject(m_currentMovingObject);
+    // Is there a special object in progress?
+    if (!m_currentSpecialObject.lines.empty()) {
+        addSpecialObject(m_currentSpecialObject);
     }
     levelformat::write(filename, data);
     m_fileName = filename;
@@ -344,11 +344,11 @@ void Level::drawEdits(QPainter& painter) const
         drawLine(painter, m_currentInsertionLine);
     }
     idx = 0;
-    for (const auto& m : m_movingObjects) {
-        drawMovingObjectBoundary(painter, m, idx);
+    for (const auto& m : m_specialObjects) {
+        drawSpecialObjectBoundary(painter, m, idx);
         ++idx;
     }
-    for (const auto& l : m_currentMovingObject.lines) {
+    for (const auto& l : m_currentSpecialObject.lines) {
         drawLine(painter, l);
     }
     for (const auto& l : m_currentPolygon.lines) {
@@ -356,10 +356,10 @@ void Level::drawEdits(QPainter& painter) const
     }
 }
 
-void Level::drawMovingObjectBoundary(QPainter& painter, const MovingObject& m, size_t idx) const
+void Level::drawSpecialObjectBoundary(QPainter& painter, const SpecialObject& m, size_t idx) const
 {
     for (auto l : m.lines) {
-        if (m_selectedMovingObjects.contains(idx)) {
+        if (m_selectedSpecialObjects.contains(idx)) {
             l.r = 255;
             l.g = 255;
             l.b = 255;
@@ -370,7 +370,7 @@ void Level::drawMovingObjectBoundary(QPainter& painter, const MovingObject& m, s
         return;
     }
     // The furthest any vertex is from the centre, which it can reach when spinning
-    const QPointF centre = movingObjectCentre(m);
+    const QPointF centre = specialObjectCentre(m);
     double maxRadius = 0;
     for (const auto& l : m.lines) {
         maxRadius = std::max(
@@ -380,7 +380,7 @@ void Level::drawMovingObjectBoundary(QPainter& painter, const MovingObject& m, s
     }
 
     if (!m.pathOffsets.empty()) {
-        drawMovingObjectPath(painter, m);
+        drawSpecialObjectPath(painter, m);
         if (m.rotationDelta != 0) {
             // Where it can reach while spinning, at each point of the path
             drawCircle(painter, maxRadius, centre.x(), centre.y());
@@ -417,17 +417,17 @@ void Level::drawMovingObjectBoundary(QPainter& painter, const MovingObject& m, s
     }
 }
 
-void Level::drawMovingObjectPath(QPainter& painter, const MovingObject& m) const
+void Level::drawSpecialObjectPath(QPainter& painter, const SpecialObject& m) const
 {
     // The object's outline at each point of the path
-    painter.setPen(hairline(MOVING_OBJECT_GHOST_COLOUR));
+    painter.setPen(hairline(SPECIAL_OBJECT_GHOST_COLOUR));
     for (const QPointF& offset : m.pathOffsets) {
         for (const auto& l : m.lines) {
             painter.drawLine(QPointF(l.x0, l.y0) + offset, QPointF(l.x1, l.y1) + offset);
         }
     }
     // The route its centre takes
-    const QPointF centre = movingObjectCentre(m);
+    const QPointF centre = specialObjectCentre(m);
     QPolygonF route { centre };
     for (const QPointF& offset : m.pathOffsets) {
         route << centre + offset;
@@ -587,13 +587,13 @@ std::optional<std::size_t> Level::lineUnderCursor(QPointF w, float zoomLevel) co
     return std::nullopt;
 }
 
-std::optional<std::size_t> Level::movingObjectUnderCursor(QPointF w) const
+std::optional<std::size_t> Level::specialObjectUnderCursor(QPointF w) const
 {
-    // Note, this returns the index of the entire moving object, not the individual line
+    // Note, this returns the index of the entire special object, not the individual line
     const long x = w.x();
     const long y = w.y();
     std::size_t idx = 0;
-    for (const auto& m : m_movingObjects) {
+    for (const auto& m : m_specialObjects) {
         for (const auto& l : m.lines) {
             if (!l.inactive) {
                 if (utils::doLinesIntersect(x - 10, y, x, y - 10, l.x0, l.y0, l.x1, l.y1)) {
@@ -649,15 +649,15 @@ void Level::highlightNearestLinePoint(QPointF w, std::optional<std::pair<unsigne
             return;
         }
     }
-    for (const auto& m : m_movingObjects) {
+    for (const auto& m : m_specialObjects) {
         for (const auto& l : m.lines) {
             if (check(l)) {
                 return;
             }
         }
     }
-    // Also check moving object in progress
-    for (const auto& l : m_currentMovingObject.lines) {
+    // Also check special object in progress
+    for (const auto& l : m_currentSpecialObject.lines) {
         if (check(l)) {
             return;
         }
@@ -684,7 +684,7 @@ void Level::updateSnapPoint(QPointF w, std::optional<std::pair<unsigned, unsigne
 void Level::mouseMoved(QPointF w)
 {
     if (m_currentMode == Mode::LINE || m_currentMode == Mode::BREAKABLE
-        || m_currentMode == Mode::DECORATION || m_currentMode == Mode::MOVING) {
+        || m_currentMode == Mode::DECORATION || m_currentMode == Mode::SPECIAL) {
         updateSnapPoint(w);
         if (m_currentInsertionLine.inactive == false) {
             if (m_currentNearestSnapPoint.has_value()) {
@@ -715,7 +715,7 @@ void Level::leftClicked(QPointF w, float zoomLevel, bool extendSelection, bool s
         case Mode::LINE:
         case Mode::BREAKABLE:
         case Mode::DECORATION:
-        case Mode::MOVING:
+        case Mode::SPECIAL:
             {
                 // Insert a new line
                 {
@@ -730,12 +730,12 @@ void Level::leftClicked(QPointF w, float zoomLevel, bool extendSelection, bool s
                             // Each breakable line drawn breaks separately
                             m_currentInsertionLine.breakableGroup
                                 = m_currentMode == Mode::BREAKABLE ? m_nextBreakableGroup++ : 0;
-                            if (m_currentMode == Mode::MOVING) {
+                            if (m_currentMode == Mode::SPECIAL) {
                                 Line l = m_currentInsertionLine;
                                 l.r = 255;
                                 l.g = 172;
                                 l.b = 163;
-                                m_currentMovingObject.lines.push_back(l);
+                                m_currentSpecialObject.lines.push_back(l);
                             } else {
                                 m_lines.push_back(m_currentInsertionLine);
                             }
@@ -837,7 +837,7 @@ void Level::leftClicked(QPointF w, float zoomLevel, bool extendSelection, bool s
 void Level::finishCurrentLine()
 {
     m_currentInsertionLine.inactive = true;
-    finishCurrentMovingObject();
+    finishCurrentSpecialObject();
 }
 
 void Level::placeShip(QPointF w)
@@ -875,7 +875,7 @@ void Level::addFuel(QPointF w)
 bool Level::isDrawing() const
 {
     return !m_currentInsertionLine.inactive || m_currentMode == Mode::POLYGON_RADIUS
-        || !m_currentMovingObject.lines.empty();
+        || !m_currentSpecialObject.lines.empty();
 }
 
 // ---------------------------------------------------------------------------
@@ -904,8 +904,8 @@ std::optional<Level::Item> Level::itemAt(QPointF w, float zoomLevel) const
     if (auto line = lineUnderCursor(w, zoomLevel)) {
         return Item { Item::Type::LINE, *line };
     }
-    if (auto movingObject = movingObjectUnderCursor(w)) {
-        return Item { Item::Type::MOVING_OBJECT, *movingObject };
+    if (auto specialObject = specialObjectUnderCursor(w)) {
+        return Item { Item::Type::SPECIAL_OBJECT, *specialObject };
     }
     return std::nullopt;
 }
@@ -930,8 +930,8 @@ bool Level::isSelected(const Item& item) const
             return m_selectedFuel.contains(item.index);
         case Item::Type::LINE:
             return m_highlightedLineIndices.contains(item.index);
-        case Item::Type::MOVING_OBJECT:
-            return m_selectedMovingObjects.contains(item.index);
+        case Item::Type::SPECIAL_OBJECT:
+            return m_selectedSpecialObjects.contains(item.index);
     }
     return false;
 }
@@ -954,8 +954,8 @@ void Level::select(const Item& item, bool includeConnectedLines)
                 addConnectedLinesToHighlight(m_lines[item.index]);
             }
             break;
-        case Item::Type::MOVING_OBJECT:
-            m_selectedMovingObjects.insert(item.index);
+        case Item::Type::SPECIAL_OBJECT:
+            m_selectedSpecialObjects.insert(item.index);
             break;
     }
 }
@@ -976,8 +976,8 @@ void Level::deselect(const Item& item)
             // TODO remove connected lines too?
             m_highlightedLineIndices.erase(item.index);
             break;
-        case Item::Type::MOVING_OBJECT:
-            m_selectedMovingObjects.erase(item.index);
+        case Item::Type::SPECIAL_OBJECT:
+            m_selectedSpecialObjects.erase(item.index);
             break;
     }
 }
@@ -1016,9 +1016,9 @@ void Level::selectInRect(const QRectF& rect, bool extendSelection)
             m_highlightedLineIndices.insert(i);
         }
     }
-    for (std::size_t i = 0; i < m_movingObjects.size(); ++i) {
-        if (std::ranges::all_of(m_movingObjects[i].lines, lineInside)) {
-            m_selectedMovingObjects.insert(i);
+    for (std::size_t i = 0; i < m_specialObjects.size(); ++i) {
+        if (std::ranges::all_of(m_specialObjects[i].lines, lineInside)) {
+            m_selectedSpecialObjects.insert(i);
         }
     }
     for (std::size_t i = 0; i < m_fuelObjects.size(); ++i) {
@@ -1045,7 +1045,7 @@ void Level::selectAll()
 void Level::clearSelection()
 {
     m_highlightedLineIndices.clear();
-    m_selectedMovingObjects.clear();
+    m_selectedSpecialObjects.clear();
     m_selectedFuel.clear();
     m_exitSelected = false;
     m_shipSelected = false;
@@ -1053,7 +1053,7 @@ void Level::clearSelection()
 
 bool Level::hasSelection() const
 {
-    return hasSelectedLines() || !m_selectedMovingObjects.empty() || !m_selectedFuel.empty()
+    return hasSelectedLines() || !m_selectedSpecialObjects.empty() || !m_selectedFuel.empty()
         || m_exitSelected || m_shipSelected;
 }
 
@@ -1087,8 +1087,8 @@ std::optional<QRectF> Level::selectionBounds() const
     for (std::size_t i : m_highlightedLineIndices) {
         addLine(m_lines[i]);
     }
-    for (std::size_t i : m_selectedMovingObjects) {
-        std::ranges::for_each(m_movingObjects[i].lines, addLine);
+    for (std::size_t i : m_selectedSpecialObjects) {
+        std::ranges::for_each(m_specialObjects[i].lines, addLine);
     }
     for (std::size_t i : m_selectedFuel) {
         add(m_fuelObjects[i].x, m_fuelObjects[i].y, FUEL_RADIUS, FUEL_RADIUS);
@@ -1111,8 +1111,8 @@ template <typename Fn> void Level::forEachSelectedPoint(Fn fn)
         fn(m_lines[i].x0, m_lines[i].y0);
         fn(m_lines[i].x1, m_lines[i].y1);
     }
-    for (std::size_t i : m_selectedMovingObjects) {
-        for (auto& l : m_movingObjects[i].lines) {
+    for (std::size_t i : m_selectedSpecialObjects) {
+        for (auto& l : m_specialObjects[i].lines) {
             fn(l.x0, l.y0);
             fn(l.x1, l.y1);
         }
@@ -1138,8 +1138,8 @@ void Level::deleteSelection()
         m_lines[i].inactive = true;
     }
     // Erase from the end, so the indices of those still to erase stay valid
-    for (auto i = m_selectedMovingObjects.rbegin(); i != m_selectedMovingObjects.rend(); ++i) {
-        m_movingObjects.erase(m_movingObjects.begin() + *i);
+    for (auto i = m_selectedSpecialObjects.rbegin(); i != m_selectedSpecialObjects.rend(); ++i) {
+        m_specialObjects.erase(m_specialObjects.begin() + *i);
     }
     for (auto i = m_selectedFuel.rbegin(); i != m_selectedFuel.rend(); ++i) {
         m_fuelObjects.erase(m_fuelObjects.begin() + *i);
@@ -1263,8 +1263,8 @@ bool Level::applyRotation(double degrees, QPointF centre)
         turn(m_exitPosition->r);
     }
     // Paths turn with their objects
-    for (std::size_t i : m_selectedMovingObjects) {
-        for (QPointF& offset : m_movingObjects[i].pathOffsets) {
+    for (std::size_t i : m_selectedSpecialObjects) {
+        for (QPointF& offset : m_specialObjects[i].pathOffsets) {
             offset = QPointF(
                 std::round(offset.x() * cosine - offset.y() * sine),
                 std::round(offset.x() * sine + offset.y() * cosine));
@@ -1305,13 +1305,13 @@ void Level::endTransform()
     m_transformOrigin = std::nullopt;
 }
 
-void Level::convertSelectionToMovingObject()
+void Level::convertSelectionToSpecialObject()
 {
     if (m_highlightedLineIndices.empty()) {
         return;
     }
     checkpoint();
-    MovingObject m;
+    SpecialObject m;
     for (std::size_t i : m_highlightedLineIndices) {
         m_lines[i].r = 255;
         m_lines[i].g = 172;
@@ -1321,9 +1321,9 @@ void Level::convertSelectionToMovingObject()
         m.lines.push_back(m_lines[i]);
         m_lines[i].inactive = true;
     }
-    m_movingObjects.push_back(m);
+    m_specialObjects.push_back(m);
     m_highlightedLineIndices.clear();
-    m_selectedMovingObjects.insert(m_movingObjects.size() - 1);
+    m_selectedSpecialObjects.insert(m_specialObjects.size() - 1);
 }
 
 bool Level::canConvertSelectionToDecoration() const
@@ -1375,21 +1375,21 @@ void Level::convertSelectionToWalls()
     }
 }
 
-std::optional<MovingObject> Level::selectedMovingObject() const
+std::optional<SpecialObject> Level::selectedSpecialObject() const
 {
-    if (m_selectedMovingObjects.size() != 1) {
+    if (m_selectedSpecialObjects.size() != 1) {
         return std::nullopt;
     }
-    return m_movingObjects[*m_selectedMovingObjects.begin()];
+    return m_specialObjects[*m_selectedSpecialObjects.begin()];
 }
 
-void Level::setSelectedMovingObjectMotion(const MovingObject& motion)
+void Level::setSelectedSpecialObjectMotion(const SpecialObject& motion)
 {
-    if (m_selectedMovingObjects.size() != 1) {
+    if (m_selectedSpecialObjects.size() != 1) {
         return;
     }
     checkpoint();
-    auto& obj = m_movingObjects[*m_selectedMovingObjects.begin()];
+    auto& obj = m_specialObjects[*m_selectedSpecialObjects.begin()];
     obj.xDelta = motion.xDelta;
     obj.xMaxDifference = motion.xMaxDifference;
     obj.yDelta = motion.yDelta;
@@ -1405,30 +1405,30 @@ void Level::setSelectedMovingObjectMotion(const MovingObject& motion)
     }
 }
 
-MovingObject* Level::singleSelectedMovingObject()
+SpecialObject* Level::singleSelectedSpecialObject()
 {
-    if (m_selectedMovingObjects.size() != 1) {
+    if (m_selectedSpecialObjects.size() != 1) {
         return nullptr;
     }
-    return &m_movingObjects[*m_selectedMovingObjects.begin()];
+    return &m_specialObjects[*m_selectedSpecialObjects.begin()];
 }
 
-const MovingObject* Level::singleSelectedMovingObject() const
+const SpecialObject* Level::singleSelectedSpecialObject() const
 {
-    if (m_selectedMovingObjects.size() != 1) {
+    if (m_selectedSpecialObjects.size() != 1) {
         return nullptr;
     }
-    return &m_movingObjects[*m_selectedMovingObjects.begin()];
+    return &m_specialObjects[*m_selectedSpecialObjects.begin()];
 }
 
 void Level::setPathEndAt(QPointF pos)
 {
-    MovingObject* m = singleSelectedMovingObject();
+    SpecialObject* m = singleSelectedSpecialObject();
     if (m == nullptr) {
         return;
     }
     checkpoint();
-    const QPointF offset = roundedOffset(pos - movingObjectCentre(*m));
+    const QPointF offset = roundedOffset(pos - specialObjectCentre(*m));
     if (m->pathOffsets.empty()) {
         m->pathOffsets.push_back(offset);
         if (m->pathSpeed == 0) {
@@ -1442,12 +1442,12 @@ void Level::setPathEndAt(QPointF pos)
 
 void Level::addPathPointAt(QPointF pos)
 {
-    MovingObject* m = singleSelectedMovingObject();
+    SpecialObject* m = singleSelectedSpecialObject();
     if (m == nullptr || m->pathOffsets.empty()) {
         return;
     }
     checkpoint();
-    m->pathOffsets.push_back(roundedOffset(pos - movingObjectCentre(*m)));
+    m->pathOffsets.push_back(roundedOffset(pos - specialObjectCentre(*m)));
 }
 
 std::optional<std::size_t> Level::pathPointAt(QPointF pos, float zoomLevel) const
@@ -1467,7 +1467,7 @@ std::optional<std::size_t> Level::pathPointAt(QPointF pos, float zoomLevel) cons
 
 void Level::removePathPoint(std::size_t index)
 {
-    MovingObject* m = singleSelectedMovingObject();
+    SpecialObject* m = singleSelectedSpecialObject();
     if (m == nullptr || index >= m->pathOffsets.size()) {
         return;
     }
@@ -1477,11 +1477,11 @@ void Level::removePathPoint(std::size_t index)
 
 std::vector<QPointF> Level::selectedPathPoints() const
 {
-    const MovingObject* m = singleSelectedMovingObject();
+    const SpecialObject* m = singleSelectedSpecialObject();
     if (m == nullptr) {
         return {};
     }
-    const QPointF centre = movingObjectCentre(*m);
+    const QPointF centre = specialObjectCentre(*m);
     std::vector<QPointF> points;
     for (const QPointF& offset : m->pathOffsets) {
         points.push_back(centre + offset);
@@ -1501,11 +1501,11 @@ void Level::movePathPoint(QPointF pos)
         return;
     }
     restoreContents(*m_transformOrigin);
-    MovingObject* m = singleSelectedMovingObject();
+    SpecialObject* m = singleSelectedSpecialObject();
     if (m == nullptr || *m_draggedPathPoint >= m->pathOffsets.size()) {
         return;
     }
-    QPointF offset = pos - movingObjectCentre(*m);
+    QPointF offset = pos - specialObjectCentre(*m);
     if (m_snapMode == SnapMode::AUTO || m_snapMode == SnapMode::GRID) {
         // Snap to whole grid squares, so the object lines up with the grid
         // as it did where it's drawn
@@ -1775,17 +1775,17 @@ void Level::moveVertex(QPointF pos)
 Level::Snapshot Level::snapshot() const
 {
     return { m_stateId,         m_levelDescription, m_lines,         m_startPosition,
-             m_exitPosition,    m_fuelObjects,      m_movingObjects, m_currentMovingObject };
+             m_exitPosition,    m_fuelObjects,      m_specialObjects, m_currentSpecialObject };
 }
 
 void Level::restore(const Snapshot& snapshot)
 {
     m_stateId = snapshot.stateId;
     restoreContents(snapshot);
-    // A moving object can only be in progress in MOVING mode
-    if (m_currentMode != Mode::MOVING && !m_currentMovingObject.lines.empty()) {
-        m_movingObjects.push_back(m_currentMovingObject);
-        m_currentMovingObject = {};
+    // A special object can only be in progress in SPECIAL mode
+    if (m_currentMode != Mode::SPECIAL && !m_currentSpecialObject.lines.empty()) {
+        m_specialObjects.push_back(m_currentSpecialObject);
+        m_currentSpecialObject = {};
     }
     // The selection and anything in progress may refer to things which no
     // longer exist
@@ -1804,8 +1804,8 @@ void Level::restoreContents(const Snapshot& snapshot)
     m_startPosition = snapshot.startPosition;
     m_exitPosition = snapshot.exitPosition;
     m_fuelObjects = snapshot.fuelObjects;
-    m_movingObjects = snapshot.movingObjects;
-    m_currentMovingObject = snapshot.currentMovingObject;
+    m_specialObjects = snapshot.specialObjects;
+    m_currentSpecialObject = snapshot.currentSpecialObject;
 }
 
 void Level::checkpoint(Change change)
@@ -1856,21 +1856,21 @@ void Level::redo()
 // Modes
 // ---------------------------------------------------------------------------
 
-void Level::finishCurrentMovingObject()
+void Level::finishCurrentSpecialObject()
 {
-    if (m_currentMode == Mode::MOVING) {
-        // Write any existing  moving object and start a new one
-        if (!m_currentMovingObject.lines.empty()) {
-            m_movingObjects.push_back(m_currentMovingObject);
+    if (m_currentMode == Mode::SPECIAL) {
+        // Write any existing  special object and start a new one
+        if (!m_currentSpecialObject.lines.empty()) {
+            m_specialObjects.push_back(m_currentSpecialObject);
         }
-        m_currentMovingObject = {};
+        m_currentSpecialObject = {};
     }
 }
 
 void Level::changeMode(Mode mode)
 {
-    if (mode != Mode::MOVING) {
-        finishCurrentMovingObject();
+    if (mode != Mode::SPECIAL) {
+        finishCurrentSpecialObject();
     }
     if (mode != Mode::POLYGON_RADIUS) {
         m_currentPolygon.centreX = std::nullopt;
@@ -1895,7 +1895,7 @@ void Level::changeMode(Mode mode)
         m_currentInsertionLine.r = DECORATION_COLOUR.red();
         m_currentInsertionLine.g = DECORATION_COLOUR.green();
         m_currentInsertionLine.b = DECORATION_COLOUR.blue();
-    } else if (m_currentMode == Mode::MOVING) {
+    } else if (m_currentMode == Mode::SPECIAL) {
         m_currentInsertionLine.r = 255;
         m_currentInsertionLine.g = 172;
         m_currentInsertionLine.b = 163;

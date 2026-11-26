@@ -310,11 +310,13 @@ LevelData parseJson(const std::string& contents)
         level.breakables.push_back(std::move(breakable));
     }
     level.decorations = readPolylines(root, "decorations", "");
-    const QJsonArray movingObjects = getArray(root, "movingObjects", "");
-    for (qsizetype i = 0; i < movingObjects.size(); ++i) {
-        const std::string context = std::format("movingObjects[{}]", i);
-        const QJsonObject obj = getObject(movingObjects[i], context);
-        MovingObject m;
+    // Version 1 called them "movingObjects"
+    const char* const specialKey = version < 2 ? "movingObjects" : "specialObjects";
+    const QJsonArray specialObjects = getArray(root, specialKey, "");
+    for (qsizetype i = 0; i < specialObjects.size(); ++i) {
+        const std::string context = std::format("{}[{}]", specialKey, i);
+        const QJsonObject obj = getObject(specialObjects[i], context);
+        SpecialObject m;
         m.lines = readPolylines(obj, "lines", context + ".");
         if (m.lines.empty()) {
             fail(context, "missing \"lines\"");
@@ -359,7 +361,7 @@ LevelData parseJson(const std::string& contents)
             }
             m.path = std::move(path);
         }
-        level.movingObjects.push_back(std::move(m));
+        level.specialObjects.push_back(std::move(m));
     }
     return level;
 }
@@ -423,10 +425,10 @@ std::string toJson(const LevelData& level)
     }
     writeList(out, "  ", "decorations", items, first);
 
-    if (!level.movingObjects.empty()) {
-        out << ",\n  \"movingObjects\": [\n";
-        for (std::size_t i = 0; i < level.movingObjects.size(); ++i) {
-            const MovingObject& m = level.movingObjects[i];
+    if (!level.specialObjects.empty()) {
+        out << ",\n  \"specialObjects\": [\n";
+        for (std::size_t i = 0; i < level.specialObjects.size(); ++i) {
+            const SpecialObject& m = level.specialObjects[i];
             out << "    {\n";
             bool firstField = true;
             std::vector<std::string> lines;
@@ -463,7 +465,7 @@ std::string toJson(const LevelData& level)
             if (m.name.has_value()) {
                 out << ",\n      \"name\": " << quoted(*m.name);
             }
-            out << "\n    }" << (i + 1 < level.movingObjects.size() ? ",\n" : "\n");
+            out << "\n    }" << (i + 1 < level.specialObjects.size() ? ",\n" : "\n");
         }
         out << "  ]";
     }

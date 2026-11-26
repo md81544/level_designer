@@ -52,14 +52,14 @@ private:
     void setMode(Mode mode);
     void choosePolygon();
     void editTitle();
-    // Opens the moving object properties dialog, with the given field focused
-    enum class MovingField {
+    // Opens the special object properties dialog, with the given field focused
+    enum class SpecialField {
         Motion,
         YSpeed,
         Spin,
         Gravity
     };
-    void editMovingObject(MovingField focusField);
+    void editSpecialObject(SpecialField focusField);
     void showHelp();
 
     Level m_level;
@@ -75,10 +75,10 @@ private:
     QAction* m_undoAction { nullptr };
     QAction* m_redoAction { nullptr };
     QAction* m_deleteAction { nullptr };
-    QAction* m_makeMovingAction { nullptr };
+    QAction* m_makeSpecialAction { nullptr };
     QAction* m_makeDecorationAction { nullptr };
     QAction* m_makeWallsAction { nullptr };
-    QAction* m_movingPropertiesAction { nullptr };
+    QAction* m_specialPropertiesAction { nullptr };
 };
 
 } // namespace mgo

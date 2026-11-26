@@ -569,18 +569,18 @@ void LevelWidget::showContextMenu(QPointF pos)
         menu.addAction(
             "Select Connected Lines", [&] { m_level.selectLineAt(mapPos, m_zoom, true); });
     }
-    // The selected moving object's path
-    if (const auto moving = m_level.selectedMovingObject()) {
+    // The selected special object's path
+    if (const auto special = m_level.selectedSpecialObject()) {
         menu.addSeparator();
         if (pathPoint.has_value()) {
             menu.addAction("Remove Path Point", [&] { m_level.removePathPoint(*pathPoint); });
         } else {
             menu.addAction(
-                moving->pathOffsets.empty() ? "Move Here and Back" : "Move Path End Here",
+                special->pathOffsets.empty() ? "Move Here and Back" : "Move Path End Here",
                 [&] { m_level.setPathEndAt(mapPos); });
             QAction* add
                 = menu.addAction("Add Path Point Here", [&] { m_level.addPathPointAt(mapPos); });
-            add->setEnabled(!moving->pathOffsets.empty());
+            add->setEnabled(!special->pathOffsets.empty());
         }
     }
     // Placing items where clicked
