@@ -62,7 +62,7 @@ QString modeName(Mode mode)
         case Mode::FUEL:
             return "Fuel";
         case Mode::MOVING:
-            return "Moving Object";
+            return "Special Object";
         case Mode::POLYGON_CENTRE:
         case Mode::POLYGON_RADIUS:
             return "Polygon";
@@ -217,7 +217,7 @@ void MainWindow::createMenus()
     addMode(insertMenu, "&Line", QKeySequence(Qt::SHIFT | Qt::Key_L), Mode::LINE);
     addMode(insertMenu, "&Breakable Line", QKeySequence(Qt::SHIFT | Qt::Key_B), Mode::BREAKABLE);
     addMode(insertMenu, "&Decoration", QKeySequence(Qt::SHIFT | Qt::Key_D), Mode::DECORATION);
-    addMode(insertMenu, "&Moving Object", QKeySequence(Qt::SHIFT | Qt::Key_V), Mode::MOVING);
+    addMode(insertMenu, "Special &Object", QKeySequence(Qt::SHIFT | Qt::Key_V), Mode::MOVING);
     // Polygon asks for the number of sides first, so isn't a plain mode change
     QAction* polygonAction = add(
         insertMenu,
@@ -236,7 +236,7 @@ void MainWindow::createMenus()
     QMenu* objectMenu = menuBar()->addMenu("&Object");
     m_makeMovingAction = add(
         objectMenu,
-        "&Make Moving Object from Selection",
+        "&Make Special Object from Selection",
         { QKeySequence(Qt::Key_V) },
         [this] { m_level.convertSelectionToMovingObject(); });
     m_makeDecorationAction = add(
@@ -252,7 +252,7 @@ void MainWindow::createMenus()
     objectMenu->addSeparator();
     m_movingPropertiesAction = add(
         objectMenu,
-        "Moving Object &Properties...",
+        "Special Object &Properties...",
         { QKeySequence(Qt::Key_X) },
         [this] { editMovingObject(MovingField::Motion); });
     // Old shortcuts for editing individual properties, which open the same
@@ -625,7 +625,7 @@ void MainWindow::editMovingObject(MovingField focusField)
     };
 
     QDialog dialog(this);
-    dialog.setWindowTitle("Moving Object Properties");
+    dialog.setWindowTitle("Special Object Properties");
     auto* form = new QFormLayout(&dialog);
     auto spinBox = [&](double value, double min, double max) {
         auto* box = new QDoubleSpinBox(&dialog);
@@ -791,10 +791,10 @@ void MainWindow::showHelp()
                 "<li>To reshape a closed shape, right-click a line and choose <b>Split Line "
                 "Here</b> to add a vertex, then drag it; <b>Join Lines Here</b> on a vertex "
                 "removes it</li>"
-                "<li>To make a moving object follow a path, select it, right-click where it "
+                "<li>To make a special object follow a path, select it, right-click where it "
                 "should go and choose <b>Move Here and Back</b>. Drag the diamond handle to "
                 "change where the path ends; right-click elsewhere to add points to it, or on a "
-                "diamond to remove it. <b>Moving Object Properties</b> sets its speed, and can "
+                "diamond to remove it. <b>Special Object Properties</b> sets its speed, and can "
                 "make it go round a loop.</li>"
                 "<li><b>Esc</b>: clear the selection</li>"
                 "</ul>"
