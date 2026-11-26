@@ -334,6 +334,7 @@ void MainWindow::updateUi()
     m_snapActions.at(m_level.snapMode())->setChecked(true);
 
     statusBar()->showMessage(modeHint(m_level.mode()));
+    m_canvas->refreshCursor();
     m_modeLabel->setText("Mode: " + modeName(m_level.mode()));
     m_snapLabel->setText("Snap: " + snapName(m_level.snapMode()));
     if (auto pos = m_canvas->cursorPosition()) {

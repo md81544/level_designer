@@ -40,6 +40,9 @@ public:
     // Actions added to the end of the context menu (e.g. operations on the selection)
     void setContextMenuActions(QList<QAction*> actions);
 
+    // Sets the cursor for the current mode and mouse position, e.g. after a mode change
+    void refreshCursor();
+
     void zoomIn();
     void zoomOut();
     // The mouse's position in workspace coordinates, if it's over the canvas

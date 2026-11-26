@@ -2,6 +2,7 @@
 #include "level.h"
 
 #include <QAction>
+#include <QCursor>
 #include <QKeyEvent>
 #include <QMenu>
 #include <QLineF>
@@ -354,7 +355,8 @@ bool LevelWidget::isOnRotationHandle(QPointF viewportPos) const
 
 void LevelWidget::updateCursor(QPointF viewportPos)
 {
-    Qt::CursorShape shape = Qt::ArrowCursor;
+    // Inserting uses a crosshair, to show where things will be placed
+    Qt::CursorShape shape = m_level.mode() == Mode::EDIT ? Qt::ArrowCursor : Qt::CrossCursor;
     if (m_drag == Drag::Move) {
         shape = Qt::ClosedHandCursor;
     } else if (
@@ -371,6 +373,11 @@ void LevelWidget::updateCursor(QPointF viewportPos)
         shape = Qt::OpenHandCursor;
     }
     viewport()->setCursor(shape);
+}
+
+void LevelWidget::refreshCursor()
+{
+    updateCursor(viewport()->mapFromGlobal(QCursor::pos()));
 }
 
 void LevelWidget::resizeEvent(QResizeEvent* event)
