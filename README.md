@@ -14,7 +14,7 @@ Open an existing level with **File > Open**, or pass its file name on the comman
 
 The editor works in "modes", chosen from the **Insert** menu (Line, Breakable Line, Moving Object, Polygon, Fuel, Start Position, Exit), plus **Edit > Select** for selecting existing items: click an item, or drag a box around several. The selection can be dragged (or nudged with the arrow keys) to move it, rotated by dragging the round handle above it (hold Shift for 15° steps), deleted, or (for lines) turned into a moving object via the **Object** menu. The status bar shows the current mode and a reminder of how to use it.
 
-When drawing lines, click to place each point and keep clicking to keep making lines. To stop, press Escape (or right click), then click somewhere else to start a new line. Snapping (to the grid, existing lines, both or neither) is set in **View > Snap To**.
+When drawing lines, click to place each point and keep clicking to keep making lines. To stop, right click, then click somewhere else to start a new line. Escape returns to Select mode from any other mode. Snapping (to the grid, existing lines, both or neither) is set in **View > Snap To**.
 
 The mouse wheel or trackpad scrolls (Shift + wheel scrolls sideways), Ctrl/Cmd + wheel or a trackpad pinch zooms, and Shift + mouse move also scrolls the view. Keyboard shortcuts are shown in the menus, and **Help > Mouse and Keyboard** summarises the rest.
 

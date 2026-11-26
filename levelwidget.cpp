@@ -632,7 +632,8 @@ void LevelWidget::keyPressEvent(QKeyEvent* event)
             if (m_level.mode() == Mode::EDIT) {
                 m_level.clearSelection();
             } else {
-                m_level.finishCurrentLine();
+                // Finishes anything being drawn, and goes back to selecting
+                m_level.changeMode(Mode::EDIT);
             }
             break;
         case Qt::Key_Left:

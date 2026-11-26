@@ -77,11 +77,11 @@ QString modeHint(Mode mode)
         case Mode::LINE:
         case Mode::BREAKABLE:
         case Mode::DECORATION:
-            return "Click to start a line, then click to add each point. Right-click or Esc to "
-                   "finish.";
+            return "Click to start a line, then click to add each point. Right-click to finish; "
+                   "Esc to return to Select.";
         case Mode::MOVING:
-            return "Click to start a line, then click to add each point. Right-click or Esc "
-                   "finishes the object.";
+            return "Click to start a line, then click to add each point. Right-click finishes "
+                   "the object; Esc returns to Select.";
         case Mode::EDIT:
             return QString("Click or drag a box to select (%1 adds to the selection). Drag the "
                            "selection to move it, its handle to rotate it (Shift: 15\u00b0 "
@@ -753,7 +753,8 @@ void MainWindow::showHelp()
                 "sideways)</li>"
                 "<li><b>%1 + wheel</b> or <b>pinch</b>: zoom</li>"
                 "<li><b>Shift + move mouse</b>: scroll the view</li>"
-                "<li><b>Right-click / Esc</b>: stop drawing the current line</li>"
+                "<li><b>Right-click</b>: stop drawing the current line</li>"
+                "<li><b>Esc</b>: return to <b>Select</b> (finishing anything being drawn)</li>"
                 "<li><b>Right-click</b> (when not drawing): menu of things to do with the line or "
                 "vertex clicked, and the selection</li>"
                 "</ul>"
