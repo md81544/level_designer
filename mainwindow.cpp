@@ -239,6 +239,17 @@ void MainWindow::createMenus()
         "&Make Moving Object from Selection",
         { QKeySequence(Qt::Key_V) },
         [this] { m_level.convertSelectionToMovingObject(); });
+    m_makeDecorationAction = add(
+        objectMenu,
+        "Make &Decoration from Selection",
+        {},
+        [this] { m_level.convertSelectionToDecoration(); });
+    m_makeWallsAction = add(
+        objectMenu,
+        "Make &Solid Lines from Selection",
+        {},
+        [this] { m_level.convertSelectionToWalls(); });
+    objectMenu->addSeparator();
     m_movingPropertiesAction = add(
         objectMenu,
         "Moving Object &Properties...",
@@ -279,6 +290,8 @@ void MainWindow::createMenus()
           m_modeActions.at(Mode::EXIT) });
     m_canvas->setContextMenuActions({ m_deleteAction,
                                       m_makeMovingAction,
+                                      m_makeDecorationAction,
+                                      m_makeWallsAction,
                                       m_movingPropertiesAction,
                                       separator(),
                                       selectAllAction,
@@ -349,6 +362,8 @@ void MainWindow::updateUi()
     m_redoAction->setEnabled(m_level.canRedo());
     m_deleteAction->setEnabled(m_level.hasSelection());
     m_makeMovingAction->setEnabled(m_level.hasSelectedLines());
+    m_makeDecorationAction->setEnabled(m_level.canConvertSelectionToDecoration());
+    m_makeWallsAction->setEnabled(m_level.canConvertSelectionToWalls());
     m_movingPropertiesAction->setEnabled(m_level.selectedMovingObject().has_value());
 }
 

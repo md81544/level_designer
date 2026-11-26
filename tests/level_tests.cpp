@@ -345,3 +345,48 @@ TEST_CASE("A moving object's path can be set where clicked, dragged, and turns w
     REQUIRE(level.selectedMovingObject().has_value());
     CHECK(level.selectedMovingObject()->pathOffsets.size() == 1);
 }
+
+TEST_CASE("Selected lines can be made decorations and back again")
+{
+    TempFile square("convert_square.lvl");
+    {
+        std::ofstream out(square.path());
+        out << R"({ "formatVersion": 1,
+                    "walls": [ { "points": [[200, 200], [300, 200], [300, 300], [200, 300]], "closed": true } ],
+                    "breakables": [ { "lines": [ { "points": [[500, 500], [600, 500]] } ] } ] })";
+    }
+    Level level;
+    level.load(square.path());
+    level.changeMode(Mode::EDIT);
+    level.selectOnlyItemAt({ 250, 200 }, 1, false); // the whole square
+    CHECK(level.canConvertSelectionToDecoration());
+    CHECK_FALSE(level.canConvertSelectionToWalls());
+
+    level.convertSelectionToDecoration();
+    CHECK_FALSE(level.canConvertSelectionToDecoration());
+    CHECK(level.canConvertSelectionToWalls());
+    TempFile file("converted.lvl");
+    level.save(file.path());
+    auto saved = levelformat::read(file.path());
+    CHECK(saved.walls.empty());
+    REQUIRE(saved.decorations.size() == 1);
+    CHECK(saved.decorations[0].closed);
+    CHECK(saved.decorations[0].points.size() == 4);
+    CHECK(saved.breakables.size() == 1);
+
+    // Back to walls, along with the breakable line
+    level.selectAll();
+    level.convertSelectionToWalls();
+    level.save(file.path());
+    saved = levelformat::read(file.path());
+    CHECK(saved.decorations.empty());
+    CHECK(saved.breakables.empty());
+    CHECK(saved.walls.size() == 2);
+
+    level.undo();
+    level.save(file.path());
+    saved = levelformat::read(file.path());
+    CHECK(saved.decorations.size() == 1);
+    CHECK(saved.breakables.size() == 1);
+    CHECK(saved.walls.empty());
+}

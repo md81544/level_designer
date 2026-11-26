@@ -183,6 +183,13 @@ public:
     void rotateSelection(double degrees, QPointF centre);
     void endTransform();
     void convertSelectionToMovingObject();
+    // Changing the type of the selected lines (e.g. to make a polygon a
+    // decoration). Whether any selected lines aren't decorations / walls
+    // already (breakable lines aren't walls):
+    bool canConvertSelectionToDecoration() const;
+    bool canConvertSelectionToWalls() const;
+    void convertSelectionToDecoration();
+    void convertSelectionToWalls();
 
     // Editing individual lines (walls, breakable lines and decorations, not moving
     // objects'), at a position. A vertex is a point where lines meet (or a

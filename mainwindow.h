@@ -76,6 +76,8 @@ private:
     QAction* m_redoAction { nullptr };
     QAction* m_deleteAction { nullptr };
     QAction* m_makeMovingAction { nullptr };
+    QAction* m_makeDecorationAction { nullptr };
+    QAction* m_makeWallsAction { nullptr };
     QAction* m_movingPropertiesAction { nullptr };
 };
 

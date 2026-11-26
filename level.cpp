@@ -1326,6 +1326,55 @@ void Level::convertSelectionToMovingObject()
     m_selectedMovingObjects.insert(m_movingObjects.size() - 1);
 }
 
+bool Level::canConvertSelectionToDecoration() const
+{
+    return std::any_of(m_highlightedLineIndices.begin(),
+                       m_highlightedLineIndices.end(),
+                       [this](std::size_t i) { return !m_lines[i].decoration; });
+}
+
+bool Level::canConvertSelectionToWalls() const
+{
+    return std::any_of(
+        m_highlightedLineIndices.begin(), m_highlightedLineIndices.end(), [this](std::size_t i) {
+            return m_lines[i].decoration || m_lines[i].breakable;
+        });
+}
+
+void Level::convertSelectionToDecoration()
+{
+    if (!canConvertSelectionToDecoration()) {
+        return;
+    }
+    checkpoint();
+    for (std::size_t i : m_highlightedLineIndices) {
+        Line& l = m_lines[i];
+        l.r = DECORATION_COLOUR.red();
+        l.g = DECORATION_COLOUR.green();
+        l.b = DECORATION_COLOUR.blue();
+        l.breakable = false;
+        l.breakableGroup = 0;
+        l.decoration = true;
+    }
+}
+
+void Level::convertSelectionToWalls()
+{
+    if (!canConvertSelectionToWalls()) {
+        return;
+    }
+    checkpoint();
+    for (std::size_t i : m_highlightedLineIndices) {
+        Line& l = m_lines[i];
+        l.r = 255;
+        l.g = 0;
+        l.b = 0;
+        l.breakable = false;
+        l.breakableGroup = 0;
+        l.decoration = false;
+    }
+}
+
 std::optional<MovingObject> Level::selectedMovingObject() const
 {
     if (m_selectedMovingObjects.size() != 1) {
