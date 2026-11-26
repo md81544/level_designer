@@ -1,9 +1,1 @@
-* Level files are now JSON (see LEVEL_FORMAT.md), and all levels have been
-  converted. Remaining: remove reading of the old format, when it's no longer
-  wanted: parseOldFormat() in levelformat.cpp (in both repos: the copies must be
-  kept identical), amaze's old reader in levelfile.cpp, and the tests of
-  converting old levels.
-
-* Create objects which are not obstacles - just decoration
-
 * Maybe make pulsation editable?

@@ -105,20 +105,20 @@ struct LevelData {
     bool operator==(const LevelData&) const = default;
 };
 
-// Reads a level file in either format. Throws std::runtime_error on failure,
+// Reads a level file. Throws std::runtime_error on failure,
 // with a message suitable for the user.
 LevelData read(const std::string& filename);
 // Writes a level file (in JSON). Throws std::runtime_error on failure.
 void write(const std::string& filename, const LevelData& level);
 
-// Parses a level file's contents, in either format
+// Parses a level file's contents. parse() also gives a helpful message for
+// files in the old format, which is no longer supported.
 LevelData parse(const std::string& contents);
 LevelData parseJson(const std::string& contents);
-LevelData parseOldFormat(const std::string& contents);
 // The JSON for a level, laid out as LEVEL_FORMAT.md recommends
 std::string toJson(const LevelData& level);
 
-// A single straight line, as used by the old format and the editor
+// A single straight line, as used by the editor and the game
 struct Segment {
     Point start;
     Point end;

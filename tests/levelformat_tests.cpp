@@ -1,17 +1,12 @@
 // Tests for reading and writing level files (see LEVEL_FORMAT.md)
 //
 // NB this file is copied, unchanged, in both amaze and level_designer: see
-// levelformat.h. AMAZE_DATA_DIR is amaze's data directory.
+// levelformat.h.
 
 #include "levelformat.h"
 #include "levelformat_test_utils.h"
 
 #include <catch2/catch_test_macros.hpp>
-
-#include <algorithm>
-#include <filesystem>
-#include <fstream>
-#include <sstream>
 
 using namespace mgo::levelformat;
 
@@ -193,128 +188,7 @@ TEST_CASE("Invalid level files are rejected with a helpful message")
     CHECK(
         movingError(R"("speedX": 1, "path": { "offsets": [[1, 2]] })")
         == "movingObjects[0]: can't have both a \"path\" and speedX/rangeX/speedY/rangeY");
-    CHECK(error("!~0~0~1~2~x~Title") == "line 1: \"x\" isn't a number");
-}
-
-TEST_CASE("Old format levels are converted as LEVEL_FORMAT.md describes")
-{
-    const LevelData level = parse("!~300~100~706~904~90~Old Level\n"
-                                  "N~OBSTRUCTION~obstruction\n"
-                                  // a square, and a separate line
-                                  "L~0~0~10~0~255~0~0~2\n"
-                                  "L~10~0~10~10~255~0~0~2\n"
-                                  "L~0~10~10~10~255~0~0~2\n"
-                                  "L~0~10~0~0~255~0~0~2\n"
-                                  "L~50~50~60~60~255~0~0~2\n"
-                                  // a breakable of two separate lines
-                                  "N~BREAKABLE~breakable\n"
-                                  "L~700~550~700~650~255~150~50~6\n"
-                                  "L~900~550~900~650~255~150~50~6\n"
-                                  // a breakable with a non-standard thickness
-                                  "N~BREAKABLE~breakable\n"
-                                  "L~1~1~2~2~255~150~50~10\n"
-                                  "N~EXIT~exit\n"
-                                  "T~EXIT~52~213~235\n"
-                                  "P~1200~300\n"
-                                  "N~FUEL~fuel\n"
-                                  "T~*~255~255~0~12\n"
-                                  "P~500~500\n"
-                                  "N~FUEL~fuel\n"
-                                  "T~*~255~255~0~4\n"
-                                  "P~600~600\n"
-                                  "N~PRISONER~unused\n"
-                                  "L~5~5~6~6~1~2~3~4\n"
-                                  "N~MOVING~moving_0~0.3~100~0~0~0.5~20\n"
-                                  "L~1~2~3~4~255~172~163~6\n");
-    LevelData expected;
-    expected.title = "Old Level";
-    expected.ship = Ship { 706, 904, 90 };
-    expected.exit = Exit { 1200, 300 }; // thickness 6 (the default) when not given
-    expected.fuel = { { 500, 500 }, { 600, 600, 4 } };
-    expected.walls = {
-        { { { 0, 0 }, { 10, 0 }, { 10, 10 }, { 0, 10 } }, true },
-        { { { 50, 50 }, { 60, 60 } } },
-    };
-    expected.breakables = {
-        { { { { { 700, 550 }, { 700, 650 } } }, { { { 900, 550 }, { 900, 650 } } } } },
-        { { { { { 1, 1 }, { 2, 2 } }, false, 10 } } },
-    };
-    MovingObject moving;
-    moving.lines = { { { { 1, 2 }, { 3, 4 } } } };
-    moving.speedX = 0.3;
-    moving.rangeX = 100;
-    moving.spin = 0.5;
-    moving.gravity = 20;
-    expected.movingObjects = { moving };
-    CHECK(level == expected);
-}
-
-TEST_CASE("All of amaze's levels convert from the old format without losing anything")
-{
-    const std::filesystem::path dir(AMAZE_DATA_DIR);
-    if (!std::filesystem::exists(dir)) {
-        SKIP("amaze isn't alongside, at " << dir);
-    }
-    int count = 0;
-    for (const auto& entry : std::filesystem::directory_iterator(dir)) {
-        if (entry.path().extension() != ".lvl") {
-            continue;
-        }
-        const std::string contents = readFile(entry.path());
-        if (!contents.starts_with('!')) {
-            continue; // already converted
-        }
-        INFO(entry.path().filename());
-        ++count;
-        const LevelData level = parse(contents);
-
-        // Compare the lines with those in the file, read independently here
-        std::vector<Segment> walls;
-        std::vector<Segment> breakableSegments;
-        std::vector<Segment> movingSegments;
-        int breakables = 0;
-        int movingObjects = 0;
-        std::string type;
-        std::istringstream in(contents);
-        std::string line;
-        while (std::getline(in, line)) {
-            const auto f = splitFields(line, '~');
-            if (line.starts_with("N~")) {
-                type = f[1];
-                breakables += type == "BREAKABLE";
-                movingObjects += type == "MOVING";
-            } else if (line.starts_with("L~")) {
-                const double thickness = f.size() > 8 ? std::stod(f[8]) : 1;
-                const double usual = type == "OBSTRUCTION" ? 2 : 6;
-                const Segment s { { std::stod(f[1]), std::stod(f[2]) },
-                                  { std::stod(f[3]), std::stod(f[4]) },
-                                  thickness == usual ? std::nullopt : std::optional(thickness) };
-                (type == "OBSTRUCTION"   ? walls
-                     : type == "BREAKABLE" ? breakableSegments
-                                           : movingSegments)
-                    .push_back(s);
-            }
-        }
-        CHECK(normalised(segmentsOf(level.walls)) == normalised(walls));
-        std::vector<Segment> converted;
-        for (const auto& b : level.breakables) {
-            auto s = segmentsOf(b.lines);
-            converted.insert(converted.end(), s.begin(), s.end());
-        }
-        CHECK(normalised(converted) == normalised(breakableSegments));
-        CHECK(static_cast<int>(level.breakables.size()) == breakables);
-        converted.clear();
-        for (const auto& m : level.movingObjects) {
-            auto s = segmentsOf(m.lines);
-            converted.insert(converted.end(), s.begin(), s.end());
-        }
-        CHECK(normalised(converted) == normalised(movingSegments));
-        CHECK(static_cast<int>(level.movingObjects.size()) == movingObjects);
-
-        // And the JSON reads back exactly
-        CHECK(parseJson(toJson(level)) == level);
-    }
-    if (count == 0) {
-        SKIP("No old format levels left to check, in " << dir);
-    }
+    CHECK(
+        error("!~0~0~1~2~3~Title")
+        == "This level file is in the old format, which is no longer supported");
 }

@@ -54,7 +54,6 @@ A level file is a UTF-8 JSON object. For example:
   level_designer only writes integers, but readers must accept any number.
 - **Rotations** are in degrees, **anticlockwise as seen on screen**. 0 means
   the item's normal orientation, i.e. the ship pointing up, or text upright.
-  This matches the ship angle in the old format, so it converts unchanged.
 - **Optional fields** may be left out, and then take the default given below.
   Writers should leave out fields whose value is the default, to keep files
   short.
@@ -197,40 +196,12 @@ Note that Qt's `QJsonDocument::Indented` output puts every number on its own
 line, which makes files very long, so writers will need their own formatting
 (or to post-process Qt's compact output).
 
-## The old format, and migration
+## The old format
 
-The old format, as described in amaze's `levelformat.h`, is a line-based text
-format with `~`-separated fields, starting with a `!` header line.
-
-During migration:
-
-1. Both programs read both formats, telling them apart by the first
-   non-whitespace character: `{` for JSON, `!` for the old format.
-2. level_designer saves JSON.
-3. The levels in amaze's `data` directory are converted, e.g. by opening and
-   saving them in level_designer.
-4. Once nothing uses the old format, both programs stop reading it.
-
-Converting from the old format:
-
-- The header's time limit and fuel fields are unused, and are dropped.
-- Lines in an `OBSTRUCTION` object become `walls`. Lines which join end to end
-  are combined into polylines, and a polyline which ends where it starts
-  becomes `"closed": true`.
-- Each `BREAKABLE` object becomes one entry in `breakables`, so it still breaks
-  as a whole. Its lines are combined into polylines as for walls.
-- Each `MOVING` object becomes a moving object: `xDelta`, `xMaxDifference`,
-  `yDelta`, `yMaxDifference`, `rotationDelta` and `gravity` become `speedX`,
-  `rangeX`, `speedY`, `rangeY`, `spin` and `gravity`.
-- A `MOVING` object's lines are combined into polylines as for walls.
-- `EXIT` and `FUEL` objects take their position from their `P` line, and their
-  thickness from their `T` line (if it isn't the default).
-- Line colours are dropped: all existing levels use the standard colours.
-- amaze also recognises `PRISONER` and `KEY` objects (and treats unknown types
-  as neutral), but no levels use them. They aren't part of version 1, and can
-  be added later as new optional fields.
+Levels used to be in a line-based text format, with `~`-separated fields,
+starting with a `!` header line. All levels have been converted, and neither
+program reads it any more: given such a file, they say so.
 
 ## File names
 
-Level files keep the `.lvl` extension, whichever format they're in: their
-contents say which format a file is in.
+Level files have the `.lvl` extension (as old format files did).

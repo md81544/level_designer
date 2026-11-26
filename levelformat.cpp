@@ -19,20 +19,6 @@ namespace levelformat {
 
 namespace {
 
-std::vector<std::string> split(const std::string& s, char delimiter)
-{
-    std::vector<std::string> result;
-    std::string::size_type start = 0;
-    for (;;) {
-        const auto end = s.find(delimiter, start);
-        result.push_back(s.substr(start, end - start));
-        if (end == std::string::npos) {
-            return result;
-        }
-        start = end + 1;
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Reading JSON
 // ---------------------------------------------------------------------------
@@ -211,24 +197,6 @@ void writeList(
     first = false;
 }
 
-// ---------------------------------------------------------------------------
-// The old format
-// ---------------------------------------------------------------------------
-
-double toDouble(const std::string& s, int lineNumber)
-{
-    try {
-        std::size_t used = 0;
-        const double value = std::stod(s, &used);
-        if (used != s.size()) {
-            throw std::invalid_argument(s);
-        }
-        return value;
-    } catch (const std::logic_error&) {
-        throw std::runtime_error(std::format("line {}: \"{}\" isn't a number", lineNumber, s));
-    }
-}
-
 } // namespace
 
 // ---------------------------------------------------------------------------
@@ -261,13 +229,14 @@ void write(const std::string& filename, const LevelData& level)
 
 LevelData parse(const std::string& contents)
 {
-    // The formats are told apart by their first non-whitespace character
+    // JSON starts with '{'; old format files (no longer supported) with '!'
     for (const char c : contents) {
         if (c == '{') {
             return parseJson(contents);
         }
         if (c == '!') {
-            return parseOldFormat(contents);
+            throw std::runtime_error(
+                "This level file is in the old format, which is no longer supported");
         }
         if (!std::isspace(static_cast<unsigned char>(c))) {
             break;
@@ -500,159 +469,6 @@ std::string toJson(const LevelData& level)
     }
     out << "\n}\n";
     return out.str();
-}
-
-LevelData parseOldFormat(const std::string& contents)
-{
-    // See amaze's levelformat.h for the format. Each "N~<type>~..." line starts
-    // a new object, to which the following lines apply.
-    LevelData level;
-    enum class Type {
-        NONE, // before the first object, or an unsupported type
-        OBSTRUCTION,
-        BREAKABLE,
-        MOVING,
-        EXIT,
-        FUEL
-    };
-    Type type = Type::NONE;
-    std::vector<Segment> segments; // the current object's lines
-    MovingObject moving;
-    std::optional<Point> position;
-    std::optional<double> textThickness;
-    std::vector<Segment> walls;
-
-    // Adds the current object to the level
-    auto finishObject = [&]() {
-        switch (type) {
-            case Type::OBSTRUCTION:
-                walls.insert(walls.end(), segments.begin(), segments.end());
-                break;
-            case Type::BREAKABLE:
-                if (!segments.empty()) {
-                    level.breakables.push_back({ toPolylines(segments) });
-                }
-                break;
-            case Type::MOVING:
-                if (!segments.empty()) {
-                    moving.lines = toPolylines(segments);
-                    level.movingObjects.push_back(moving);
-                }
-                break;
-            case Type::EXIT:
-                if (position.has_value()) {
-                    level.exit = Exit { position->x, position->y, 0, textThickness };
-                }
-                break;
-            case Type::FUEL:
-                if (position.has_value()) {
-                    level.fuel.push_back({ position->x, position->y, textThickness });
-                }
-                break;
-            case Type::NONE:
-                break;
-        }
-        segments.clear();
-        position.reset();
-        textThickness.reset();
-    };
-
-    std::istringstream in(contents);
-    std::string line;
-    int lineNumber = 0;
-    bool haveHeader = false;
-    while (std::getline(in, line)) {
-        ++lineNumber;
-        if (!line.empty() && line.back() == '\r') {
-            line.pop_back();
-        }
-        if (line.empty()) {
-            continue;
-        }
-        const std::vector<std::string> f = split(line, '~');
-        auto num = [&](std::size_t i) { return toDouble(f[i], lineNumber); };
-        auto need = [&](std::size_t count) {
-            if (f.size() < count) {
-                throw std::runtime_error(std::format("line {}: too few fields", lineNumber));
-            }
-        };
-        switch (line[0]) {
-            case '!': // !~<time limit>~<fuel>~<x>~<y>~<angle>~<title>
-                need(6);
-                level.ship = Ship { num(3), num(4), num(5) };
-                if (f.size() > 6) {
-                    level.title = f[6];
-                }
-                haveHeader = true;
-                break;
-            case 'N': // N~<type>~<name>[~<moving object parameters>]
-                need(2);
-                finishObject();
-                type = Type::NONE;
-                if (f[1] == "OBSTRUCTION") {
-                    type = Type::OBSTRUCTION;
-                } else if (f[1] == "BREAKABLE") {
-                    type = Type::BREAKABLE;
-                } else if (f[1] == "EXIT") {
-                    type = Type::EXIT;
-                } else if (f[1] == "FUEL") {
-                    type = Type::FUEL;
-                } else if (f[1] == "MOVING") {
-                    type = Type::MOVING;
-                    need(8); // N~MOVING~name~dx~xmax~dy~ymax~rotation[~gravity]
-                    moving = MovingObject {};
-                    moving.speedX = num(3);
-                    moving.rangeX = num(4);
-                    moving.speedY = num(5);
-                    moving.rangeY = num(6);
-                    moving.spin = num(7);
-                    moving.gravity = f.size() > 8 ? num(8) : 0;
-                }
-                // Other types (e.g. PRISONER, KEY) aren't used, and are dropped
-                break;
-            case 'L': // L~x0~y0~x1~y1~r~g~b[~thickness]
-                {
-                    need(8);
-                    // A missing thickness means 1 (as in amaze); store it if
-                    // it isn't the default for the object's type
-                    const double thickness = f.size() > 8 ? num(8) : 1;
-                    const double defaultThickness = type == Type::OBSTRUCTION
-                        ? DEFAULT_WALL_THICKNESS
-                        : type == Type::BREAKABLE ? DEFAULT_BREAKABLE_THICKNESS
-                                                  : DEFAULT_MOVING_OBJECT_THICKNESS;
-                    segments.push_back(
-                        { { num(1), num(2) },
-                          { num(3), num(4) },
-                          thickness == defaultThickness ? std::nullopt
-                                                        : std::optional(thickness) });
-                    break;
-                }
-            case 'P': // P~x~y
-                need(3);
-                position = Point { num(1), num(2) };
-                break;
-            case 'T': // T~text~r~g~b[~thickness]
-                {
-                    need(5);
-                    // A missing thickness means 6 (as in amaze)
-                    const double thickness = f.size() > 5 ? num(5) : 6;
-                    const double defaultThickness
-                        = type == Type::FUEL ? DEFAULT_FUEL_THICKNESS : DEFAULT_EXIT_THICKNESS;
-                    if (thickness != defaultThickness) {
-                        textThickness = thickness;
-                    }
-                    break;
-                }
-            default:
-                break;
-        }
-    }
-    finishObject();
-    if (!haveHeader) {
-        throw std::runtime_error("Missing header (\"!...\") line");
-    }
-    level.walls = toPolylines(walls);
-    return level;
 }
 
 std::vector<Polyline> toPolylines(const std::vector<Segment>& segments)

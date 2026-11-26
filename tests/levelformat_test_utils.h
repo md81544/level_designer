@@ -15,20 +15,6 @@
 #include <tuple>
 #include <vector>
 
-inline std::vector<std::string> splitFields(const std::string& s, char delimiter = '~')
-{
-    std::vector<std::string> fields;
-    std::string field;
-    std::istringstream in(s);
-    while (std::getline(in, field, delimiter)) {
-        fields.push_back(field);
-    }
-    if (!s.empty() && s.back() == delimiter) {
-        fields.push_back("");
-    }
-    return fields;
-}
-
 inline std::string readFile(const std::filesystem::path& path)
 {
     std::ifstream in(path, std::ios::binary);
