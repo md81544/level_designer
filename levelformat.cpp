@@ -277,6 +277,12 @@ LevelData parseJson(const std::string& contents)
         }
         level.title = root.value("title").toString().toStdString();
     }
+    if (root.contains("introduction")) {
+        if (!root.value("introduction").isString()) {
+            throw std::runtime_error("\"introduction\" must be a string");
+        }
+        level.introduction = root.value("introduction").toString().toStdString();
+    }
     if (root.contains("ship")) {
         const QJsonObject obj = getObject(root.value("ship"), "ship");
         level.ship = Ship { getNumber(obj, "x", "ship"),
@@ -372,6 +378,9 @@ std::string toJson(const LevelData& level)
     out << "{\n  \"formatVersion\": " << FORMAT_VERSION;
     if (!level.title.empty()) {
         out << ",\n  \"title\": " << quoted(level.title);
+    }
+    if (!level.introduction.empty()) {
+        out << ",\n  \"introduction\": " << quoted(level.introduction);
     }
     if (level.ship.has_value()) {
         out << std::format(

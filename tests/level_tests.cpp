@@ -38,6 +38,7 @@ private:
 // What matters about a level, ignoring how its lines are split into polylines
 struct Contents {
     std::string title;
+    std::string introduction;
     std::optional<levelformat::Ship> ship;
     std::optional<levelformat::Exit> exit;
     std::vector<levelformat::Fuel> fuel;
@@ -50,7 +51,7 @@ struct Contents {
 
 Contents contentsOf(const levelformat::LevelData& level)
 {
-    Contents c { level.title, level.ship, level.exit, level.fuel, normalised(segmentsOf(level.walls)) };
+    Contents c { level.title, level.introduction, level.ship, level.exit, level.fuel, normalised(segmentsOf(level.walls)) };
     for (const auto& b : level.breakables) {
         c.breakables.push_back(normalised(segmentsOf(b.lines)));
     }
@@ -102,6 +103,7 @@ TEST_CASE("The editor saves what it loads, including rotations and thicknesses")
         out << R"({
           "formatVersion": 2,
           "title": "Features",
+          "introduction": "<p>Hello</p>\n<p>There</p>",
           "ship": { "x": 100, "y": 200, "rotation": 45 },
           "exit": { "x": 300, "y": 400, "rotation": 30, "thickness": 4 },
           "fuel": [ { "x": 1, "y": 2, "thickness": 3 } ],

@@ -44,6 +44,7 @@ TEST_CASE("A level survives being written as JSON and read back")
 {
     LevelData level;
     level.title = "Quotes \" \\ and caf\xc3\xa9";
+    level.introduction = "<p>Line one</p>\n<p align=\"left\">Line \"two\"</p>";
     level.ship = Ship { 706, 904, 270 };
     level.exit = Exit { 1200, 300, 45, 4 };
     level.fuel = { { 500, 500 }, { 650.5, 820, 4 } };
@@ -75,6 +76,7 @@ TEST_CASE("JSON is written in the documented layout, leaving out defaults")
 {
     LevelData level;
     level.title = "Test";
+    level.introduction = "Line one\nLine two";
     level.ship = Ship { 706, 904, 0 };
     level.exit = Exit { 1200, 300 };
     level.fuel = { { 500, 500 }, { 650, 820, 4 } };
@@ -94,6 +96,7 @@ TEST_CASE("JSON is written in the documented layout, leaving out defaults")
     CHECK(toJson(level) == R"({
   "formatVersion": 2,
   "title": "Test",
+  "introduction": "Line one\nLine two",
   "ship": { "x": 706, "y": 904 },
   "exit": { "x": 1200, "y": 300 },
   "fuel": [
@@ -170,6 +173,9 @@ TEST_CASE("Invalid level files are rejected with a helpful message")
     CHECK(error("{}") == "Missing \"formatVersion\"");
     CHECK(error("{ \"formatVersion\": 3 }").starts_with("This level is in a newer format (version 3)"));
     CHECK(error(R"({ "formatVersion": 2, "ship": { "x": 1 } })") == "ship: missing \"y\"");
+    CHECK(
+        error(R"({ "formatVersion": 2, "introduction": ["Hello"] })")
+        == "\"introduction\" must be a string");
     CHECK(
         error(R"({ "formatVersion": 2, "walls": [ { "points": [[0, 0], [1]] } ] })")
         == "walls[0]: points[1] must be [x, y]");

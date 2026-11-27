@@ -95,6 +95,8 @@ struct SpecialObject {
 
 struct LevelData {
     std::string title;
+    // Shown before the level starts: plain text, or HTML (see LEVEL_FORMAT.md)
+    std::string introduction;
     std::optional<Ship> ship;
     std::optional<Exit> exit;
     std::vector<Fuel> fuel;

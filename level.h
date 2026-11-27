@@ -336,6 +336,9 @@ private:
     void translateSelection(int x, int y);
 
     std::string m_levelDescription;
+    // Shown by amaze before the level starts. Not editable here yet, but kept
+    // so that saving doesn't lose it.
+    std::string m_levelIntroduction;
     std::vector<Line> m_lines;
     std::optional<StartPosition> m_startPosition;
     std::optional<ExitPosition> m_exitPosition;

@@ -137,6 +137,7 @@ void Level::load(const std::string& filename)
     };
 
     m_levelDescription = data.title;
+    m_levelIntroduction = data.introduction;
     if (data.ship.has_value()) {
         m_startPosition = { coord(data.ship->x), coord(data.ship->y), angle(data.ship->rotation) };
     }
@@ -201,6 +202,7 @@ void Level::save(const std::string& filename)
 
     levelformat::LevelData data;
     data.title = m_levelDescription;
+    data.introduction = m_levelIntroduction;
     if (m_startPosition.has_value()) {
         data.ship = levelformat::Ship { static_cast<double>(m_startPosition->x),
                                       static_cast<double>(m_startPosition->y),

@@ -18,6 +18,7 @@ A level file is a UTF-8 JSON object. For example:
 {
   "formatVersion": 2,
   "title": "Rookie Trainer",
+  "introduction": "<p>Your first flight.</p><p>Collect the <b>fuel</b>, then head for the exit.</p>",
   "ship": { "x": 706, "y": 904, "rotation": 0 },
   "exit": { "x": 1200, "y": 300 },
   "fuel": [
@@ -69,7 +70,8 @@ A level file is a UTF-8 JSON object. For example:
 | Field | Type | Default | Meaning |
 |---|---|---|---|
 | `formatVersion` | integer | (required) | Always 2 for this version; see [Versions](#versions) |
-| `title` | string | `""` | The level's title, shown before it starts |
+| `title` | string | `""` | The level's title, shown before it starts (and in the list of levels) |
+| `introduction` | string | `""` | Text shown before the level starts, instead of "Get Ready"; see [Introduction](#introduction) |
 | `ship` | [Ship](#ship) | at (0, 0), rotation 0 | The ship's starting position |
 | `exit` | [Exit](#exit) | none | The exit. A level has at most one. |
 | `fuel` | array of [Fuel](#fuel) | `[]` | Fuel to collect |
@@ -77,6 +79,19 @@ A level file is a UTF-8 JSON object. For example:
 | `breakables` | array of [Breakable](#breakable) | `[]` | Walls which the ship's exhaust breaks |
 | `decorations` | array of [Polyline](#polyline) | `[]` | Lines which are only drawn: the ship passes over them. (Older programs, which don't know about them, ignore them.) |
 | `specialObjects` | array of [Special object](#special-object) | `[]` | Obstructions which can move, spin and/or pull the ship with gravity |
+
+## Introduction
+
+Free-form text, e.g. a paragraph of the story, shown (with the title above
+it) in a panel before the level starts, in place of the "Get Ready" message.
+
+It can be plain text, in which line breaks (`\n`) are kept, or HTML, which is
+recognised by starting with a tag (e.g. `<p>`). HTML is drawn by Qt, which
+supports [a subset of HTML 4](https://doc.qt.io/qt-6/richtext-html-subset.html):
+e.g. `<p>`, `<br>`, `<b>`, `<i>`, `<u>` and `<span style="color: #ff0">`.
+Text is centred, in the game's own font and colour, unless the HTML says
+otherwise (e.g. `<p align="left">`). As JSON strings can't span lines, write
+long text on one line, with `\n` or HTML tags for line breaks.
 
 ## Ship
 
