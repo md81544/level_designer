@@ -52,6 +52,7 @@ private:
     void setMode(Mode mode);
     void choosePolygon();
     void editTitle();
+    void editIntroduction();
     // Opens the special object properties dialog, with the given field focused
     enum class SpecialField {
         Motion,

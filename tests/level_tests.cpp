@@ -392,3 +392,19 @@ TEST_CASE("Selected lines can be made decorations and back again")
     CHECK(saved.breakables.size() == 1);
     CHECK(saved.walls.empty());
 }
+
+TEST_CASE("The introduction can be set, undone and saved")
+{
+    TempFile file("introduction.lvl");
+    Level level;
+    level.setIntroduction("<p>Hello</p>");
+    CHECK(level.isDirty());
+    level.save(file.path());
+    CHECK(levelformat::read(file.path()).introduction == "<p>Hello</p>");
+
+    level.setIntroduction("Changed");
+    CHECK(level.isDirty());
+    level.undo();
+    CHECK(level.introduction() == "<p>Hello</p>");
+    CHECK_FALSE(level.isDirty());
+}

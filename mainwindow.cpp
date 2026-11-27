@@ -197,6 +197,9 @@ void MainWindow::createMenus()
         [this] { m_level.deleteSelection(); });
     editMenu->addSeparator();
     add(editMenu, "Level &Title...", { QKeySequence(Qt::Key_T) }, [this] { editTitle(); });
+    add(editMenu, "Level &Introduction...", { QKeySequence(Qt::Key_I) }, [this] {
+        editIntroduction();
+    });
 
     // Insert (and select): these are the editing modes
     auto* modeGroup = new QActionGroup(this);
@@ -609,6 +612,21 @@ void MainWindow::editTitle()
         // '~' separates fields in the level file
         title.replace('~', '-');
         m_level.setDescription(title.toStdString());
+    }
+}
+
+void MainWindow::editIntroduction()
+{
+    bool ok = false;
+    const QString introduction = QInputDialog::getMultiLineText(
+        this,
+        "Level Introduction",
+        "Shown before the level starts, instead of \"Get Ready\".\n"
+        "Plain text, or HTML if it starts with a tag, e.g. <p>.",
+        QString::fromStdString(m_level.introduction()),
+        &ok);
+    if (ok) {
+        m_level.setIntroduction(introduction.trimmed().toStdString());
     }
 }
 

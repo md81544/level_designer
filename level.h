@@ -120,6 +120,9 @@ public:
     const std::string& fileName() const;
     const std::string& description() const;
     void setDescription(const std::string& description);
+    // Shown by amaze before the level starts: plain text, or HTML
+    const std::string& introduction() const;
+    void setIntroduction(const std::string& introduction);
     bool isDirty() const;
 
     Mode mode() const;
@@ -312,6 +315,7 @@ private:
     struct Snapshot {
         unsigned long stateId;
         std::string description;
+        std::string introduction;
         std::vector<Line> lines;
         std::optional<StartPosition> startPosition;
         std::optional<ExitPosition> exitPosition;
@@ -336,8 +340,6 @@ private:
     void translateSelection(int x, int y);
 
     std::string m_levelDescription;
-    // Shown by amaze before the level starts. Not editable here yet, but kept
-    // so that saving doesn't lose it.
     std::string m_levelIntroduction;
     std::vector<Line> m_lines;
     std::optional<StartPosition> m_startPosition;

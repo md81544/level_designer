@@ -291,6 +291,19 @@ void Level::setDescription(const std::string& description)
     }
 }
 
+const std::string& Level::introduction() const
+{
+    return m_levelIntroduction;
+}
+
+void Level::setIntroduction(const std::string& introduction)
+{
+    if (introduction != m_levelIntroduction) {
+        checkpoint();
+        m_levelIntroduction = introduction;
+    }
+}
+
 bool Level::isDirty() const
 {
     return m_stateId != m_savedStateId;
@@ -1776,8 +1789,9 @@ void Level::moveVertex(QPointF pos)
 
 Level::Snapshot Level::snapshot() const
 {
-    return { m_stateId,         m_levelDescription, m_lines,         m_startPosition,
-             m_exitPosition,    m_fuelObjects,      m_specialObjects, m_currentSpecialObject };
+    return { m_stateId,      m_levelDescription, m_levelIntroduction,
+             m_lines,        m_startPosition,    m_exitPosition,
+             m_fuelObjects,  m_specialObjects,   m_currentSpecialObject };
 }
 
 void Level::restore(const Snapshot& snapshot)
@@ -1802,6 +1816,7 @@ void Level::restore(const Snapshot& snapshot)
 void Level::restoreContents(const Snapshot& snapshot)
 {
     m_levelDescription = snapshot.description;
+    m_levelIntroduction = snapshot.introduction;
     m_lines = snapshot.lines;
     m_startPosition = snapshot.startPosition;
     m_exitPosition = snapshot.exitPosition;
